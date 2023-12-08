@@ -1,0 +1,4 @@
+.env
+/node_modules
+src/path/company
+src/path/proyect
