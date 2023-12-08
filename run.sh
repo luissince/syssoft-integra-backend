@@ -8,5 +8,5 @@ docker run -d \
 --restart always \
 --name sysintegra-backend \
 --net=luis \
--p 6100:80 \
+-p 6001:80 \
 sysintegra-backend

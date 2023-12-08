@@ -10,7 +10,7 @@ services:
     networks:
       - luis
     ports:
-      - 6100:80
+      - 6001:80
 networks:
   luis:
     external: true
