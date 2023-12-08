@@ -1,0 +1,16 @@
+version: "3"
+services:
+  next-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sysintegra-backend
+    container_name: sysintegra-backend
+    restart: always
+    networks:
+      - luis
+    ports:
+      - 6100:80
+networks:
+  luis:
+    external: true
