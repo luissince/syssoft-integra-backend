@@ -106,7 +106,7 @@ app.use('/api/kardex', require('./src/router/Kardex'));
 app.use('/api/metodopago', require('./src/router/MetodoPago'));
 app.use('/api/tipoajuste', require('./src/router/TipoAjuste'));
 app.use('/api/inventario', require('./src/router/Inventario'));
-app.use('/api/ajuste', require('./src/router/ajuste'));
+app.use('/api/ajuste', require('./src/router/Ajuste'));
 app.use('/api/motivoajuste', require('./src/router/MotivoAjuste'));
 app.use('/api/compra', require('./src/router/Compra'));
 app.use('/api/guiaremision', require('./src/router/GuiaRemision'));
