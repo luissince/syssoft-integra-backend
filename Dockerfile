@@ -1,5 +1,5 @@
 # Usa la última imagen estable de Node.js como base
-FROM node:latest
+FROM node:18
 
 # Crea el directorio de la aplicación
 WORKDIR /home/app
