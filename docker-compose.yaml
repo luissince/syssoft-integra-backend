@@ -20,7 +20,7 @@ services:
       - luis
     # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
     ports:
-      - 6001:80
+      - ${CONTAINER_PORT}:80
 
 # Definición de redes
 networks:

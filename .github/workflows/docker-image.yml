@@ -23,6 +23,7 @@ jobs:
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
       CONTAINER_NAME: sysintegra-backend-bodega
+      CONTAINER_PORT: 6002
 
     steps:
       - name: Checkout código
@@ -64,6 +65,7 @@ jobs:
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
       CONTAINER_NAME: sysintegra-backend
+      CONTAINER_PORT: 6001
 
     steps:
       - name: Checkout código
