@@ -2,63 +2,86 @@ name: Docker Image CI - SySoftIntegra BackEnd
 
 on:
   push:
-    branches: [ "master" ]
+    branches: 
+      - master
+      - development
   # pull_request:
     # branches: [ "master" ]
 
 jobs:
-
-  build:
-
-    runs-on: self-hosted
-    environment: desarrollo
-
-    env:  
-      PORT: ${{ secrets.PORT }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      TZ: ${{ secrets.TZ }}
-      VGG: "HOLA"
+  deploy_main:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Crear archivo .env
-        run: |
-          cat > .env <<EOL
-          PORT="${{env.PORT}}"
-          DB_HOST="${{env.DB_HOST}}"
-          DB_USER="${{env.DB_USER}}"
-          DB_PASSWORD="${{env.DB_PASSWORD}}"
-          DB_NAME="${{env.DB_NAME}}"
-          DB_PORT="${{env.DB_PORT}}"
-          TZ="${{env.TZ}}"
-          EOL
+      - name: Deploy on Master branch
+        run: echo "Deploying on the master branch..."
 
-      - name: Mostrar contenido del archivo .env
-        run: cat .env
+  deploy_development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
 
-      - name: Set up environment
-        run: echo "${{ github.ref }}"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Mostrar vars
-        run: |
-          echo "${{vars.ENVIRONMENT}}"
-          echo "${{env.TZ}}"
+      - name: Deploy on Development branch
+        run: echo "Deploying on the development branch..."
 
-      - name: Build and deploy
-        run: |
-          if [ "${{vars.ENVIRONMENT}}" = "production-bodega" ]; then
-            # Lógica específica para producción
-            echo "Deploying to production..."
-          else
-            # Lógica específica para desarrollo
-            echo "Deploying to desarrollo..."
-          fi
+  # build:
+
+  #   runs-on: self-hosted
+  #   environment: desarrollo
+
+  #   env:  
+  #     PORT: ${{ secrets.PORT }}
+  #     DB_HOST: ${{ secrets.DB_HOST }}
+  #     DB_USER: ${{ secrets.DB_USER }}
+  #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  #     DB_NAME: ${{ secrets.DB_NAME }}
+  #     DB_PORT: ${{ secrets.DB_PORT }}
+  #     TZ: ${{ secrets.TZ }}
+  #     VGG: "HOLA"
+
+  #   steps:
+  #     - name: Checkout código
+  #       uses: actions/checkout@v3
+
+  #     - name: Crear archivo .env
+  #       run: |
+  #         cat > .env <<EOL
+  #         PORT="${{env.PORT}}"
+  #         DB_HOST="${{env.DB_HOST}}"
+  #         DB_USER="${{env.DB_USER}}"
+  #         DB_PASSWORD="${{env.DB_PASSWORD}}"
+  #         DB_NAME="${{env.DB_NAME}}"
+  #         DB_PORT="${{env.DB_PORT}}"
+  #         TZ="${{env.TZ}}"
+  #         EOL
+
+  #     - name: Mostrar contenido del archivo .env
+  #       run: cat .env
+
+  #     - name: Set up environment
+  #       run: echo "${{ github.ref }}"
+
+  #     - name: Mostrar vars
+  #       run: |
+  #         echo "${{vars.ENVIRONMENT}}"
+  #         echo "${{env.TZ}}"
+
+  #     - name: Build and deploy
+  #       run: |
+  #         if [ "${{vars.ENVIRONMENT}}" = "production-bodega" ]; then
+  #           # Lógica específica para producción
+  #           echo "Deploying to production..."
+  #         else
+  #           # Lógica específica para desarrollo
+  #           echo "Deploying to desarrollo..."
+  #         fi
 
       # - name: Creando y ejecutando contenedor
       #   run: docker compose up --build -d
