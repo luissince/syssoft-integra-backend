@@ -10,7 +10,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: sysintegra-backend-image
+    # image: sysintegra-backend-image
     # Nombre del contenedor
     container_name: ${CONTAINER_NAME}
     # Configuración para reiniciar siempre el contenedor
