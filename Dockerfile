@@ -11,7 +11,7 @@ COPY . .
 RUN npm install
 
 # Expone el puerto en el que la aplicación está escuchando
-EXPOSE 6001
+EXPOSE 80
 
 # Establece el comando predeterminado para iniciar la aplicación
 CMD ["npm", "start"]

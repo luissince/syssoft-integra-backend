@@ -48,7 +48,7 @@ jobs:
         run: echo "Deploying on the master branch..."
 
       - name: Creando y ejecutando contenedor
-        run: docker compose up --build -d
+        run: docker compose -f docker-compose-bodega.yml up --build -d
 
 
   deploy_development:
