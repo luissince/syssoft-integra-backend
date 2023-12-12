@@ -48,7 +48,7 @@ jobs:
       - name: Mostrar vars
         run: |
           echo "${{vars.ENVIRONMENT}}"
-          echo "${{env.VGG}}"
+          echo "${{env.TZ}}"
 
       # - name: Creando y ejecutando contenedor
       #   run: docker compose up --build -d
