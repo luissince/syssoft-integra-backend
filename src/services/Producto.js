@@ -742,6 +742,18 @@ class Producto {
         }
     }
 
+    async obtenerListPrecio(req){
+        try{
+            const lista = await conec.query(`select nombre, valor from precio where idProducto = ?`,[
+                req.query.idProducto
+            ]);
+
+            return lista;
+        }catch(error){
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
     async listaEstadoProducto(req) {
         try {
 

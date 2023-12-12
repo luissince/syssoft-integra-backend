@@ -111,6 +111,16 @@ router.get('/preferidos', async function (req, res) {
     }
 });
 
+router.get('/lista/precios', async function (req, res) {
+    const result = await producto.obtenerListPrecio(req)
+    if (Array.isArray(result)) {
+        res.status(200).send(result)
+    } else {
+        res.status(500).send(result)
+    }
+});
+
+
 router.put('/establecer/preferido', async function (req, res) {
     const result = await producto.preferidoEstablecer(req)
     if (result === "update") {
