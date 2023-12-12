@@ -2,57 +2,12 @@ name: Docker Image CI - SySoftIntegra BackEnd
 
 on:
   push:
-    branches: 
-      - master
-      - development
+    branches: [ "master" ]
   # pull_request:
     # branches: [ "master" ]
 
 jobs:
-  deploy_master:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: self-hosted
-    environment: produccion-bodega
-
-    env:  
-      PORT: ${{ secrets.PORT }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      TZ: ${{ secrets.TZ }}
-      CONTAINER_NAME: sysintegra-backend-bodega
-      CONTAINER_PORT: 6002
-
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-
-      - name: Crear archivo .env
-        run: |
-          cat > .env <<EOL
-          PORT="${{env.PORT}}"
-          DB_HOST="${{env.DB_HOST}}"
-          DB_USER="${{env.DB_USER}}"
-          DB_PASSWORD="${{env.DB_PASSWORD}}"
-          DB_NAME="${{env.DB_NAME}}"
-          DB_PORT="${{env.DB_PORT}}"
-          TZ="${{env.TZ}}"
-          EOL
-
-      - name: Mostrar contenido del archivo .env
-        run: cat .env
-
-      - name: Deploy on Master branch
-        run: echo "Deploying on the master branch..."
-
-      - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose-bodega.yml up --build -d
-
-
-  deploy_development:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+  build-and-deploy-app-development:
     runs-on: self-hosted
     environment: desarrollo
 
@@ -64,8 +19,6 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
-      CONTAINER_NAME: sysintegra-backend-development
-      CONTAINER_PORT: 6001
 
     steps:
       - name: Checkout código
@@ -83,14 +36,92 @@ jobs:
           TZ="${{env.TZ}}"
           EOL
 
-      - name: Mostrar contenido del archivo .env
-        run: cat .env
-        
-      - name: Deploy on Development branch
-        run: echo "Deploying on the development branch..."
 
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose-development.yml up --build -d
+        run: docker compose -f docker-compose.yml up --build app-development -d
+
+  # deploy_master:
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+  #   runs-on: self-hosted
+  #   environment: produccion-bodega
+
+  #   env:  
+  #     PORT: ${{ secrets.PORT }}
+  #     DB_HOST: ${{ secrets.DB_HOST }}
+  #     DB_USER: ${{ secrets.DB_USER }}
+  #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  #     DB_NAME: ${{ secrets.DB_NAME }}
+  #     DB_PORT: ${{ secrets.DB_PORT }}
+  #     TZ: ${{ secrets.TZ }}
+  #     CONTAINER_NAME: sysintegra-backend-bodega
+  #     CONTAINER_PORT: 6002
+
+  #   steps:
+  #     - name: Checkout código
+  #       uses: actions/checkout@v3
+
+  #     - name: Crear archivo .env
+  #       run: |
+  #         cat > .env <<EOL
+  #         PORT="${{env.PORT}}"
+  #         DB_HOST="${{env.DB_HOST}}"
+  #         DB_USER="${{env.DB_USER}}"
+  #         DB_PASSWORD="${{env.DB_PASSWORD}}"
+  #         DB_NAME="${{env.DB_NAME}}"
+  #         DB_PORT="${{env.DB_PORT}}"
+  #         TZ="${{env.TZ}}"
+  #         EOL
+
+  #     - name: Mostrar contenido del archivo .env
+  #       run: cat .env
+
+  #     - name: Deploy on Master branch
+  #       run: echo "Deploying on the master branch..."
+
+  #     - name: Creando y ejecutando contenedor
+  #       run: docker compose -f docker-compose-bodega.yml up --build -d
+
+
+  # deploy_development:
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+  #   runs-on: self-hosted
+  #   environment: desarrollo
+
+  #   env:  
+  #     PORT: ${{ secrets.PORT }}
+  #     DB_HOST: ${{ secrets.DB_HOST }}
+  #     DB_USER: ${{ secrets.DB_USER }}
+  #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  #     DB_NAME: ${{ secrets.DB_NAME }}
+  #     DB_PORT: ${{ secrets.DB_PORT }}
+  #     TZ: ${{ secrets.TZ }}
+  #     CONTAINER_NAME: sysintegra-backend-development
+  #     CONTAINER_PORT: 6001
+
+  #   steps:
+  #     - name: Checkout código
+  #       uses: actions/checkout@v3
+
+  #     - name: Crear archivo .env
+  #       run: |
+  #         cat > .env <<EOL
+  #         PORT="${{env.PORT}}"
+  #         DB_HOST="${{env.DB_HOST}}"
+  #         DB_USER="${{env.DB_USER}}"
+  #         DB_PASSWORD="${{env.DB_PASSWORD}}"
+  #         DB_NAME="${{env.DB_NAME}}"
+  #         DB_PORT="${{env.DB_PORT}}"
+  #         TZ="${{env.TZ}}"
+  #         EOL
+
+  #     - name: Mostrar contenido del archivo .env
+  #       run: cat .env
+        
+  #     - name: Deploy on Development branch
+  #       run: echo "Deploying on the development branch..."
+
+  #     - name: Creando y ejecutando contenedor
+  #       run: docker compose -f docker-compose-development.yml up --build -d
 
   # build:
 
