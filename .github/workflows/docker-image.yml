@@ -11,7 +11,7 @@ jobs:
   build:
 
     runs-on: self-hosted
-    environment: produccion-bodega
+    environment: desarrollo
 
     env:  
       PORT: ${{ secrets.PORT }}
@@ -57,7 +57,7 @@ jobs:
             echo "Deploying to production..."
           else
             # Lógica específica para desarrollo
-            echo "Deploying to development..."
+            echo "Deploying to desarrollo..."
           fi
 
       # - name: Creando y ejecutando contenedor
