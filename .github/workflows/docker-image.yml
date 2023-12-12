@@ -50,5 +50,15 @@ jobs:
           echo "${{vars.ENVIRONMENT}}"
           echo "${{env.TZ}}"
 
+      - name: Build and deploy
+        run: |
+          if [ "${{vars.ENVIRONMENT}}" = "production-bodega" ]; then
+            # Lógica específica para producción
+            echo "Deploying to production..."
+          else
+            # Lógica específica para desarrollo
+            echo "Deploying to development..."
+          fi
+
       # - name: Creando y ejecutando contenedor
       #   run: docker compose up --build -d
