@@ -12,7 +12,7 @@ services:
     # Nombre de la imagen de la imagen generada
     image: sysintegra-backend-image
     # Nombre del contenedor
-    container_name: sysintegra-backend
+    container_name: ${CONTAINER_NAME}
     # Configuración para reiniciar siempre el contenedor
     restart: always
     # Configuración de redes

@@ -9,27 +9,86 @@ on:
     # branches: [ "master" ]
 
 jobs:
-  deploy_main:
+  deploy_master:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    environment: produccion-bodega
+
+    env:  
+      PORT: ${{ secrets.PORT }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      TZ: ${{ secrets.TZ }}
+      CONTAINER_NAME: sysintegra-backend-bodega
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{env.PORT}}"
+          DB_HOST="${{env.DB_HOST}}"
+          DB_USER="${{env.DB_USER}}"
+          DB_PASSWORD="${{env.DB_PASSWORD}}"
+          DB_NAME="${{env.DB_NAME}}"
+          DB_PORT="${{env.DB_PORT}}"
+          TZ="${{env.TZ}}"
+          EOL
+
+      - name: Mostrar contenido del archivo .env
+        run: cat .env
 
       - name: Deploy on Master branch
         run: echo "Deploying on the master branch..."
 
+      - name: Creando y ejecutando contenedor
+        run: docker compose up --build -d
+
+
   deploy_development:
     if: github.event_name == 'push' && github.ref == 'refs/heads/development'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    environment: desarrollo
+
+    env:  
+      PORT: ${{ secrets.PORT }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      TZ: ${{ secrets.TZ }}
+      CONTAINER_NAME: sysintegra-backend
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout código
+        uses: actions/checkout@v3
 
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{env.PORT}}"
+          DB_HOST="${{env.DB_HOST}}"
+          DB_USER="${{env.DB_USER}}"
+          DB_PASSWORD="${{env.DB_PASSWORD}}"
+          DB_NAME="${{env.DB_NAME}}"
+          DB_PORT="${{env.DB_PORT}}"
+          TZ="${{env.TZ}}"
+          EOL
+
+      - name: Mostrar contenido del archivo .env
+        run: cat .env
+        
       - name: Deploy on Development branch
         run: echo "Deploying on the development branch..."
+
+      - name: Creando y ejecutando contenedor
+        run: docker compose up --build -d
 
   # build:
 
