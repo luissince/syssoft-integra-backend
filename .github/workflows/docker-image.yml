@@ -64,7 +64,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
-      CONTAINER_NAME: sysintegra-backend
+      CONTAINER_NAME: sysintegra-backend-development
       CONTAINER_PORT: 6001
 
     steps:
@@ -90,7 +90,7 @@ jobs:
         run: echo "Deploying on the development branch..."
 
       - name: Creando y ejecutando contenedor
-        run: docker compose up --build -d
+        run: docker compose -f docker-compose-development.yml up --build -d
 
   # build:
 
