@@ -21,6 +21,7 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
+      VGG: "HOLA"
 
     steps:
       - name: Checkout código
@@ -45,7 +46,9 @@ jobs:
         run: echo "${{ github.ref }}"
 
       - name: Mostrar vars
-        run: echo "${{ vars.ENVIRONMENT }}"
+        run: |
+          echo "${{vars.ENVIRONMENT}}"
+          echo "${{env.VGG}}"
 
       # - name: Creando y ejecutando contenedor
       #   run: docker compose up --build -d
