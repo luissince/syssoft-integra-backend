@@ -11,6 +11,7 @@ jobs:
   build:
 
     runs-on: self-hosted
+    environment: desarrollo
 
     env:  
       PORT: ${{ secrets.PORT }}
@@ -24,20 +25,6 @@ jobs:
     steps:
       - name: Checkout código
         uses: actions/checkout@v3
-
-      - name: Verificar variables de entorno
-        run: |
-          check_variables() {
-            for var in PORT DB_HOST DB_USER DB_PASSWORD DB_NAME DB_PORT TZ; do
-              if [ -z "${!var}" ]; then
-                echo "La variable de entorno $var está vacía."
-              else
-                echo "La variable de entorno $var contiene datos: ${!var}"
-              fi
-            done
-          }
-
-          check_variables
 
       - name: Crear archivo .env
         run: |
@@ -54,5 +41,8 @@ jobs:
       - name: Mostrar contenido del archivo .env
         run: cat .env
 
-      - name: Creando y ejecutando contenedor
-        run: docker compose up --build -d
+      - name: Set up environment
+        run: echo "${{ github.ref }}"
+
+      # - name: Creando y ejecutando contenedor
+      #   run: docker compose up --build -d
