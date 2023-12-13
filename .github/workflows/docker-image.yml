@@ -2,12 +2,13 @@ name: Docker Image CI - SySoftIntegra BackEnd
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "development"]
   # pull_request:
     # branches: [ "master" ]
 
 jobs:
   build-and-deploy-app-development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     runs-on: self-hosted
     environment: desarrollo
 
@@ -36,11 +37,11 @@ jobs:
           TZ="${{env.TZ}}"
           EOL
 
-
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build app-development -d
 
   build-and-deploy-app-bodega:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: self-hosted
     environment: produccion-bodega
       
@@ -68,7 +69,6 @@ jobs:
           DB_PORT="${{env.DB_PORT}}"
           TZ="${{env.TZ}}"
           EOL
-      
       
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build app-bodega -d

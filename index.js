@@ -71,6 +71,13 @@ app.use(express.static(path.join(__dirname, "src/path/company")));
 /**
  * Cargar las rutas de la apis
  */
+app.use((req, res, next) => {
+    res.json({
+        "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
+        "Fecha y hora actuales": new Date().toLocaleString()
+    });
+});
+
 app.use('/api/comprobante', require('./src/router/Comprobante'));
 app.use('/api/moneda', require('./src/router/Moneda'));
 app.use('/api/banco', require('./src/router/Banco'));
@@ -178,6 +185,6 @@ app.use('/api/tipocomprobante', require('./src/router/TipoComprobante'));
 // server.listen(app.get("port"), "192.168.101.2",() => {
 //     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 // });
-app.listen(app.get("port"),()=>{
+app.listen(app.get("port"), () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 });
