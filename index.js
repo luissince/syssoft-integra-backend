@@ -74,7 +74,7 @@ app.use(express.static(path.join(__dirname, "src/path/company")));
 app.use((req, res, next) => {
     res.json({
         "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
-        "Entorno": "Producción"
+        "Entorno": process.env.ENVIRONMENT
     });
 });
 
