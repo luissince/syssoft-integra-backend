@@ -221,3 +221,28 @@ Por ejemplo, al realizar un commit, puedes utilizar el siguiente comando para in
 ```bash
 git commit -m "Tu mensaje del commit [skip ci]"
 ```
+
+### 10. Punto importante al hacer al hacer commit
+
+Si deseas mantener mensajes de commit distintos para desarrollo, prueba y producción, pero sin tener que hacer un commit en la rama de desarrollo antes de probar en la rama de prueba, puedes utilizar la opción --no-ff (no fast-forward) al realizar la fusión en cada rama. Esto te permitirá realizar un commit específico en la rama de prueba (y posteriormente en la rama de producción) incluso si no hubo cambios adicionales en desarrollo.
+
+1. En la rama desarrollo
+
+```bash
+git checkout desarrollo
+git pull origin desarrollo
+# Realiza tus cambios y realiza el commit
+git add .
+git commit -m "Mensaje de desarrollo"
+```
+
+2. Cambia a la rama de prueba
+
+```bash
+git checkout test
+git pull origin test
+# Fusiona los cambios de desarrollo con un commit específico
+git merge --no-ff desarrollo -m "Mensaje de prueba"
+```
+
+El uso de --no-ff asegurará que se cree un nuevo commit, incluso si no hubo cambios adicionales en desarrollo.
