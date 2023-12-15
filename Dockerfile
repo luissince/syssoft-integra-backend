@@ -1,17 +1,33 @@
-# Usa la última imagen estable de Node.js como base
-FROM node:18
+# FROM node:18
 
-# Crea el directorio de la aplicación
-WORKDIR /home/app
+# WORKDIR /home/app
 
-# Copia todo el código fuente de la aplicación
-COPY . .
+# COPY . .
 
-# Instala las dependencias antes de copiar todo el código fuente
+# RUN npm install
+
+# EXPOSE 80
+
+# CMD ["npm", "start"]
+
+FROM node:lts-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+
 RUN npm install
 
-# Expone el puerto en el que la aplicación está escuchando
+COPY . .
+
+FROM node:lts-alpine AS production
+
+WORKDIR /app
+
+COPY --chown=node:node --from=builder /app .
+
+USER node
+
 EXPOSE 80
 
-# Establece el comando predeterminado para iniciar la aplicación
-CMD ["npm", "start"]
+ENTRYPOINT ["npm", "start"]
