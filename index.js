@@ -71,12 +71,20 @@ app.use(express.static(path.join(__dirname, "src/path/company")));
 /**
  * Cargar las rutas de la apis
  */
-app.use((req, res, next) => {
+// app.use((req, res, next) => {
+//     res.json({
+//         "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
+//         "Entorno": process.env.ENVIRONMENT
+//     });
+// });
+
+app.get('/', (req, res) => {
     res.json({
         "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
         "Entorno": process.env.ENVIRONMENT
     });
 });
+
 
 app.use('/api/comprobante', require('./src/router/Comprobante'));
 app.use('/api/moneda', require('./src/router/Moneda'));
