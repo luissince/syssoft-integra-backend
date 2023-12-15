@@ -1,32 +1,32 @@
-# Fase de construcción
-FROM alpine AS builder
+# Establece la imagen base para la fase de construcción (builder) utilizando Node.js en Alpine
+FROM node:lts-alpine AS builder
 
-# Establecer el directorio de trabajo en /app
+# Establece el directorio de trabajo para la fase de construcción
 WORKDIR /app
 
-# Copiar el archivo package*.json al directorio de trabajo
+# Copia los archivos de descripción del paquete (package.json y package-lock.json si existen)
 COPY package*.json ./
 
-# Instalar las dependencias utilizando npm
+# Instala las dependencias para la fase de construcción
 RUN npm install
 
-# Copiar todos los archivos del contexto actual al directorio de trabajo
+# Copia todo el código fuente al directorio de trabajo para la fase de construcción
 COPY . .
 
-# Fase de producción
-FROM alpine AS production
+# Inicia la fase de producción utilizando una nueva imagen Node.js en Alpine
+FROM node:lts-alpine AS production
 
-# Establecer el directorio de trabajo en /app
+# Establece el directorio de trabajo para la fase de producción
 WORKDIR /app
 
-# Copiar archivos desde la fase de construcción (--from=builder) al directorio de trabajo
+# Copia los archivos desde la fase de construcción a la fase de producción, asignando los permisos al usuario 'node'
 COPY --chown=node:node --from=builder /app .
 
-# Establecer el usuario que ejecutará la aplicación
+# Cambia al usuario 'node' para mejorar la seguridad
 USER node
 
-# Exponer el puerto 80 para que pueda ser accedido desde fuera del contenedor
+# Expone el puerto 80 para permitir conexiones desde fuera del contenedor
 EXPOSE 80
 
-# Establecer el punto de entrada para ejecutar la aplicación cuando se inicie el contenedor
+# Establece el punto de entrada para la aplicación, indicando cómo iniciarla
 ENTRYPOINT ["npm", "start"]
