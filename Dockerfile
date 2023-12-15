@@ -1,15 +1,3 @@
-# FROM node:18
-
-# WORKDIR /home/app
-
-# COPY . .
-
-# RUN npm install
-
-# EXPOSE 80
-
-# CMD ["npm", "start"]
-
 FROM node:lts-alpine AS builder
 
 WORKDIR /app
