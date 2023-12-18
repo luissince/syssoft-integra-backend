@@ -389,9 +389,9 @@ class Producto {
                 negativo = ?,
                 preferido = ?,
                 estado = ?,
-                idUsuario = ?,
                 fupdate = ?,
-                hupdate = ?
+                hupdate = ?,
+                idUsuario = ?
                 WHERE idProducto = ?`, [
                 req.body.idCategoria,
                 req.body.idMedida,
@@ -405,10 +405,10 @@ class Producto {
                 req.body.inventariado,
                 req.body.negativo,
                 req.body.preferido,
-                req.body.estado,
-                req.body.idUsuario,
+                req.body.estado,                
                 currentDate(),
                 currentTime(),
+                req.body.idUsuario,
                 req.body.idProducto
             ]);
 

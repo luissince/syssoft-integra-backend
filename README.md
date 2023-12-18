@@ -170,33 +170,33 @@ npm run start
 
 Para ejecutar los workflows de GitHub Actions, asegúrate de que tu usuario tenga los privilegios de ejecución necesarios. A continuación, te proporcionamos algunos pasos para empezar:
 
-Verifica la Existencia del Grupo de Docker:
+#### 8.1. Crea un grupo de Docker:
 
 ```bash
 sudo groupadd docker
 ```
 
-Agrega tu Usuario al Grupo de Docker:
+#### 8.2. Agrega tu Usuario al Grupo de Docker:
 
 ```bash
 sudo usermod -aG docker $USER
 ```
 
-Aplica los Cambios en el Grupo de Docker:
+#### 8.3. Aplica los Cambios en el Grupo de Docker:
 
 ```bash
 newgrp docker
 ```
 
-Verifica que tu Usuario esté en el Grupo de Docker:
+#### 8.4. Verifica que tu Usuario esté en el Grupo de Docker:
 
 ```bash
-newgrp docker
+groups
 ```
 
 Asegúrate de que "docker" esté en la lista de grupos.
 
-Configuración y Uso del Runner:
+#### 8.5. Configuración y Uso del Runner:
 
 Para iniciar la creación del runner, ve a Settings del proyecto, luego a Actions, Runners, y selecciona "New self-hosted runner".
 
