@@ -49,8 +49,10 @@ class Cobro {
                 estado,
                 observacion,
                 detalle,
-                metodoPago
+                metodoPago,
             } = req.body;
+
+            console.log(req.body)
 
             /**
             * Generar un código unico para el cobro. 
@@ -202,7 +204,7 @@ class Cobro {
                 idUsuario
             ]);
 
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return 'create';
         } catch (error) {
             if (connection != null) {
@@ -277,10 +279,10 @@ class Cobro {
         try {
             connection = await conec.beginTransaction();
 
-            const exists = await conec.execute(connection, `SELECT estado FROM cobro WHERE idCobro = ? AND estado = 0`,[
+            const exists = await conec.execute(connection, `SELECT estado FROM cobro WHERE idCobro = ? AND estado = 0`, [
                 req.query.idCobro
             ]);
-            
+
             if (exists.length !== 0) {
                 await conec.rollback(connection);
                 return "El cobro ya se encuentra anulado.";

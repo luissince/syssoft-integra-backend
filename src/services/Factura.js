@@ -47,6 +47,7 @@ class Factura {
                 idMoneda,
                 tipo,
 
+                comentario,
                 detalleVenta,
                 metodoPagoAgregado
 
@@ -136,11 +137,11 @@ class Factura {
                 serie,
                 numeracion,                
                 tipo,
+                comentario,
                 estado,
                 fecha,
-                hora)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-                `, [
+                hora
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
                 idCliente,
                 idUsuario,
@@ -150,6 +151,7 @@ class Factura {
                 comprobante[0].serie,
                 numeracion,
                 tipo,
+                comentario,
                 estado,
                 currentDate(),
                 currentTime()
@@ -180,8 +182,8 @@ class Factura {
                     idProducto,
                     precio,
                     cantidad,
-                    idImpuesto) 
-                    VALUES(?,?,?,?,?,?)`, [
+                    idImpuesto
+                ) VALUES(?,?,?,?,?,?)`, [
                     idVentaDetalle,
                     idVenta,
                     item.idProducto,
@@ -193,13 +195,6 @@ class Factura {
                 idVentaDetalle++;
 
                 if (item.tipo === "PRODUCTO") {
-                    await conec.execute(connection, `UPDATE inventario SET
-                        cantidad = cantidad - ? 
-                        WHERE idInventario = ?`, [
-                        item.cantidad,
-                        item.idInventario
-                    ]);
-
                     const inventario = await conec.execute(connection, `SELECT idAlmacen FROM inventario WHERE idInventario = ?`, [
                         item.idInventario
                     ]);
@@ -219,8 +214,8 @@ class Factura {
                         idAlmacen,
                         hora,
                         fecha,
-                        idUsuario) 
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
                         `KD${String(idKardex += 1).padStart(4, '0')}`,
                         item.idProducto,
                         'TK0002',
@@ -233,6 +228,14 @@ class Factura {
                         currentDate(),
                         idUsuario
                     ]);
+
+                    await conec.execute(connection, `UPDATE inventario SET
+                    cantidad = cantidad - ? 
+                    WHERE idInventario = ?`, [
+                        item.cantidad,
+                        item.idInventario
+                    ]);
+
                 }
             }
 
@@ -278,8 +281,8 @@ class Factura {
              */
 
             // Generar el Id único
-            const listaAuditoriaId = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            const idAuditoria = generateNumericCode(1, listaAuditoriaId, 'idAuditoria');
+            const listAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
+            const idAuditoria = generateNumericCode(1, listAuditoria, 'idAuditoria');
 
             // Proceso de registro            
             await conec.execute(connection, `INSERT INTO auditoria(
@@ -288,8 +291,8 @@ class Factura {
                 descripcion,
                 fecha,
                 hora,
-                idUsuario) 
-                VALUES(?,?,?,?,?,?)`, [
+                idUsuario
+            ) VALUES(?,?,?,?,?,?)`, [
                 idAuditoria,
                 idVenta,
                 `REGISTRO DEL COMPROBANTE ${comprobante[0].serie}-${numeracion}`,

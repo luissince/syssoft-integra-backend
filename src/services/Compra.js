@@ -195,6 +195,9 @@ class Compra {
                 metodoPago
             } = req.body;
 
+            console.log(req.body)
+
+
             /**
             * Generar un código unico para el compra. 
             */
@@ -280,7 +283,40 @@ class Compra {
                     item.costo,
                     item.cantidad,
                     item.idImpuesto
-                ])
+                ]);
+
+                // await conec.execute(connection, `INSERT INTO kardex(
+                //     idKardex,
+                //     idProducto,
+                //     idTipoKardex,
+                //     idMotivoKardex,
+                //     detalle,
+                //     cantidad,
+                //     costo,
+                //     idAlmacen,
+                //     hora,
+                //     fecha,
+                //     idUsuario
+                // ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                //     `KD${String(idKardex += 1).padStart(4, '0')}`,
+                //     item.idProducto,
+                //     'TK0001',
+                //     'MK0002',
+                //     'INGRESO POR AJUSTE',
+                //     item.cantidad,
+                //     producto[0].costo,
+                //     idAlmacen,
+                //     currentTime(),
+                //     currentDate(),
+                //     idUsuario
+                // ]);
+
+                // await conec.execute(connection, `UPDATE inventario SET 
+                //     cantidad = cantidad + ?
+                //     WHERE idInventario = ?`, [
+                //     item.cantidad,
+                //     inventario[0].idInventario
+                // ]);
 
                 idCompraDetalle++;
             }
@@ -321,8 +357,6 @@ class Compra {
 
                 idSalida++;
             }
-
-            console.log(req.body)
 
             /**
             * Proceso de registrar datos en la tabla auditoria para tener un control de los movimientos echos.
