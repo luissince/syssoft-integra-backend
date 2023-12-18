@@ -231,7 +231,6 @@ class Ajuste {
             await conec.commit(connection);
             return "create";
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -243,8 +242,6 @@ class Ajuste {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-
-            console.log(req.query)
 
             const exist = await conec.execute(connection, `SELECT * FROM ajuste WHERE idAjuste = ? AND estado = 0`, [
                 req.query.idAjuste,
