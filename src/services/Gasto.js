@@ -29,8 +29,7 @@ class Gasto {
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {
-            console.log(error)
+        } catch (error) {         
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -266,8 +265,7 @@ class Gasto {
             ])
 
             return { "cabecera": gasto[0], "detalle": detalle, "salidas": salidas };
-        } catch (error) {
-            console.log(error)
+        } catch (error) {     
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

@@ -179,8 +179,7 @@ class Categoria {
       FROM categoria 
       WHERE estado = 1`);
       return result;
-    } catch (error) {
-      console.log(error)
+    } catch (error) {      
       return "Error interno de conexión, intente nuevamente.";
     }
   }

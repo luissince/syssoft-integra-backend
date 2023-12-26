@@ -4,6 +4,7 @@ const app = express();
 const path = require('path');
 // const socket = require('socket.io');
 const cors = require('cors');
+const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swagger = require('./src/swagger');
 /**
@@ -35,6 +36,8 @@ require('dotenv').config();
 //     });
 // });
 
+// Configurar morgan para que imprima en la consola
+app.use(morgan('dev'));
 
 /**
  * CORS para peticiones externas
@@ -124,7 +127,12 @@ app.use('/api/compra', require('./src/router/Compra'));
 app.use('/api/guiaremision', require('./src/router/GuiaRemision'));
 app.use('/api/cotizacion', require('./src/router/Cotizacion'));
 app.use('/api/tipocomprobante', require('./src/router/TipoComprobante'));
+app.use('/api/traslado', require('./src/router/Traslado'));
+app.use('/api/motivotraslado', require('./src/router/MotivoTraslado'));
+app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
 
+app.use('/api/salida', require('./src/router/Salida'));
+app.use('/api/ingreso', require('./src/router/Ingreso'));
 /**
  * 
  */

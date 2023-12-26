@@ -19,20 +19,20 @@ router.get("/list", async function (req, res) {
     return await factura.list(req, res);
 });
 
-router.post("/add", async function (req, res) {
-    return await factura.add(req, res);
+router.post("/create", async function (req, res) {
+    return await factura.create(req, res);
 });
 
-router.delete("/anular", async function (req, res) {
-    return await factura.anular(req, res);
+router.delete("/cancel", async function (req, res) {
+    return await factura.cancel(req, res);
 });
 
 /**
  * Api usado en los modulos
  * [facturación: ventas/detalle]
  */
-router.get("/id", async function (req, res) {
-    return await factura.id(req, res);
+router.get("/detail", async function (req, res) {
+    return await factura.detail(req, res);
 });
 
 /**

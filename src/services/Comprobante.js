@@ -78,7 +78,6 @@ class Comprobante {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
@@ -138,7 +137,6 @@ class Comprobante {
             await conec.commit(connection);
             return sendSuccess(res, "Se inserto correctamente el comprobante.")
         } catch (error) {    
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -291,7 +289,6 @@ class Comprobante {
             ]);
             return sendSuccess(res, result);
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }

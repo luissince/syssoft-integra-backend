@@ -88,15 +88,13 @@ class GuiaRemision {
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {
-            console.log(error)
+        } catch (error) {     
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
 
     async id(req) {
-        try {
-            console.log(req.query)
+        try {           
             const ajuste = await conec.query(`SELECT 
             a.idAjuste,
             DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
@@ -138,8 +136,7 @@ class GuiaRemision {
 
 
     async detail(req) {
-        try {
-            console.log(req.query)
+        try {           
             const ajuste = await conec.query(`SELECT 
             a.idAjuste,
             DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
@@ -477,8 +474,6 @@ class GuiaRemision {
         try {
             connection = await conec.beginTransaction();
 
-            console.log(req.query)
-
             const exist = await conec.execute(connection, `SELECT * FROM ajuste WHERE idAjuste = ? AND estado = 0`, [
                 req.query.idAjuste,
             ])
@@ -492,7 +487,6 @@ class GuiaRemision {
                 req.query.idAjuste,
             ])
 
-            console.log(ajuste)
 
             await conec.execute(connection, `UPDATE ajuste SET estado = 0 WHERE idAjuste = ?`, [
                 req.query.idAjuste,

@@ -58,8 +58,7 @@ class Sucursal {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            console.log(error)
+        } catch (error) {        
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -70,8 +69,7 @@ class Sucursal {
             connection = await conec.beginTransaction();
 
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
-            const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
-            console.log(idSucursal)
+            const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');          
 
             const file = path.join(__dirname, '../', 'path/proyect');
 
@@ -122,8 +120,7 @@ class Sucursal {
 
             await conec.commit(connection);
             return sendSave(res, "Se registró correctamente el sucursal.");
-        } catch (error) {
-            console.log(error)
+        } catch (error) {          
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -286,8 +283,7 @@ class Sucursal {
 
             await conec.commit(connection);
             return sendSave(res, "Se eliminó correctamente el sucursal.");
-        } catch (error) {
-            console.log(error)
+        } catch (error) {          
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -307,8 +303,7 @@ class Sucursal {
             `);
 
             return sendSuccess(res, sucursales);
-        } catch (error) {
-            console.log(error)
+        } catch (error) {           
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
