@@ -34,7 +34,7 @@ class Factura {
         }
     }
 
-    async add(req, res) {
+    async create(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -46,13 +46,13 @@ class Factura {
                 idSucursal,
                 idMoneda,
                 tipo,
-
+                estado,
                 comentario,
                 detalleVenta,
                 metodoPagoAgregado
 
             } = req.body;
-
+         
             /**
              * Validación de productos inventariables
              */
@@ -124,9 +124,6 @@ class Factura {
              * Proceso para ingresar una venta.
              */
 
-            // tipo de venta 1 = activo, 2 = credito, 3 = anulado, 4 = por llevar
-            const estado = 1;
-
             await conec.execute(connection, `INSERT INTO venta(
                 idVenta,
                 idCliente,
@@ -180,19 +177,21 @@ class Factura {
                     idVentaDetalle,
                     idVenta,
                     idProducto,
+                    idInventario,
+                    descripcion,
                     precio,
                     cantidad,
                     idImpuesto
-                ) VALUES(?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
                     idVentaDetalle,
                     idVenta,
                     item.idProducto,
+                    item.idInventario,
+                    item.nombreProducto,
                     item.precio,
                     item.cantidad,
                     item.idImpuesto
                 ])
-
-                idVentaDetalle++;
 
                 if (item.tipo === "PRODUCTO") {
                     const inventario = await conec.execute(connection, `SELECT idAlmacen FROM inventario WHERE idInventario = ?`, [
@@ -235,8 +234,9 @@ class Factura {
                         item.cantidad,
                         item.idInventario
                     ]);
-
                 }
+
+                idVentaDetalle++;
             }
 
             /**
@@ -303,8 +303,7 @@ class Factura {
 
             await conec.commit(connection);
             return sendSave(res, "Se completo el proceso correctamente.");
-        } catch (error) {
-            console.log(error)
+        } catch (error) {        
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -312,767 +311,202 @@ class Factura {
         }
     }
 
-    /**
-     * 
-     * @param {*} req 
-     * @param {*} res 
-     * @returns 
-     */
-    async _add(req, res) {
-        let connection = null;
+    // Método asincrónico para obtener detalles de una venta
+    async detail(req, res) {
         try {
-            connection = await conec.beginTransaction();
-
-            let countProducto = 0;
-
-            /**
-             * Validar si un producto esta vendido.
-             */
-            for (const item of req.body.detalleVenta) {
-                const producto = await conec.execute(connection, `SELECT idProducto FROM producto 
-                    WHERE idProducto = ? AND estado = 3`, [
-                    item.idDetalle
-                ]);
-                if (producto.length > 0) {
-                    countProducto++;
-                }
-            }
-
-            /**
-             * si el producto esta vendido cancelar la proceso.
-             * estado = 3 vendido
-             */
-            if (countProducto > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "Hay un producto que se esta tratando de vender, no se puede continuar ya que está asociado a una factura.");
-            }
-
-
-            /**
-             * Generar un código unico para la venta. 
-             */
-            let result = await conec.execute(connection, 'SELECT idVenta  FROM venta');
-            let idVenta = "";
-            if (result.length != 0) {
-
-                let quitarValor = result.map(function (item) {
-                    return parseInt(item.idVenta.replace("VT", ''));
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-                let codigoGenerado = "";
-                if (incremental <= 9) {
-                    codigoGenerado = 'VT000' + incremental;
-                } else if (incremental >= 10 && incremental <= 99) {
-                    codigoGenerado = 'VT00' + incremental;
-                } else if (incremental >= 100 && incremental <= 999) {
-                    codigoGenerado = 'VT0' + incremental;
-                } else {
-                    codigoGenerado = 'VT' + incremental;
-                }
-
-                idVenta = codigoGenerado;
-            } else {
-                idVenta = "VT0001";
-            }
-
-
-            /**
-             * Obtener la serie y numeración del comprobante.
-             */
-            let comprobante = await conec.execute(connection, `SELECT 
-                serie,
-                numeracion 
-                FROM comprobante 
-                WHERE idComprobante  = ?
-                `, [
-                req.body.idComprobante
-            ]);
-
-            let numeracion = 0;
-
-            let ventas = await conec.execute(connection, 'SELECT numeracion  FROM venta WHERE idComprobante = ?', [
-                req.body.idComprobante
-            ]);
-
-            if (ventas.length > 0) {
-                let quitarValor = ventas.map(function (item) {
-                    return parseInt(item.numeracion);
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-                numeracion = incremental;
-            } else {
-                numeracion = comprobante[0].numeracion;
-            }
-
-            /**
-             * Proceso para ingresar una venta.
-             */
-            await conec.execute(connection, `INSERT INTO venta(
-                idVenta, 
-                idCliente, 
-                idUsuario, 
-                idComprobante, 
-                idSucursal,
-                serie,
-                numeracion,
-                idMoneda,
-                tipo, 
-                numCuota,
-                credito,
-                frecuencia,
-                estado, 
-                fecha, 
-                hora)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                `, [
-                idVenta,
-                req.body.idCliente,
-                req.body.idUsuario,
-                req.body.idComprobante,
-                req.body.idSucursal,
-                comprobante[0].serie,
-                numeracion,
-                req.body.idMoneda,
-                req.body.tipo,
-                req.body.numCuota,
-                req.body.selectTipoPago == 3 ? 1 : 0,
-                req.body.frecuenciaPago,
-                req.body.estado,
-                currentDate(),
-                currentTime()
-            ]);
-
-            /**
-             * Proceso para ingresar el detalle de la venta.
-             */
-            let montoTotal = 0;
-
-            for (let item of req.body.detalleVenta) {
-                await conec.execute(connection, `INSERT INTO ventaDetalle(
-                    idVenta, 
-                    idProducto, 
-                    precio, 
-                    cantidad, 
-                    idImpuesto,
-                    idMedida)
-                    VALUES(?,?,?,?,?,?)`, [
-                    idVenta,
-                    item.idDetalle,
-                    parseFloat(item.precioContado),
-                    item.cantidad,
-                    item.idImpuesto,
-                    item.idMedida
-                ]);
-
-                await conec.execute(connection, `UPDATE producto SET estado = 3 WHERE idProducto = ?`, [
-                    item.idDetalle,
-                ]);
-
-                montoTotal += parseFloat(item.precioContado) * item.cantidad;
-            }
-
-            /**
-             * Proceso para ingresar un asociado a la venta.
-             */
-            await conec.execute(connection, `INSERT asociado(idVenta ,idCliente , estado, fecha, hora, idUsuario) VALUES(?,?,?,?,?,?)`, [
-                idVenta,
-                req.body.idCliente,
-                1,
-                currentDate(),
-                currentTime(),
-                req.body.idUsuario
-            ]);
-
-            /**
-             * 
-             */
-            if (req.body.selectTipoPago === 1) {
-                let cobro = await conec.execute(connection, 'SELECT idCobro FROM cobro');
-                let idCobro = "";
-                if (cobro.length != 0) {
-
-                    let quitarValor = cobro.map(function (item) {
-                        return parseInt(item.idCobro.replace("CB", ''));
-                    });
-
-                    let valorActual = Math.max(...quitarValor);
-                    let incremental = valorActual + 1;
-                    let codigoGenerado = "";
-                    if (incremental <= 9) {
-                        codigoGenerado = 'CB000' + incremental;
-                    } else if (incremental >= 10 && incremental <= 99) {
-                        codigoGenerado = 'CB00' + incremental;
-                    } else if (incremental >= 100 && incremental <= 999) {
-                        codigoGenerado = 'CB0' + incremental;
-                    } else {
-                        codigoGenerado = 'CB' + incremental;
-                    }
-
-                    idCobro = codigoGenerado;
-                } else {
-                    idCobro = "CB0001";
-                }
-
-                let comprobanteCobro = await conec.execute(connection, `SELECT 
-                serie,
-                numeracion 
-                FROM comprobante 
-                WHERE idComprobante  = ?
-                `, [
-                    req.body.idComprobanteCobro
-                ]);
-
-                let numeracionCobro = 0;
-
-                let cobros = await conec.execute(connection, 'SELECT numeracion  FROM cobro WHERE idComprobante = ?', [
-                    req.body.idComprobanteCobro
-                ]);
-
-                if (cobros.length > 0) {
-                    let quitarValor = cobros.map(function (item) {
-                        return parseInt(item.numeracion);
-                    });
-
-                    let valorActual = Math.max(...quitarValor);
-                    let incremental = valorActual + 1;
-                    numeracionCobro = incremental;
-                } else {
-                    numeracionCobro = comprobanteCobro[0].numeracion;
-                }
-
-                await conec.execute(connection, `INSERT INTO cobro(
-                idCobro, 
-                idCliente, 
-                idUsuario, 
-                idMoneda, 
-                idBanco, 
-                idProcedencia,
-                idSucursal,
-                idComprobante,
-                serie,
-                numeracion,
-                metodoPago, 
-                estado, 
-                observacion, 
-                fecha, 
-                hora) 
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    idCobro,
-                    req.body.idCliente,
-                    req.body.idUsuario,
-                    req.body.idMoneda,
-                    req.body.idBanco,
-                    idVenta,
-                    req.body.idSucursal,
-                    req.body.idComprobanteCobro,
-                    comprobanteCobro[0].serie,
-                    numeracionCobro,
-                    req.body.metodoPago,
-                    1,
-                    'COBRO AL CONTADO',
-                    currentDate(),
-                    currentTime()
-                ]);
-
-                await conec.execute(connection, `INSERT INTO cobroVenta(
-                idCobro,
-                idVenta,
-                idPlazo,
-                precio,
-                idImpuesto,
-                idMedida) 
-                VALUES (?,?,?,?,?,?)`, [
-                    idCobro,
-                    idVenta,
-                    0,
-                    montoTotal,
-                    req.body.idImpuesto,
-                    req.body.idMedida
-                ]);
-
-                await conec.execute(connection, `INSERT INTO bancoDetalle(
-                idBanco,
-                idProcedencia,
-                tipo,
-                monto,
-                fecha,
-                hora,
-                idUsuario)
-                VALUES(?,?,?,?,?,?,?)`, [
-                    req.body.idBanco,
-                    idCobro,
-                    1,
-                    montoTotal,
-                    currentDate(),
-                    currentTime(),
-                    req.body.idUsuario,
-                ]);
-
-            }
-
-            /**
-             * 
-             */
-            if (req.body.selectTipoPago === 2) {
-
-                if (req.body.montoInicialCheck) {
-                    let cobro = await conec.execute(connection, 'SELECT idCobro FROM cobro');
-                    let idCobro = "";
-                    if (cobro.length != 0) {
-
-                        let quitarValor = cobro.map(function (item) {
-                            return parseInt(item.idCobro.replace("CB", ''));
-                        });
-
-                        let valorActual = Math.max(...quitarValor);
-                        let incremental = valorActual + 1;
-                        let codigoGenerado = "";
-                        if (incremental <= 9) {
-                            codigoGenerado = 'CB000' + incremental;
-                        } else if (incremental >= 10 && incremental <= 99) {
-                            codigoGenerado = 'CB00' + incremental;
-                        } else if (incremental >= 100 && incremental <= 999) {
-                            codigoGenerado = 'CB0' + incremental;
-                        } else {
-                            codigoGenerado = 'CB' + incremental;
-                        }
-
-                        idCobro = codigoGenerado;
-                    } else {
-                        idCobro = "CB0001";
-                    }
-
-
-                    let comprobanteCobro = await conec.execute(connection, `SELECT 
-                    serie,
-                    numeracion 
-                    FROM comprobante 
-                    WHERE idComprobante  = ?
-                    `, [
-                        req.body.idComprobanteCobro
-                    ]);
-
-                    let numeracionCobro = 0;
-
-                    let cobros = await conec.execute(connection, 'SELECT numeracion  FROM cobro WHERE idComprobante = ?', [
-                        req.body.idComprobanteCobro
-                    ]);
-
-                    if (cobros.length > 0) {
-                        let quitarValor = cobros.map(function (item) {
-                            return parseInt(item.numeracion);
-                        });
-
-                        let valorActual = Math.max(...quitarValor);
-                        let incremental = valorActual + 1;
-                        numeracionCobro = incremental;
-                    } else {
-                        numeracionCobro = comprobanteCobro[0].numeracion;
-                    }
-
-                    await conec.execute(connection, `INSERT INTO cobro(
-                        idCobro, 
-                        idCliente, 
-                        idUsuario, 
-                        idMoneda, 
-                        idBanco, 
-                        idProcedencia,
-                        idSucursal,
-                        idComprobante,
-                        serie,
-                        numeracion,
-                        metodoPago, 
-                        estado, 
-                        observacion, 
-                        fecha, 
-                        hora) 
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        idCobro,
-                        req.body.idCliente,
-                        req.body.idUsuario,
-                        req.body.idMoneda,
-                        req.body.idBanco,
-                        idVenta,
-                        req.body.idSucursal,
-                        req.body.idComprobanteCobro,
-                        comprobanteCobro[0].serie,
-                        numeracionCobro,
-                        req.body.metodoPago,
-                        1,
-                        'INICIAL',
-                        currentDate(),
-                        currentTime()
-                    ]);
-
-                    await conec.execute(connection, `INSERT INTO cobroVenta(
-                        idCobro,
-                        idVenta,
-                        idPlazo,
-                        precio,
-                        idImpuesto,
-                        idMedida) 
-                        VALUES (?,?,?,?,?,?)`, [
-                        idCobro,
-                        idVenta,
-                        0,
-                        req.body.inicial,
-                        req.body.idImpuesto,
-                        req.body.idMedida
-                    ]);
-
-                    await conec.execute(connection, `INSERT INTO bancoDetalle(
-                        idBanco,
-                        idProcedencia,
-                        tipo,
-                        monto,
-                        fecha,
-                        hora,
-                        idUsuario)
-                        VALUES(?,?,?,?,?,?,?)`, [
-                        req.body.idBanco,
-                        idCobro,
-                        1,
-                        req.body.inicial,
-                        currentDate(),
-                        currentTime(),
-                        req.body.idUsuario,
-                    ]);
-                }
-
-                let plazo = await conec.execute(connection, 'SELECT idPlazo FROM plazo');
-                let idPlazo = 0;
-                if (plazo.length != 0) {
-
-                    let quitarValor = plazo.map(function (item) {
-                        return parseInt(item.idPlazo);
-                    });
-
-                    let valorActual = Math.max(...quitarValor);
-                    let incremental = valorActual + 1;
-                    idPlazo = incremental;
-                } else {
-                    idPlazo = 1;
-                }
-
-                let inicioDate = new Date(req.body.fechaPago[0], req.body.fechaPago[1] - 1, 1);
-
-                let cuotaMes = (montoTotal - req.body.inicial) / req.body.numCuota;
-
-                let i = 0;
-                let frecuenciaPago = req.body.frecuenciaPago;
-                let cuota = 0;
-                // while (inicioDate < ultimoDate) {                   
-                while (i < req.body.numCuota) {
-
-                    let now = new Date();
-
-                    if (frecuenciaPago > 15) {
-                        now = new Date(inicioDate.getFullYear(), inicioDate.getMonth() + 1, 0);
-                    } else {
-                        now = new Date(inicioDate.getFullYear(), inicioDate.getMonth(), 15);
-                    }
-
-                    i++;
-                    cuota++;
-
-                    await conec.execute(connection, `INSERT INTO plazo(
-                        idPlazo,
-                        idVenta,
-                        cuota,
-                        fecha,
-                        hora,
-                        monto,
-                        estado) 
-                        VALUES(?,?,?,?,?,?,?)`, [
-                        idPlazo,
-                        idVenta,
-                        cuota,
-                        now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
-                        currentTime(),
-                        cuotaMes,
-                        0
-                    ]);
-                    idPlazo++;
-
-                    inicioDate.setMonth(inicioDate.getMonth() + 1);
-                }
-            }
-
-
-            /**
-             * 
-             */
-            if (req.body.selectTipoPago === 3) {
-                if (req.body.montoInicialCheck) {
-                    let cobro = await conec.execute(connection, 'SELECT idCobro FROM cobro');
-                    let idCobro = "";
-                    if (cobro.length != 0) {
-
-                        let quitarValor = cobro.map(function (item) {
-                            return parseInt(item.idCobro.replace("CB", ''));
-                        });
-
-                        let valorActual = Math.max(...quitarValor);
-                        let incremental = valorActual + 1;
-                        let codigoGenerado = "";
-                        if (incremental <= 9) {
-                            codigoGenerado = 'CB000' + incremental;
-                        } else if (incremental >= 10 && incremental <= 99) {
-                            codigoGenerado = 'CB00' + incremental;
-                        } else if (incremental >= 100 && incremental <= 999) {
-                            codigoGenerado = 'CB0' + incremental;
-                        } else {
-                            codigoGenerado = 'CB' + incremental;
-                        }
-
-                        idCobro = codigoGenerado;
-                    } else {
-                        idCobro = "CB0001";
-                    }
-
-
-                    let comprobanteCobro = await conec.execute(connection, `SELECT 
-                    serie,
-                    numeracion 
-                    FROM comprobante 
-                    WHERE idComprobante  = ?
-                    `, [
-                        req.body.idComprobanteCobro
-                    ]);
-
-                    let numeracionCobro = 0;
-
-                    let cobros = await conec.execute(connection, 'SELECT numeracion  FROM cobro WHERE idComprobante = ?', [
-                        req.body.idComprobanteCobro
-                    ]);
-
-                    if (cobros.length > 0) {
-                        let quitarValor = cobros.map(function (item) {
-                            return parseInt(item.numeracion);
-                        });
-
-                        let valorActual = Math.max(...quitarValor);
-                        let incremental = valorActual + 1;
-                        numeracionCobro = incremental;
-                    } else {
-                        numeracionCobro = comprobanteCobro[0].numeracion;
-                    }
-
-                    await conec.execute(connection, `INSERT INTO cobro(
-                        idCobro, 
-                        idCliente, 
-                        idUsuario, 
-                        idMoneda, 
-                        idBanco, 
-                        idProcedencia,
-                        idSucursal,
-                        idComprobante,
-                        serie,
-                        numeracion,
-                        metodoPago, 
-                        estado, 
-                        observacion, 
-                        fecha, 
-                        hora) 
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        idCobro,
-                        req.body.idCliente,
-                        req.body.idUsuario,
-                        req.body.idMoneda,
-                        req.body.idBanco,
-                        idVenta,
-                        req.body.idSucursal,
-                        req.body.idComprobanteCobro,
-                        comprobanteCobro[0].serie,
-                        numeracionCobro,
-                        req.body.metodoPago,
-                        1,
-                        'INICIAL',
-                        currentDate(),
-                        currentTime()
-                    ]);
-
-                    await conec.execute(connection, `INSERT INTO cobroVenta(
-                        idCobro,
-                        idVenta,
-                        idPlazo,
-                        precio,
-                        idImpuesto,
-                        idMedida) 
-                        VALUES (?,?,?,?,?,?)`, [
-                        idCobro,
-                        idVenta,
-                        0,
-                        req.body.inicial,
-                        req.body.idImpuesto,
-                        req.body.idMedida
-                    ]);
-
-                    await conec.execute(connection, `INSERT INTO bancoDetalle(
-                        idBanco,
-                        idProcedencia,
-                        tipo,
-                        monto,
-                        fecha,
-                        hora,
-                        idUsuario)
-                        VALUES(?,?,?,?,?,?,?)`, [
-                        req.body.idBanco,
-                        idCobro,
-                        1,
-                        req.body.inicial,
-                        currentDate(),
-                        currentTime(),
-                        req.body.idUsuario,
-                    ]);
-                }
-            }
-
-            /**
-             * Procesao de registro para dar de alta al un sucursal
-             */
-
-            const alta = await conec.execute(connection, `SELECT idAlta FROM alta WHERE idCliente = ? AND idSucursal = ?`, [
-                req.body.idCliente,
-                req.body.idSucursal,
-            ]);
-
-            if (alta.length === 0) {
-                let resultAlta = await conec.execute(connection, 'SELECT idAlta FROM alta');
-                let idAlta = 0;
-                if (resultAlta.length != 0) {
-                    let quitarValor = resultAlta.map(function (item) {
-                        return parseInt(item.idAlta);
-                    });
-
-                    let valorActual = Math.max(...quitarValor);
-                    let incremental = valorActual + 1;
-
-                    idAlta = incremental;
-                } else {
-                    idAlta = 1;
-                }
-
-                await conec.execute(connection, `INSERT INTO alta(
-                    idAlta ,
-                    idCliente,
-                    idSucursal,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?)`, [
-                    idAlta,
-                    req.body.idCliente,
-                    req.body.idSucursal,
-                    currentDate(),
-                    currentTime(),
-                    req.body.idUsuario,
-                ]);
-            }
-
-            /**
-            * Generar un código unico para la tabla auditoria. 
-            */
-            let resultAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            let idAuditoria = 0;
-            if (resultAuditoria.length != 0) {
-                let quitarValor = resultAuditoria.map(function (item) {
-                    return parseInt(item.idAuditoria);
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-
-                idAuditoria = incremental;
-            } else {
-                idAuditoria = 1;
-            }
-
-            /**
-            * Proceso de registrar datos en la tabla auditoria para tener un control de los movimientos echos.
-            */
-            await conec.execute(connection, `INSERT INTO auditoria(
-                idAuditoria,
-                idProcedencia,
-                descripcion,
-                fecha,
-                hora,
-                idUsuario) 
-                VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                idVenta,
-                `REGISTRO DEL COMPROBANTE ${comprobante[0].serie}-${numeracion}`,
-                currentDate(),
-                currentTime(),
-                req.body.idUsuario
-            ]);
-
-            await conec.commit(connection);
-            return sendSave(res, "Se completo el proceso correctamente.");
+            // Obtener información general de la venta
+            const result = await conec.query(`
+            SELECT
+                v.idVenta, 
+                com.nombre AS comprobante,
+                com.codigo as codigoVenta,
+                v.serie,
+                v.numeracion,
+                td.nombre AS tipoDoc,      
+                td.codigo AS codigoCliente,      
+                c.documento,
+                c.informacion,
+                c.direccion,
+                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
+                DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
+                v.hora, 
+                v.tipo, 
+                v.estado, 
+                m.simbolo,
+                m.codiso,
+                m.nombre as moneda
+            FROM venta AS v 
+                INNER JOIN clienteNatural AS c ON v.idCliente = c.idCliente
+                INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
+                INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
+                INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
+                INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
+            WHERE v.idVenta = ?
+        `, [req.query.idVenta]);
+
+            // Obtener detalles de productos vendidos en la venta
+            const detalle = await conec.query(`
+            SELECT 
+                p.nombre AS producto,
+                md.nombre AS medida, 
+                m.nombre AS categoria, 
+                vd.precio,
+                vd.cantidad,
+                vd.idImpuesto,
+                imp.nombre AS impuesto,
+                imp.porcentaje
+            FROM ventaDetalle AS vd 
+                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
+                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
+                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
+                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            WHERE vd.idVenta = ?
+        `, [req.query.idVenta]);
+
+            // Obtener información de ingresos asociados a la venta
+            const ingresos = await conec.query(`
+            SELECT 
+                mp.nombre,
+                i.descripcion,
+                i.monto,
+                DATE_FORMAT(i.fecha,'%d/%m/%Y') as fecha,
+                i.hora
+            FROM ingreso as i 
+                INNER JOIN venta as v  ON i.idVenta = v.idVenta
+                INNER JOIN metodoPago as mp on i.idMetodoPago = mp.idMetodoPago               
+            WHERE v.idVenta = ?
+        `, [req.query.idVenta]);
+
+            // Enviar respuesta exitosa con la información recopilada
+            return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
-            if (connection != null) {
-                await conec.rollback(connection);
-            }
+            // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async anular(req, res) {
+    async cancel(req, res) {
         let connection = null;
+
         try {
+            // Iniciar una transacción
             connection = await conec.beginTransaction();
 
-            const validar = await conec.execute(connection, `SELECT 
-            idVenta,
-            serie,
-            numeracion 
+            // Obtener información de la venta para el id proporcionado
+            const venta = await conec.execute(connection, `
+            SELECT serie, numeracion, estado 
             FROM venta 
-            WHERE idVenta = ? AND estado = 3`, [
-                req.query.idVenta
-            ]);
-            if (validar.length !== 0) {
+            WHERE idVenta = ?
+        `, [req.query.idVenta]);
+
+            // Verificar si la venta existe
+            if (venta.length === 0) {
                 await conec.rollback(connection);
-                return sendClient(res, "La venta ya se encuentra anulada.");
+                return sendError(res, "La venta no existe, verifique el código o actualiza la lista.");
             }
 
-            await conec.execute(connection, `UPDATE venta SET estado = 3 WHERE idVenta = ?`, [
-                req.query.idVenta
-            ])
+            // Verificar si la venta ya está anulada
+            if (venta[0].estado === 3) {
+                await conec.rollback(connection);
+                return sendError(res, "La venta ya se encuentra anulada.");
+            }
 
-            await conec.execute(connection, `UPDATE ingreso SET estado = 0 WHERE idVenta = ?`, [
-                req.query.idVenta
-            ])
+            // Actualizar el estado de la venta a anulado
+            await conec.execute(connection, `
+            UPDATE venta 
+            SET estado = 3 
+            WHERE idVenta = ?
+        `, [req.query.idVenta]);
 
-            /**
-             * Proceso de registrar datos en la tabla auditoria para tener un control de los movimientos echos.
-             */
+            // Actualizar el estado de los ingresos asociados a la venta
+            await conec.execute(connection, `
+            UPDATE ingreso 
+            SET estado = 0 
+            WHERE idVenta = ?
+        `, [req.query.idVenta]);
 
-            // Generar el Id único
-            const listaAuditoriaId = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            let idAuditoria = generateNumericCode(1, listaAuditoriaId, 'idAuditoria');
+            // Obtener detalles de la venta
+            const detalleVenta = await conec.execute(connection, `
+            SELECT idProducto, idInventario, precio, cantidad 
+            FROM ventaDetalle 
+            WHERE idVenta = ?
+        `, [req.query.idVenta]);
 
-            const venta = await conec.execute(connection, `SELECT 
-                idVenta,
-                serie,
-                numeracion 
-                FROM venta 
-                WHERE idVenta = ?`, [
-                req.query.idVenta
-            ]);
+            // Obtener el máximo idKardex existente
+            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            let idKardex = 0;
 
-            // Proceso de registro            
-            await conec.execute(connection, `INSERT INTO auditoria(
+            if (resultKardex.length !== 0) {
+                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
+                idKardex = Math.max(...quitarValor);
+            }
+
+            // Iterar sobre los detalles de la venta y realizar operaciones de anulación
+            for (const item of detalleVenta) {
+                // Obtener el costo del producto
+                const producto = await conec.execute(connection, `
+                SELECT costo FROM producto WHERE idProducto = ?
+            `, [item.idProducto]);
+
+                // Obtener el idAlmacen del inventario
+                const inventario = await conec.execute(connection, `
+                SELECT idAlmacen FROM inventario WHERE idInventario = ?
+            `, [item.idInventario]);
+
+                // Insertar registro en la tabla kardex para anulación
+                await conec.execute(connection, `
+                INSERT INTO kardex(
+                    idKardex,
+                    idProducto,
+                    idTipoKardex,
+                    idMotivoKardex,
+                    detalle,
+                    cantidad,
+                    costo,
+                    idAlmacen,
+                    hora,
+                    fecha,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+            `, [
+                    `KD${String(idKardex += 1).padStart(4, '0')}`,
+                    item.idProducto,
+                    'TK0001',
+                    'MK0004',
+                    'ANULACIÓN DE LA VENTA',
+                    item.cantidad,
+                    producto[0].costo,
+                    inventario[0].idAlmacen,
+                    currentTime(),
+                    currentDate(),
+                    req.query.idUsuario
+                ]);
+
+                // Actualizar la cantidad en el inventario
+                await conec.execute(connection, `
+                UPDATE inventario 
+                SET cantidad = cantidad + ?
+                WHERE idInventario = ?
+            `, [
+                    item.cantidad,
+                    item.idInventario
+                ]);
+            }
+
+            // Obtener el máximo idAuditoria existente
+            const listAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
+            const idAuditoria = generateNumericCode(1, listAuditoria, 'idAuditoria');
+
+            // Insertar registro en la tabla auditoria para anulación de la venta
+            await conec.execute(connection, `
+            INSERT INTO auditoria(
                 idAuditoria,
                 idProcedencia,
                 descripcion,
                 fecha,
                 hora,
-                idUsuario) 
-                VALUES(?,?,?,?,?,?)`, [
+                idUsuario
+            ) VALUES(?,?,?,?,?,?)`, [
                 idAuditoria,
                 req.query.idVenta,
                 `ANULACIÓN DEL COMPROBANTE ${venta[0].serie}-${venta[0].numeracion}`,
@@ -1080,119 +514,14 @@ class Factura {
                 currentTime(),
                 req.query.idUsuario
             ]);
-            // const plazos = await conec.execute(connection, `SELECT * FROM
-            //         cobroVenta WHERE idVenta = ?`, [
-            //     req.query.idVenta
-            // ]);
 
-            // let validate = 0;
-
-            // for (const item of plazos) {
-            //     if (item.idPlazo !== 0) {
-            //         validate++;
-            //     }
-            // }
-
-            // if (validate > 0) {
-            //     await conec.rollback(connection);
-            //     return sendClient(res, "No se puede eliminar la venta porque tiene cuotas asociadas.");
-            // }
-
-            // await conec.execute(connection, `UPDATE venta SET estado = 3 
-            //         WHERE idVenta = ?`, [
-            //     req.query.idVenta
-            // ]);
-
-            // const cobro = await conec.execute(connection, `SELECT idCobro FROM cobro WHERE idProcedencia = ?`, [
-            //     req.query.idVenta
-            // ])
-
-            // if (cobro.length > 0) {
-            //     await conec.execute(connection, `DELETE FROM cobro WHERE idCobro = ?`, [
-            //         cobro[0].idCobro
-            //     ]);
-
-            //     await conec.execute(connection, `DELETE FROM cobroDetalle WHERE idCobro = ?`, [
-            //         cobro[0].idCobro
-            //     ]);
-
-            //     await conec.execute(connection, `DELETE FROM cobroVenta WHERE idCobro = ?`, [
-            //         cobro[0].idCobro
-            //     ]);
-
-            //     await conec.execute(connection, `DELETE FROM bancoDetalle WHERE idProcedencia  = ?`, [
-            //         cobro[0].idCobro
-            //     ]);
-            // }
-
-            // const producto = await conec.execute(connection, `SELECT vd.idProducto FROM
-            //         venta AS v 
-            //         INNER JOIN ventaDetalle AS vd ON v.idVenta = vd.idVenta
-            //         WHERE v.idVenta  = ?`, [
-            //     req.query.idVenta
-            // ]);
-
-            // for (const item of producto) {
-            //     await conec.execute(connection, `UPDATE producto SET estado = 1 
-            //             WHERE idProducto = ?`, [
-            //         item.idProducto
-            //     ]);
-            // }
-
-            // await conec.execute(connection, `DELETE FROM plazo WHERE idVenta = ?`, [
-            //     req.query.idVenta
-            // ]);
-
-            // await conec.execute(connection, `DELETE FROM asociado WHERE idVenta = ?`, [
-            //     req.query.idVenta
-            // ]);
-
-            // const venta = await conec.execute(connection, `SELECT 
-            //     idVenta,
-            //     serie,
-            //     numeracion 
-            //     FROM venta 
-            //     WHERE idVenta = ?`, [
-            //     req.query.idVenta
-            // ]);
-
-            // /**
-            //  * Proceso de registro de auditoria 
-            //  */
-            // const resultAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            // let idAuditoria = 0;
-            // if (resultAuditoria.length != 0) {
-            //     let quitarValor = resultAuditoria.map(function (item) {
-            //         return parseInt(item.idAuditoria);
-            //     });
-
-            //     let valorActual = Math.max(...quitarValor);
-            //     let incremental = valorActual + 1;
-
-            //     idAuditoria = incremental;
-            // } else {
-            //     idAuditoria = 1;
-            // }
-
-            // await conec.execute(connection, `INSERT INTO auditoria(
-            //         idAuditoria,
-            //         idProcedencia,
-            //         descripcion,
-            //         fecha,
-            //         hora,
-            //         idUsuario) 
-            //         VALUES(?,?,?,?,?,?)`, [
-            //     idAuditoria,
-            //     req.query.idVenta,
-            //     `ANULACIÓN DEL COMPROBANTE ${venta[0].serie}-${venta[0].numeracion}`,
-            //     currentDate(),
-            //     currentTime(),
-            //     req.query.idUsuario
-            // ]);
-
+            // Confirmar la transacción
             await conec.commit(connection);
+
+            // Enviar respuesta exitosa
             return sendSave(res, "Se anuló correctamente la venta.");
         } catch (error) {
+            // Manejar errores y realizar rollback en caso de problemas
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -1200,91 +529,6 @@ class Factura {
         }
     }
 
-    /**
-     * Metodo usado en el modulo facturación/ventas/detalle.
-     * @param {*} req 
-     * @param {*} res 
-     * @returns object | string
-     */
-    async id(req, res) {
-        try {
-
-            const result = await conec.query(`SELECT
-            v.idVenta, 
-            com.nombre AS comprobante,
-            com.codigo as codigoVenta,
-            v.serie,
-            v.numeracion,
-            
-            td.nombre AS tipoDoc,      
-            td.codigo AS codigoCliente,      
-            c.documento,
-            c.informacion,
-            c.direccion,
-
-            CONCAT(us.nombres,' ',us.apellidos) AS usuario,
-    
-            DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-            v.hora, 
-            v.tipo, 
-            v.estado, 
-            m.simbolo,
-            m.codiso,
-            m.nombre as moneda
-            
-            FROM venta AS v 
-            INNER JOIN clienteNatural AS c ON v.idCliente = c.idCliente
-            INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
-            INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-            INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
-            INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
-            WHERE v.idVenta = ?`, [
-                req.query.idVenta
-            ]);
-
-            const detalle = await conec.query(`SELECT 
-                p.nombre AS producto,
-                md.codigo AS medida, 
-                m.nombre AS categoria, 
-                vd.precio,
-                vd.cantidad,
-                vd.idImpuesto,
-                imp.nombre AS impuesto,
-                imp.porcentaje
-                FROM ventaDetalle AS vd 
-                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
-                WHERE vd.idVenta = ? `, [
-                req.query.idVenta
-            ]);
-
-            const ingresos = await conec.query(`SELECT 
-                mp.nombre,
-                i.descripcion,
-                i.monto,
-                DATE_FORMAT(i.fecha,'%d/%m/%Y') as fecha,
-                i.hora
-                FROM ingreso as i 
-                INNER JOIN venta as v  ON i.idVenta = v.idVenta
-                INNER JOIN metodoPago as mp on i.idMetodoPago = mp.idMetodoPago               
-                WHERE v.idVenta = ?`, [
-                req.query.idVenta
-            ])
-
-            return sendSuccess(res, { "cabecera": result[0], "detalle": detalle, "ingresos": ingresos });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
-        }
-    }
-
-    /**
-     * Metodo usado en el modulo facturación/créditos.
-     * @param {*} req 
-     * @param {*} res 
-     * @returns object | string
-     */
     async credito(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Creditos(?,?,?,?,?,?,?)`, [
@@ -1333,17 +577,11 @@ class Factura {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            console.log(error);
+        } catch (error) {          
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    /**
-    * Metodo usado en el modulo facturación/ventas/detalle.
-    * @param {*} req 
-    * @returns object | string
-    */
     async ventaCobro(req, res) {
         try {
             const result = await conec.procedure(`CALL Listar_Cobros_Detalle_ByIdVenta(?)`, [
@@ -1356,9 +594,6 @@ class Factura {
         }
     }
 
-    /**
-     * 
-     */
     async cpesunat(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_CpeSunat(?,?,?,?,?,?,?,?,?,?)`, [
@@ -1395,8 +630,7 @@ class Factura {
             const resultTotal = await total.map(item => item.Total).reduce((previousValue, currentValue) => previousValue + currentValue, 0);
 
             return sendSuccess(res, { "result": resultLista, "total": resultTotal });
-        } catch (error) {
-            console.log(error)
+        } catch (error) {         
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -1466,12 +700,6 @@ class Factura {
         }
     }
 
-    /**
-     * Metodo usado en el modulo facturación/créditos/proceso.
-     * @param {*} req 
-     * @param {*} res 
-     * @returns object | string
-     */
     async detalleCredito(req, res) {
         try {
             const venta = await conec.query(`
@@ -1777,11 +1005,6 @@ class Factura {
         }
     }
 
-    /**
-     * Metodo usado para generar el pdf [services: factura]/repgeneralventas
-     * @param {*} req 
-     * @returns object | string
-     */
     async detalleVenta(req) {
         try {
             let ventas = await conec.procedure(`CALL Detalle_Ventas(?,?,?,?,?,?)`, [

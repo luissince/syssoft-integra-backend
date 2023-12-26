@@ -654,8 +654,7 @@ class Producto {
                 req.query.idSucursal,
             ])
             return result;
-        } catch (error) {
-            console.log(error)
+        } catch (error) {          
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -685,7 +684,7 @@ class Producto {
     }
 
     async filterAlmacen(req) {
-        try {
+        try {            
             const result = await conec.query(`SELECT 
             p.idProducto,
             p.nombre,

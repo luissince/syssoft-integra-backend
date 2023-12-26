@@ -30,7 +30,6 @@ class Cobro {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -51,8 +50,6 @@ class Cobro {
                 detalle,
                 metodoPago,
             } = req.body;
-
-            console.log(req.body)
 
             /**
             * Generar un código unico para el cobro. 
@@ -204,7 +201,7 @@ class Cobro {
                 idUsuario
             ]);
 
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return 'create';
         } catch (error) {
             if (connection != null) {
@@ -329,7 +326,6 @@ class Cobro {
             co.nombre`);
             return result;
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

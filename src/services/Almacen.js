@@ -191,25 +191,32 @@ class Almacen {
         try {
             connection = await conec.beginTransaction();
 
-            const predefinido = await conec.execute(connection, `SELECT * FROM inventario WHERE idAlmacen = ? AND predefinido = ?`);
-            if(predefinido.length !== 0){
+            const predefinido = await conec.execute(connection, `SELECT * FROM almacen WHERE idAlmacen = ? AND predefinido = 1`, [
+                req.body.idAlmacen
+            ]);
+            if (predefinido.length !== 0) {
                 await conec.rollback(connection);
 
                 return "El almacen esta como predefinido no puede ser eliminado.";
             }
 
-            const inventario = await conec.execute(connection, `SELECT * FROM inventario WHERE idAlmacen = ?`,[
+            const inventario = await conec.execute(connection, `SELECT idKardex FROM kardex WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
             ])
 
-            if(inventario.length !== 0){
+            if (inventario.length !== 0) {
                 await conec.rollback(connection);
 
                 return "Hay un inventario ligado por ello no se puede eliminar el almacen.";
             }
 
+            await conec.execute(connection, `DELETE FROM inventario 
+                WHERE idAlmacen = ?`, [
+                req.body.idAlmacen
+            ])
+
             await conec.execute(connection, `DELETE FROM almacen
-                where idAlmacen = ?`, [
+                WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
             ])
 
@@ -227,8 +234,15 @@ class Almacen {
 
     async combo(req) {
         try {
-            const lista = await conec.query(`SELECT idAlmacen, nombre FROM almacen`);
-            return lista;
+            if (!req.query.idSucursal) {
+                const lista = await conec.query(`SELECT idAlmacen, nombre FROM almacen`);
+                return lista;
+            } else {
+                const lista = await conec.query(`SELECT idAlmacen, nombre FROM almacen WHERE idSucursal = ?`, [
+                    req.query.idSucursal
+                ]);
+                return lista;
+            }
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }

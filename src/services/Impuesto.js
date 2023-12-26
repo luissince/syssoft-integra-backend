@@ -51,8 +51,7 @@ class Impuesto {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            console.log(error)
+        } catch (error) {           
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -175,8 +174,7 @@ class Impuesto {
 
             await conec.commit(connection)
             return sendSave(res, 'Los datos se actualizarón correctamente.');
-        } catch (error) {
-            console.log(error)
+        } catch (error) {          
             if (connection != null) {
                 await conec.rollback(connection);
             }

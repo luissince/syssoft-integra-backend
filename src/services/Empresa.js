@@ -125,7 +125,6 @@ class Empresa {
             let file = path.join(__dirname, '../', 'path/company');
 
             if (!isDirectory(file)) {
-                console.log(file)
                 mkdir(file);
                 chmod(file);
             }
@@ -224,7 +223,6 @@ class Empresa {
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente la empresa.");
         } catch (error) {
-            console.log(error);
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -247,9 +245,7 @@ class Empresa {
             } else {
                 return sendClient(res, "Iniciar configuración.");
             }
-        } catch (error) {
-            console.log("Se genero un error")
-            console.log(error)
+        } catch (error) {         
             return sendClient(res, "Iniciar configuración.");
         }
     }

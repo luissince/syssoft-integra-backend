@@ -43,33 +43,35 @@ class Ajuste {
     async detail(req) {
         try {
             const ajuste = await conec.query(`SELECT 
-                a.idAjuste,
-                DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
-                a.hora,
-                tp.nombre as tipo,
-                mt.nombre as motivo,
-                al.nombre as almacen,
-                a.observacion,
-                a.estado
-                from ajuste as a 
-                INNER JOIN tipoAjuste as tp ON tp.idTipoAjuste = a.idTipoAjuste
-                INNER JOIN motivoAjuste as mt on mt.idMotivoAjuste = a.idMotivoAjuste
-                INNER JOIN almacen as al on al.idAlmacen = a.idAlmacen
-                INNER JOIN usuario us on us.idUsuario = a.idUsuario
+                    a.idAjuste,
+                    DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
+                    a.hora,
+                    tp.nombre as tipo,
+                    mt.nombre as motivo,
+                    al.nombre as almacen,
+                    a.observacion,
+                    a.estado
+                FROM 
+                    ajuste as a 
+                    INNER JOIN tipoAjuste as tp ON tp.idTipoAjuste = a.idTipoAjuste
+                    INNER JOIN motivoAjuste as mt on mt.idMotivoAjuste = a.idMotivoAjuste
+                    INNER JOIN almacen as al on al.idAlmacen = a.idAlmacen
+                    INNER JOIN usuario us on us.idUsuario = a.idUsuario
                 WHERE a.idAjuste = ?`, [
                 req.query.idAjuste,
             ])
 
             const detalle = await conec.query(`SELECT 
-                p.codigo,
-                p.nombre as producto,
-                aj.cantidad,
-                m.nombre as unidad,
-                c.nombre as categoria
-                from ajusteDetalle as aj
-                INNER JOIN producto as p on p.idProducto = aj.idProducto
-                INNER JOIN medida as m on m.idMedida = p.idMedida
-                INNER JOIN categoria as c on c.idCategoria = p.idCategoria
+                    p.codigo,
+                    p.nombre as producto,
+                    aj.cantidad,
+                    m.nombre as unidad,
+                    c.nombre as categoria
+                FROM 
+                    ajusteDetalle as aj
+                    INNER JOIN producto as p on p.idProducto = aj.idProducto
+                    INNER JOIN medida as m on m.idMedida = p.idMedida
+                    INNER JOIN categoria as c on c.idCategoria = p.idCategoria
                 WHERE aj.idAjuste = ?`, [
                 req.query.idAjuste,
             ])
@@ -243,18 +245,19 @@ class Ajuste {
         try {
             connection = await conec.beginTransaction();
 
-            const exist = await conec.execute(connection, `SELECT * FROM ajuste WHERE idAjuste = ? AND estado = 0`, [
+            const ajuste = await conec.execute(connection, `SELECT idTipoAjuste,idAlmacen,estado FROM ajuste WHERE idAjuste = ?`, [
                 req.query.idAjuste,
             ])
 
-            if (exist.length !== 0) {
+            if(ajuste.length === 0){
                 await conec.rollback(connection);
-                return "El ajuste ya se encuentra cancelado."
+                return "El ajuste no existe, verifique el código o actualiza la lista."
             }
 
-            const ajuste = await conec.execute(connection, `SELECT idTipoAjuste,idAlmacen FROM ajuste WHERE idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
+            if(ajuste[0].estado === 0){
+                await conec.rollback(connection);
+                return "El ajuste ya se encuentra con estado cancelado."
+            }
 
             await conec.execute(connection, `UPDATE ajuste SET estado = 0 WHERE idAjuste = ?`, [
                 req.query.idAjuste,

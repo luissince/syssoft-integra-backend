@@ -91,7 +91,6 @@ class Cliente {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -278,7 +277,6 @@ class Cliente {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -463,7 +461,6 @@ class Cliente {
             }
 
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -504,12 +501,10 @@ class Cliente {
             }
 
             if (req.query.idCliente.startsWith("CN")) {
-                console.log("CN")
                 await conec.execute(connection, `DELETE FROM clienteNatural WHERE idCliente  = ?`, [
                     req.query.idCliente
                 ]);
             } else {
-                console.log("CJ")
                 await conec.execute(connection, `DELETE FROM clienteJuridico WHERE idCliente  = ?`, [
                     req.query.idCliente
                 ]);
