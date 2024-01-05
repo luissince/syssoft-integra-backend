@@ -42,9 +42,9 @@ class Ingreso {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-
+           
             const ingreso = await conec.execute(connection, `SELECT 
-                ingreso, 
+                idIngreso, 
                 estado 
             FROM 
                 ingreso 
@@ -82,7 +82,7 @@ class Ingreso {
             FROM  cobro AS g
                 INNER JOIN ingreso AS s ON s.idCobro = g.idCobro 
             WHERE 
-                c.tipo = 1 AND s.idVenta = ?`, [
+                c.tipo = 1 AND s.idIngreso = ?`, [
                 parseInt(req.query.idIngreso)
             ]);
 
@@ -95,13 +95,14 @@ class Ingreso {
             SET 
                 estado = 0 
             WHERE 
-            idIngreso = ?`, [
+                idIngreso = ?`, [
                 parseInt(req.query.idIngreso)
             ]);
 
             await conec.commit(connection);
             return "cancel";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

@@ -219,21 +219,14 @@ class Gasto {
                 g.numeracion,
                 DATE_FORMAT(g.fecha,'%d/%m/%Y') AS fecha,
                 g.hora,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.documento
-                    ELSE  cj.documento
-                END AS documento,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.informacion
-                    ELSE  cj.informacion
-                END AS informacion,
+                cn.documento,
+                cn.informacion,
                 g.estado,
                 m.codiso,
                 u.apellidos,
                 u.nombres
                 FROM gasto AS g
-                LEFT JOIN clienteNatural AS cn on cn.idCliente = g.idCliente
-                LEFT JOIN clienteJuridico AS cj on cj.idCliente = g.idCliente
+                INNER JOIN clienteNatural AS cn on cn.idCliente = g.idCliente
                 INNER JOIN comprobante AS co on co.idComprobante = g.idComprobante
                 INNER JOIN moneda AS m on m.idMoneda = g.idMoneda
                 INNER JOIN usuario AS u ON u.idUsuario = g.idUsuario

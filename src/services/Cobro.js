@@ -220,21 +220,14 @@ class Cobro {
                 c.numeracion,
                 DATE_FORMAT(c.fecha,'%d/%m/%Y') AS fecha,
                 c.hora,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.documento
-                    ELSE  cj.documento
-                END AS documento,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.informacion
-                    ELSE  cj.informacion
-                END AS informacion,
+                cn.documento,
+                cn.informacion,
                 c.estado,
                 m.codiso,
                 u.apellidos,
                 u.nombres
                 FROM cobro AS c
-                LEFT JOIN clienteNatural AS cn on cn.idCliente = c.idCliente
-                LEFT JOIN clienteJuridico AS cj on cj.idCliente = c.idCliente
+                INNER JOIN clienteNatural AS cn on cn.idCliente = c.idCliente
                 INNER JOIN comprobante AS co on co.idComprobante = c.idComprobante
                 INNER JOIN moneda AS m on m.idMoneda = c.idMoneda
                 INNER JOIN usuario AS u ON u.idUsuario = c.idUsuario

@@ -24,15 +24,10 @@ class Empresa {
             let empresa = await conec.query(`SELECT 
                 e.idEmpresa,
                 e.nombreEmpresa,
-                e.celular,
-                e.telefono,
-                e.email,
-                e.web,
                 e.documento as ruc,
                 e.razonSocial as nombreEmpresa,
                 u.departamento,
                 u.distrito,
-                e.direccion,
                 e.rutaLogo,
                 e.rutaImage,
                 e.usuarioEmail,
@@ -48,7 +43,7 @@ class Empresa {
                 WHERE idSucursal = ?`, [
                 req.query.idSucursal,
             ]);
-            
+
             let result = [...empresa, ...sucursal];
 
             if (result.length >= 1) {
@@ -66,23 +61,19 @@ class Empresa {
 
     async load(req, res) {
         try {
-            let empresa = await conec.query(`SELECT
-            idEmpresa ,
-            documento,
-            razonSocial,
-            nombreEmpresa,
-            direccion,
-            rutaLogo,
-            rutaImage,
-            useSol,
-            claveSol
-            FROM empresa LIMIT 1`);
+            const empresa = await conec.query(`
+            SELECT
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage
+            FROM 
+                empresa 
+            LIMIT 1`);
 
-            if (empresa.length > 0) {
-                return sendSuccess(res, empresa[0])
-            } else {
-                return sendClient(res, "Datos no encontrados.");
-            }
+            return sendSuccess(res, empresa[0])
         } catch (error) {
             sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
@@ -91,27 +82,26 @@ class Empresa {
     async id(req, res) {
         try {
             let empresa = await conec.query(`SELECT  
-            idEmpresa,
-            documento,
-            razonSocial,
-            nombreEmpresa,
-            direccion,
-            rutaLogo,
-            rutaImage,
-            usuarioEmail,
-            claveEmail,
-            useSol,
-            claveSol
-            FROM empresa
-            WHERE idEmpresa = ?`, [
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage,
+                usuarioEmail,
+                claveEmail,
+                usuarioSolSunat,
+                claveSolSunat,
+                idApiSunat,
+                claveApiSunat
+            FROM 
+                empresa
+            WHERE 
+                idEmpresa = ?`, [
                 req.query.idEmpresa
             ]);
 
-            if (empresa.length > 0) {
-                return sendSuccess(res, empresa[0])
-            } else {
-                return sendClient(res, "Datos no encontrados.");
-            }
+            return sendSuccess(res, empresa[0])
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
@@ -121,108 +111,100 @@ class Empresa {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-
-            let file = path.join(__dirname, '../', 'path/company');
+            console.log(req.body)
+            let file = path.join(__dirname, '..', "path", "company");
 
             if (!isDirectory(file)) {
                 mkdir(file);
                 chmod(file);
             }
 
-            let empresa = await conec.execute(connection, `SELECT
-            logo, 
-            image,
-            extlogo,
-            extimage,
-            rutaLogo,
-            rutaImage
-            FROM empresa
-            WHERE idEmpresa  = ?`, [
+            const empresa = await conec.execute(connection, `
+            SELECT
+                rutaLogo,
+                rutaImage
+            FROM 
+                empresa
+            WHERE 
+                idEmpresa  = ?`, [
                 req.body.idEmpresa
             ]);
 
-            let fileLogo = "";
-            let extLogo = "";
             let rutaLogo = "";
+
             if (req.body.logo !== "") {
-                removeFile(path.join(file, empresa[0].rutaLogo));
+                if (empresa[0].rutaLogo) {
+                    removeFile(path.join(file, empresa[0].rutaLogo));
+                }
 
                 let nameImage = `${Date.now() + req.body.idEmpresa}.${req.body.extlogo}`;
                 writeFile(path.join(file, nameImage), req.body.logo);
 
-                fileLogo = req.body.logo;
-                extLogo = req.body.extlogo;
                 rutaLogo = nameImage;
             } else {
-                fileLogo = empresa[0].logo;
-                extLogo = empresa[0].extlogo;
                 rutaLogo = empresa[0].rutaLogo;
             }
 
-            let fileImage = "";
-            let extImage = "";
             let rutaImage = "";
+
             if (req.body.image !== "") {
-                removeFile(path.join(file, empresa[0].rutaImage));
+                if (empresa[0].rutaImage) {
+                    removeFile(path.join(file, empresa[0].rutaImage));
+                }
 
                 let nameImage = `${Date.now() + req.body.idEmpresa}.${req.body.extimage}`;
                 writeFile(path.join(file, nameImage), req.body.image);
 
-                fileImage = req.body.image;
-                extImage = req.body.extimage;
                 rutaImage = nameImage;
             } else {
-                fileImage = empresa[0].image;
-                extImage = empresa[0].extimage;
                 rutaImage = empresa[0].rutaImage;
             }
-            
+
             await conec.execute(connection, `UPDATE empresa SET 
             documento = ?,
             razonSocial = ?,
             nombreEmpresa = ?,
-            direccion=?,
 
-            logo=?,
-            image=?,
-            extlogo=?,
-            extimage=?,
             rutaLogo=?,
             rutaImage=?,
 
             usuarioEmail=?,
             claveEmail=?,
 
-            useSol=?,
-            claveSol=?,
+            usuarioSolSunat=?,
+            claveSolSunat=?,
+            idApiSunat=?,
+            claveApiSunat=?,
+
             fupdate= ?,
-            hupdate=?
+            hupdate=?,
+            idUsuario=?
             WHERE idEmpresa =?`, [
                 req.body.documento,
                 req.body.razonSocial,
                 req.body.nombreEmpresa,
-                req.body.direccion,
 
-                fileLogo,
-                fileImage,
-                extLogo,
-                extImage,
                 rutaLogo,
                 rutaImage,
 
                 req.body.usuarioEmail,
                 req.body.claveEmail,
 
-                req.body.useSol,
-                req.body.claveSol,
+                req.body.usuarioSolSunat,
+                req.body.claveSolSunat,
+                req.body.idApiSunat,
+                req.body.claveApiSunat,
+
                 currentDate(),
                 currentTime(),
+                req.body.idUsuario,
                 req.body.idEmpresa
             ]);
 
             await conec.commit(connection);
-            return sendSuccess(res, "Se actualizó correctamente la empresa.");
+            return sendSuccess(res, "Se actualizó correctamente los datos de la empresa.");
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -245,7 +227,7 @@ class Empresa {
             } else {
                 return sendClient(res, "Iniciar configuración.");
             }
-        } catch (error) {         
+        } catch (error) {
             return sendClient(res, "Iniciar configuración.");
         }
     }
@@ -316,11 +298,6 @@ class Empresa {
                 documento,
                 razonSocial,
                 nombreEmpresa,
-                telefono,
-                celular,
-                email,
-                web,
-                direccion,
                 logo,
                 image,
                 extlogo,
@@ -337,17 +314,12 @@ class Empresa {
                 hora,
                 fupdate,
                 hupdate
-             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idEmpresa,
                 'TD0003',
                 req.body.documento,
                 req.body.razonSocial,
                 req.body.nombreEmpresa,
-                req.body.telefono,
-                req.body.celular,
-                req.body.email,
-                req.body.web,
-                req.body.direccion,
                 req.body.logo,
                 req.body.image,
                 req.body.extlogo,

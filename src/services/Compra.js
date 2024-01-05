@@ -272,12 +272,12 @@ class Compra {
                 co.nombre AS comprobante,
                 c.serie,
                 c.numeracion,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.documento ELSE cj.documento END AS documento,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.informacion ELSE cj.informacion END AS informacion,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.telefono ELSE cj.telefono END AS telefono,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.celular ELSE cj.celular END AS celular,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.email ELSE cj.email END AS email,
-                CASE WHEN cn.idCliente IS NOT NULL THEN cn.direccion ELSE cj.direccion END AS direccion,                
+                cn.documento,
+                cn.informacion,
+                cn.telefono,
+                cn.celular,
+                cn.email,
+                cn.direccion,                
                 al.nombre AS almacen,
                 c.tipo,
                 c.estado,
@@ -290,8 +290,7 @@ class Compra {
                 INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
                 INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
                 INNER JOIN almacen AS al ON al.idAlmacen = c.idAlmacen
-                LEFT JOIN clienteNatural AS cn ON cn.idCliente = c.idCliente
-                LEFT JOIN clienteJuridico AS cj ON cj.idCliente = c.idCliente
+                INNER JOIN clienteNatural AS cn ON cn.idCliente = c.idCliente
                 INNER JOIN usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCompra = ?`, [
@@ -312,7 +311,7 @@ class Compra {
                 INNER JOIN producto AS p ON cd.idProducto = p.idProducto 
                 INNER JOIN medida AS md ON md.idMedida = p.idMedida 
                 INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON cd.idImpuesto  = imp.idImpuesto  
+                INNER JOIN impuesto AS imp ON cd.idImpuesto = imp.idImpuesto  
             WHERE cd.idCompra = ?`, [
                 req.query.idCompra,
             ]);
@@ -335,6 +334,37 @@ class Compra {
             return { cabecera: compra[0], detalle, salidas };
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
+    async accountsPayable(req){
+        try{
+            const lista = await conec.procedure(`CALL Listar_Cuenta_Pagar(?,?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.idSucursal,
+
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ])
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_Cuenta_Pagar_Count(?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.idSucursal
+            ]);
+
+            return { "result": resultLista, "total": total[0].Total };
+        }catch(error){
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

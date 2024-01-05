@@ -95,7 +95,7 @@ class Producto {
                 inventarios,
                 precios
             } = req.body;
-
+            
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ?`, [
                 codigo
             ]);
@@ -294,7 +294,7 @@ class Producto {
                 ])
             }
 
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return "insert";
         } catch (error) {
             if (connection != null) {
