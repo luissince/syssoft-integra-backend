@@ -7,6 +7,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swagger = require('./src/swagger');
+const { isFile } = require('./src/tools/Tools');
 
 require('dotenv').config();
 
@@ -19,7 +20,7 @@ app.use(cors());
 // Middleware para servir archivos estáticos desde diferentes carpetas
 router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
 router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
-router.use('/to', express.static(path.join(__dirname,'src','path','to')));
+router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
 
 // Montar el router en la ruta '/imagenes'
 app.use('/imagenes', router);
@@ -35,12 +36,39 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
 
 // Ruta principal
-app.get('/', (req, res) => {
+app.get('/', (_, res) => {
     res.json({
         "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
         "Fecha y hora actuales": new Date().toLocaleDateString(),
         "Entorno": process.env.ENVIRONMENT
     });
+});
+
+// Ruta para obtener las imagene por nombre
+app.get('/imagen/:nombreImagen', (req, res) => {
+    const nombreImagen = req.params.nombreImagen;
+
+    if (!nombreImagen) {
+        return res.status(404).json({ error: 'El parametro de nombre de imagen falta completar.' });
+    }
+
+    const rutaImagenTo = path.join(__dirname, 'src', 'path', 'to', nombreImagen);
+    const rutaImagenCompany = path.join(__dirname, 'src', 'path', 'company', nombreImagen);
+    const rutaImagenProyect = path.join(__dirname, 'src', 'path', 'proyect', nombreImagen);
+
+    if (isFile(rutaImagenTo)) {
+        return res.sendFile(rutaImagenTo);
+    }
+
+    if (isFile(rutaImagenCompany)) {
+        return res.sendFile(rutaImagenCompany);
+    }
+
+    if (isFile(rutaImagenProyect)) {
+        return res.sendFile(rutaImagenProyect);
+    }
+
+    res.status(404).json({ error: 'Imagen no encontrada' });
 });
 
 // Rutas API

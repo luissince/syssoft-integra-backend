@@ -1,15 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const factura = require('../services/Factura');
-const empresa = require('../services/Empresa');
-const RepCuota = require('../report/RepCuota');
-const RepFactura = require('../report/RepFactura');
-const { decrypt } = require('../tools/CryptoJS');
-const { generateExcel } = require('../excel/FileVentas');
-const { sendError } = require('../tools/Message');
-
-const repCuota = new RepCuota();
-const repFactura = new RepFactura();
 
 router.get("/list", async function (req, res) {
     return await factura.list(req, res);
