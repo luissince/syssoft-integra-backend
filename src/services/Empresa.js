@@ -16,6 +16,8 @@ const path = require("path");
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
+require('dotenv').config();
+
 class Empresa {
 
     async infoEmpresaReporte(req) {
@@ -61,27 +63,37 @@ class Empresa {
 
     async load(req, res) {
         try {
-            const empresa = await conec.query(`
-            SELECT
-                idEmpresa,
-                documento,
-                razonSocial,
-                nombreEmpresa,
-                rutaLogo,
-                rutaImage
-            FROM 
-                empresa 
-            LIMIT 1`);
+            const [primeraEmpresa] = await conec.query(`
+                SELECT
+                    idEmpresa,
+                    documento,
+                    razonSocial,
+                    nombreEmpresa,
+                    rutaLogo,
+                    rutaImage
+                FROM 
+                    empresa 
+                LIMIT 1`);
 
-            return sendSuccess(res, empresa[0])
+            if (!primeraEmpresa) {
+                throw new Error('No se encontraron datos de empresa.');
+            }
+
+            const respuesta = {
+                ...primeraEmpresa,
+                rutaLogo: `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaLogo}`,
+                rutaImage: `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaImage}`
+            };
+
+            return sendSuccess(res, respuesta);
         } catch (error) {
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
     async id(req, res) {
         try {
-            let empresa = await conec.query(`SELECT  
+            const [primeraEmpresa] = await conec.query(`SELECT  
                 idEmpresa,
                 documento,
                 razonSocial,
@@ -101,7 +113,13 @@ class Empresa {
                 req.query.idEmpresa
             ]);
 
-            return sendSuccess(res, empresa[0])
+            const respuesta = {
+                ...primeraEmpresa,
+                rutaLogo: `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaLogo}`,
+                rutaImage: `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaImage}`
+            };
+
+            return sendSuccess(res, respuesta)
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
