@@ -14,6 +14,7 @@ jobs:
 
     env:  
       PORT: ${{ secrets.PORT }}
+      APP_URL: ${{secrets.APP_URL}}
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -30,6 +31,7 @@ jobs:
         run: |
           cat > .env <<EOL
           PORT="${{env.PORT}}"
+          APP_URL="${{env.APP_URL}}"
           DB_HOST="${{env.DB_HOST}}"
           DB_USER="${{env.DB_USER}}"
           DB_PASSWORD="${{env.DB_PASSWORD}}"
