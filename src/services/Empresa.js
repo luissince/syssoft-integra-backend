@@ -129,8 +129,8 @@ class Empresa {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            console.log(req.body)
-            let file = path.join(__dirname, '..', "path", "company");
+
+            const file = path.join(__dirname, '..', "path", "company");
 
             if (!isDirectory(file)) {
                 mkdir(file);
@@ -152,10 +152,16 @@ class Empresa {
 
             if (req.body.logo !== "") {
                 if (empresa[0].rutaLogo) {
-                    removeFile(path.join(file, empresa[0].rutaLogo));
+                    const remove = removeFile(path.join(file, empresa[0].rutaLogo));
+                    if (remove) {
+                        console.log("se quito la imagen " + empresa[0].rutaLogo)
+                    }
                 }
 
-                let nameImage = `${Date.now() + req.body.idEmpresa}.${req.body.extlogo}`;
+                let timestamp = Date.now();
+                let uniqueId = Math.random().toString(36).substring(2, 9);
+                let nameImage = `${timestamp}_${uniqueId}.${req.body.extlogo}`;
+
                 writeFile(path.join(file, nameImage), req.body.logo);
 
                 rutaLogo = nameImage;
@@ -170,7 +176,10 @@ class Empresa {
                     removeFile(path.join(file, empresa[0].rutaImage));
                 }
 
-                let nameImage = `${Date.now() + req.body.idEmpresa}.${req.body.extimage}`;
+                let timestamp = Date.now();
+                let uniqueId = Math.random().toString(36).substring(2, 9);
+                let nameImage = `${timestamp}_${uniqueId}.${req.body.extlogo}`;
+                
                 writeFile(path.join(file, nameImage), req.body.image);
 
                 rutaImage = nameImage;
