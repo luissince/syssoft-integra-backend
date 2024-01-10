@@ -20,6 +20,7 @@ app.use(cors());
 // Middleware para servir archivos estáticos desde diferentes carpetas
 router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
 router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
+router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
 router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
 
 // Montar el router en la ruta 'imagenes, archivos entre otros'
@@ -55,6 +56,7 @@ app.get('/imagen/:nombreImagen', (req, res) => {
     const rutaImagenTo = path.join(__dirname, 'src', 'path', 'to', nombreImagen);
     const rutaImagenCompany = path.join(__dirname, 'src', 'path', 'company', nombreImagen);
     const rutaImagenProyect = path.join(__dirname, 'src', 'path', 'proyect', nombreImagen);
+    const rutaImagenProduct = path.join(__dirname, 'src', 'path', 'product', nombreImagen);
 
     if (isFile(rutaImagenTo)) {
         return res.sendFile(rutaImagenTo);
@@ -66,6 +68,10 @@ app.get('/imagen/:nombreImagen', (req, res) => {
 
     if (isFile(rutaImagenProyect)) {
         return res.sendFile(rutaImagenProyect);
+    }
+
+    if (isFile(rutaImagenProduct)) {
+        return res.sendFile(rutaImagenProduct);
     }
 
     res.status(404).json({ error: 'Imagen no encontrada' });
