@@ -6,45 +6,10 @@ class GuiaRemision {
 
     async list(req) {
         try {
-            const lista = await conec.query(`SELECT 
-            a.idAjuste,
-            DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
-            a.hora,
-            a.observacion,
-            ta.nombre as ajuste,
-            ma.nombre as motivo,
-            a.estado,
-            u.apellidos,
-            u.nombres
-            FROM ajuste AS a
-            INNER JOIN tipoAjuste AS ta ON ta.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN motivoAjuste AS ma ON ma.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN usuario AS u ON u.idUsuario = a.idUsuario
-            WHERE 
-            ? = 0 AND a.idSucursal = ?
-            OR
-            ? = 1 AND a.idSucursal = ? AND a.observacion LIKE CONCAT(?,'%')
-            OR
-            ? = 2 AND a.idSucursal = ? AND a.fecha BETWEEN ? AND ?
-            OR
-            ? = 3 AND a.idSucursal = ? AND a.idTipoAjuste = ?
-            ORDER BY a.fecha DESC, a.hora DESC
-            LIMIT ?,?`, [
+            const lista = await conec.procedure(`CALL Listar_Guia_Remision(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
                 req.query.buscar,
-
-                parseInt(req.query.opcion),
                 req.query.idSucursal,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-                req.query.idTipoAjuste,
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -57,38 +22,14 @@ class GuiaRemision {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total
-            FROM ajuste AS a
-            INNER JOIN tipoAjuste AS ta ON ta.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN motivoAjuste AS ma ON ma.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN usuario AS u ON u.idUsuario = a.idUsuario
-            WHERE 
-            ? = 0 AND a.idSucursal = ?
-            OR
-            ? = 1 AND a.idSucursal = ? AND a.observacion LIKE CONCAT(?,'%')
-            OR
-            ? = 2 AND a.idSucursal = ? AND a.fecha BETWEEN ? AND ?
-            OR
-            ? = 3 AND a.idSucursal = ? AND a.idTipoAjuste = ?`, [
+            const total = await conec.procedure(`CALL Listar_Guia_Remision_Count(?,?,?)`, [
                 parseInt(req.query.opcion),
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
                 req.query.buscar,
-
-                parseInt(req.query.opcion),
                 req.query.idSucursal,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-                req.query.idTipoAjuste,
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {     
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -132,8 +73,6 @@ class GuiaRemision {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
-
-
 
     async detail(req) {
         try {           
