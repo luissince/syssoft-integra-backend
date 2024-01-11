@@ -103,7 +103,7 @@ class Factura {
                 const cliente = await conec.execute(connection, `SELECT * FROM clienteNatural WHERE documento = ?`, [
                     nuevoCliente.numeroDocumento
                 ])
-                console.log(cliente)
+
                 if (cliente.length === 0) {
                     const result = await conec.execute(connection, 'SELECT idCliente FROM clienteNatural');
                     idCliente = generateAlphanumericCode("CN0001", result, 'idCliente');
@@ -365,7 +365,10 @@ class Factura {
             ]);
 
             await conec.commit(connection);
-            return sendSave(res, "Se completo el proceso correctamente.");
+            return sendSave(res, {
+                message: "Se completo el proceso correctamente.",
+                idVenta: idVenta
+            });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
