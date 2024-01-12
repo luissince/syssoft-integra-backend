@@ -21,7 +21,7 @@ class Producto {
             const lista = await conec.query(`SELECT 
                 p.idProducto,
                 t.nombre as tipo,
-                v.nombre as venta,
+                ttp.nombre as venta,
                 p.codigo,
                 p.nombre,
                 pc.valor as precio,
@@ -35,7 +35,7 @@ class Producto {
                 INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
                 INNER JOIN medida AS m ON p.idMedida = m.idMedida       
                 INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoVenta AS v ON v.idTipoVenta = p.idTipoVenta
+                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
                 WHERE
                 ? = 0 
                 OR
@@ -65,7 +65,7 @@ class Producto {
                 INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
                 INNER JOIN medida AS m ON p.idMedida = m.idMedida 
                 INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoVenta AS v ON v.idTipoVenta = p.idTipoVenta
+                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
                 WHERE
                 ? = 0 
                 OR
@@ -94,7 +94,7 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
                 precio,
                 tipo,
@@ -149,7 +149,7 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
                 publicar,
@@ -172,7 +172,7 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
                 tipo,
                 publicar,
@@ -339,7 +339,7 @@ class Producto {
                 p.codigo,
                 p.idCodigoSunat,
                 p.descripcion,
-                p.idTipoVenta,
+                p.idTipoTratamientoProducto,
                 pc.valor AS precio,
                 p.costo,
                 p.idTipoProducto,
@@ -427,7 +427,7 @@ class Producto {
                 codigo = ?,
                 idCodigoSunat = ?,
                 descripcion = ?,
-                idTipoVenta = ?,
+                idTipoTratamientoProducto = ?,
                 costo = ?,
                 publicar = ?,
                 inventariado = ?,
@@ -445,7 +445,7 @@ class Producto {
                 req.body.codigo,
                 req.body.idCodigoSunat,
                 req.body.descripcion,
-                req.body.idTipoVenta,
+                req.body.idTipoTratamientoProducto,
                 req.body.costo,
                 req.body.publicar,
                 req.body.inventariado,

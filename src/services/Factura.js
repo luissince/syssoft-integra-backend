@@ -6,8 +6,7 @@ const conec = new Conexion();
 class Factura {
 
     async list(req, res) {
-        try {
-            console.log(req.query)
+        try {          
             const lista = await conec.procedure(`CALL Listar_Ventas(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -46,7 +45,7 @@ class Factura {
                 idUsuario,
                 idSucursal,
                 idMoneda,
-                tipo,
+                idFormaVenta,
                 estado,
                 comentario,
                 nuevoCliente,
@@ -60,6 +59,8 @@ class Factura {
 
             let validarInventario = 0;
             let mensajeInventario = [];
+
+            console.log(req.body)
 
             for (const item of detalleVenta) {
                 if (item.tipo === "PRODUCTO") {
@@ -178,7 +179,7 @@ class Factura {
                 idMoneda,
                 serie,
                 numeracion,                
-                tipo,
+                idFormaVenta,
                 comentario,
                 estado,
                 fecha,
@@ -192,7 +193,7 @@ class Factura {
                 idMoneda,
                 comprobante[0].serie,
                 numeracion,
-                tipo,
+                idFormaVenta,
                 comentario,
                 estado,
                 currentDate(),
@@ -235,12 +236,12 @@ class Factura {
                         item.idProducto,
                     ]);
 
-                    if (item.idTipoVenta === 'TV0001' || item.idTipoVenta === 'TV0004' || item.idTipoVenta === 'TV0003') {
+                    if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
                         precio = item.precio;
                         cantidad = item.cantidad;
                     }
 
-                    if (item.idTipoVenta === 'TV0002') {
+                    if (item.idTipoTratamientoProducto === 'TT0002') {
                         precio = producto[0].precio;
                         cantidad = item.precio / producto[0].precio;
                     }
@@ -395,7 +396,7 @@ class Factura {
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario,
                 DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
                 v.hora, 
-                v.tipo, 
+                v.idFormaVenta, 
                 v.estado, 
                 m.simbolo,
                 m.codiso,
@@ -677,245 +678,6 @@ class Factura {
             return sendSuccess(res, { "result": resultLista, "total": resultTotal });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
-        }
-    }
-
-    async idReport(req) {
-        try {
-
-            const result = await conec.query(`SELECT
-            v.idVenta, 
-            com.nombre AS comprobante,
-            com.codigo as codigoVenta,
-            v.serie,
-            v.numeracion,
-            
-            td.nombre AS tipoDoc,      
-            td.codigo AS codigoCliente,      
-            c.documento,
-            c.informacion,
-            c.direccion,
-    
-            DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-            v.hora, 
-            v.tipo, 
-            v.estado, 
-            m.simbolo,
-            m.codiso,
-            m.nombre as moneda,
-
-            IFNULL(SUM(vd.precio*vd.cantidad),0) AS monto
-            FROM venta AS v 
-            INNER JOIN clienteNatural AS c ON v.idCliente = c.idCliente
-            INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-            INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
-            INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
-            LEFT JOIN ventaDetalle AS vd ON vd.idVenta = v.idVenta 
-            WHERE v.idVenta = ?
-            GROUP BY v.idVenta`, [
-                req.query.idVenta
-            ]);
-
-            if (result.length > 0) {
-
-                const detalle = await conec.query(`SELECT 
-                p.nombre AS producto,
-                md.codigo AS medida, 
-                m.nombre AS categoria,                 
-                vd.precio,  
-                vd.cantidad,                
-                imp.idImpuesto,
-                imp.nombre as impuesto,                
-                imp.porcentaje
-                FROM ventaDetalle AS vd 
-                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria                
-                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto 
-                WHERE vd.idVenta = ? `, [
-                    req.query.idVenta
-                ]);
-
-                return { "cabecera": result[0], "detalle": detalle };
-            } else {
-                return "Datos no encontrados";
-            }
-        } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
-    }
-
-    async detalleCredito(req, res) {
-        try {
-            const venta = await conec.query(`
-            SELECT 
-            v.idVenta, 
-            cl.idCliente,
-            cl.documento, 
-            cl.informacion, 
-            cl.celular,
-            cl.telefono,
-            cl.email,
-            cl.direccion,        
-            cm.nombre, 
-            v.serie, 
-            v.numeracion, 
-            v.numCuota, 
-            (SELECT IFNULL(MIN(fecha),'') FROM plazo WHERE estado = 0) AS fechaPago,
-            DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha, 
-            v.hora, 
-            v.estado,
-            v.credito,
-            v.frecuencia,
-            m.idMoneda,
-            m.codiso,
-            IFNULL(SUM(vd.precio*vd.cantidad),0) AS total,
-            (
-                SELECT IFNULL(SUM(cv.precio),0) 
-                FROM cobro AS c 
-                LEFT JOIN notaCredito AS nc ON c.idCobro = nc.idCobro AND nc.estado = 1
-                LEFT JOIN cobroVenta AS cv ON c.idCobro = cv.idCobro 
-                WHERE c.idProcedencia = v.idVenta AND c.estado = 1 AND nc.idNotaCredito IS NULL
-            ) AS cobrado 
-            FROM venta AS v 
-            INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
-            INNER JOIN comprobante AS cm ON v.idComprobante = cm.idComprobante 
-            INNER JOIN clienteNatural AS cl ON v.idCliente = cl.idCliente 
-            LEFT JOIN ventaDetalle AS vd ON vd.idVenta = v.idVenta 
-            WHERE  
-            v.idVenta = ?
-            GROUP BY v.idVenta
-            `, [
-                req.query.idVenta
-            ]);
-
-            const detalle = await conec.query(`SELECT 
-            l.idProducto,
-            l.descripcion AS producto,
-            md.idMedida,
-            md.codigo AS medida, 
-            m.nombre AS categoria, 
-            p.nombre AS sucursal,
-            vd.precio,
-            vd.cantidad,
-            vd.idImpuesto,
-            imp.nombre as impuesto,
-            imp.porcentaje
-            FROM ventaDetalle AS vd 
-            INNER JOIN producto AS l ON vd.idProducto = l.idProducto 
-            INNER JOIN medida AS md ON md.idMedida = l.idMedida 
-            INNER JOIN categoria AS m ON l.idCategoria = m.idCategoria 
-            INNER JOIN sucursal AS p ON m.idSucursal = p.idSucursal
-            INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto 
-            WHERE vd.idVenta = ? `, [
-                req.query.idVenta
-            ]);
-
-            const plazos = await conec.query(`SELECT 
-            idPlazo,      
-            cuota,  
-            DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
-            monto,
-            estado
-            FROM plazo WHERE idVenta = ?
-            `, [
-                req.query.idVenta
-            ]);
-
-            const cobros = await conec.query(`SELECT c.idCobro 
-            FROM cobro AS c 
-            LEFT JOIN notaCredito AS nc ON nc.idCobro = c.idCobro AND nc.estado = 1
-            WHERE c.idProcedencia = ? AND c.estado = 1 AND nc.idNotaCredito IS NULL`, [
-                req.query.idVenta
-            ]);
-
-            let newPlazos = [];
-
-            for (const item of plazos) {
-
-                let newCobros = [];
-                for (const cobro of cobros) {
-
-                    const cobroPlazo = await conec.query(`SELECT 
-                    cv.idPlazo,
-                    cp.nombre,
-                    c.serie,
-                    c.numeracion,
-                    DATE_FORMAT(c.fecha,'%d/%m/%Y') as fecha, 
-                    c.hora,
-                    c.observacion,
-                    bc.nombre as banco,
-                    mo.codiso,
-                    cv.precio
-                    FROM cobro AS c 
-                    INNER JOIN banco AS bc ON bc.idBanco = c.idBanco
-                    INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
-                    INNER JOIN comprobante AS cp ON cp.idComprobante = c.idComprobante
-                    INNER JOIN cobroVenta AS cv ON cv.idCobro = c.idCobro
-                    WHERE cv.idPlazo = ? AND cv.idVenta = ? AND c.idCobro = ?`, [
-                        parseInt(item.idPlazo),
-                        req.query.idVenta,
-                        cobro.idCobro
-                    ]);
-
-                    if (cobroPlazo.length > 0) {
-                        newCobros.push(cobroPlazo[0]);
-                    }
-                }
-                newPlazos.push({
-                    ...item,
-                    "cobros": newCobros
-                });
-            }
-
-            const inicial = await conec.query(`
-            SELECT  
-            co.nombre AS comprobante,
-            c.serie,
-            c.numeracion,
-            bn.nombre AS banco,
-            DATE_FORMAT(c.fecha,'%d/%m/%Y') as fecha, 
-            c.hora,
-            c.observacion,
-            mo.codiso,
-            sum(cv.precio) AS monto
-            FROM cobro AS c          
-            INNER JOIN banco AS bn ON bn.idBanco = c.idBanco
-            INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
-            INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
-            INNER JOIN cobroVenta AS cv ON c.idCobro = cv.idCobro AND cv.idPlazo = 0
-            WHERE c.idProcedencia = ?
-            GROUP BY c.idCobro`, [
-                req.query.idVenta
-            ]);
-
-            return sendSuccess(res, {
-                "venta": venta[0],
-                "detalle": detalle,
-                "plazos": newPlazos,
-                "inicial": inicial
-            });
-
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
-        }
-    }
-
-    async detalleVenta(req) {
-        try {
-            let ventas = await conec.procedure(`CALL Detalle_Ventas(?,?,?,?,?,?)`, [
-                req.query.fechaIni,
-                req.query.fechaFin,
-
-                req.query.idComprobante,
-                req.query.idCliente,
-                req.query.idUsuario,
-                req.query.tipoVenta,
-            ]);
-
-            return ventas;
-        } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
 }
