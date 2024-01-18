@@ -6,6 +6,10 @@ router.get("/list", async function (req, res) {
     return await factura.list(req, res);
 });
 
+router.get("/list/cpesunat", async function (req, res) {
+    return await factura.listCpeSunat(req, res);
+});
+
 router.post("/create", async function (req, res) {
     return await factura.create(req, res);
 });

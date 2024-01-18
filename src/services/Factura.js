@@ -34,6 +34,35 @@ class Factura {
         }
     }
 
+    async listCpeSunat(req, res) {
+        try {          
+            const lista = await conec.procedure(`CALL Listar_CPE_Sunat(?,?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.idSucursal,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ])
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_CPE_Sunat_Count(?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.idSucursal
+            ]);
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+    }
+
     async create(req, res) {
         let connection = null;
         try {
