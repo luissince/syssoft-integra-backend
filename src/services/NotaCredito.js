@@ -36,7 +36,7 @@ class NotaCredito {
             FROM 
             notaCredito AS nc 
             INNER JOIN comprobante AS co ON co.idComprobante = nc.idComprobante
-            INNER JOIN clienteNatural AS cl ON cl.idCliente = nc.idCliente 
+            INNER JOIN persona AS cl ON cl.idPersona = nc.idPersona 
             INNER JOIN moneda AS m ON nc.idMoneda = m.idMoneda
             INNER JOIN cobro AS c ON nc.idCobro = c.idCobro
             INNER JOIN comprobante AS coc ON coc.idComprobante = c.idComprobante 
@@ -97,7 +97,7 @@ class NotaCredito {
             FROM 
             notaCredito AS nc 
             INNER JOIN comprobante AS co ON co.idComprobante = nc.idComprobante
-            INNER JOIN clienteNatural AS cl ON cl.idCliente = nc.idCliente
+            INNER JOIN persona AS cl ON cl.idPersona = nc.idPersona
             INNER JOIN moneda AS m ON nc.idMoneda = m.idMoneda
             INNER JOIN cobro AS c ON nc.idCobro = c.idCobro
             INNER JOIN comprobante AS coc ON coc.idComprobante = c.idComprobante 
@@ -177,7 +177,7 @@ class NotaCredito {
             notaCredito AS nc 
             INNER JOIN motivo AS mt ON mt.idMotivo = nc.idMotivo 
             INNER JOIN comprobante AS co ON co.idComprobante = nc.idComprobante
-            INNER JOIN clienteNatural AS cl ON cl.idCliente = nc.idCliente 
+            INNER JOIN persona AS cl ON cl.idPersona = nc.idPersona 
             INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = cl.idTipoDocumento 
             INNER JOIN usuario AS us ON us.idUsuario = nc.idUsuario
             INNER JOIN moneda AS m ON nc.idMoneda = m.idMoneda
@@ -254,7 +254,7 @@ class NotaCredito {
             notaCredito AS nc 
             INNER JOIN motivo AS mt ON mt.idMotivo = nc.idMotivo 
             INNER JOIN comprobante AS co ON co.idComprobante = nc.idComprobante
-            INNER JOIN clienteNatural AS cl ON cl.idCliente = nc.idCliente 
+            INNER JOIN persona AS cl ON cl.idPersona = nc.idPersona 
             INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = cl.idTipoDocumento 
             INNER JOIN usuario AS us ON us.idUsuario = nc.idUsuario
             INNER JOIN moneda AS m ON nc.idMoneda = m.idMoneda
@@ -418,7 +418,7 @@ class NotaCredito {
              */
             await conec.execute(connection, `INSERT INTO notaCredito(
                 idNotaCredito,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idCobro,
@@ -433,7 +433,7 @@ class NotaCredito {
                 hora) 
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idNotaCredito,
-                req.body.idCliente,
+                req.body.idPersona,
                 req.body.idUsuario,
                 req.body.idMoneda,
                 req.body.idCobro,

@@ -6,7 +6,7 @@ const conec = new Conexion();
 class Factura {
 
     async list(req, res) {
-        try {          
+        try {
             const lista = await conec.procedure(`CALL Listar_Ventas(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -30,12 +30,13 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
+            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
     async listCpeSunat(req, res) {
-        try {          
+        try {
             const lista = await conec.procedure(`CALL Listar_CPE_Sunat(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -58,7 +59,7 @@ class Factura {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
+        } catch (error) {          
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -70,26 +71,24 @@ class Factura {
 
             const {
                 idComprobante,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idSucursal,
                 idMoneda,
-                idFormaVenta,
+                idFormaPago,
                 estado,
                 comentario,
                 nuevoCliente,
                 detalleVenta,
-                metodoPagoAgregado
-
+                bancosAgregados
             } = req.body;
+
             /**
              * Validación de productos inventariables
              */
 
             let validarInventario = 0;
             let mensajeInventario = [];
-
-            console.log(req.body)
 
             for (const item of detalleVenta) {
                 if (item.tipo === "PRODUCTO") {
@@ -130,16 +129,16 @@ class Factura {
 
 
             if (nuevoCliente) {
-                const cliente = await conec.execute(connection, `SELECT * FROM clienteNatural WHERE documento = ?`, [
+                const cliente = await conec.execute(connection, `SELECT * FROM persona WHERE documento = ?`, [
                     nuevoCliente.numeroDocumento
                 ])
 
                 if (cliente.length === 0) {
-                    const result = await conec.execute(connection, 'SELECT idCliente FROM clienteNatural');
-                    idCliente = generateAlphanumericCode("CN0001", result, 'idCliente');
+                    const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
+                    const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-                    await conec.execute(connection, `INSERT INTO clienteNatural(
-                        idCliente,
+                    await conec.execute(connection, `INSERT INTO persona(
+                        idPersona,
                         idTipoCliente,
                         idTipoDocumento,
                         documento,
@@ -152,7 +151,7 @@ class Factura {
                         hora,
                         idUsuario
                     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        idCliente,
+                        idPersona,
                         nuevoCliente.idTipoCliente,
                         nuevoCliente.idTipoDocumento,
                         nuevoCliente.numeroDocumento,
@@ -201,28 +200,28 @@ class Factura {
 
             await conec.execute(connection, `INSERT INTO venta(
                 idVenta,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idComprobante,
                 idSucursal,
                 idMoneda,
                 serie,
                 numeracion,                
-                idFormaVenta,
+                idFormaPago,
                 comentario,
                 estado,
                 fecha,
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idComprobante,
                 idSucursal,
                 idMoneda,
                 comprobante[0].serie,
                 numeracion,
-                idFormaVenta,
+                idFormaPago,
                 comentario,
                 estado,
                 currentDate(),
@@ -337,16 +336,19 @@ class Factura {
              */
 
             // Generar el Id único
-            const listaIngresosId = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
-            let idIngreso = generateNumericCode(1, listaIngresosId, 'idIngreso');
+            const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
+            let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
+
+            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
 
             // Proceso de registro  
-            for (const item of metodoPagoAgregado) {
+            for (const item of bancosAgregados) {
                 await conec.execute(connection, `INSERT INTO ingreso(
                     idIngreso,
                     idVenta,
                     idCobro,
-                    idMetodoPago,
+                    idBanco,
                     monto,
                     descripcion,
                     estado,
@@ -357,16 +359,37 @@ class Factura {
                     idIngreso,
                     idVenta,
                     null,
-                    item.idMetodoPago,
+                    item.idBanco,
                     item.monto,
                     item.descripcion,
                     1,
                     currentDate(),
                     currentTime(),
                     idUsuario
-                ])
+                ]);
+
+                await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    idBancoDetalle,
+                    idBanco,
+                    tipo,
+                    monto,
+                    estado,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    idBancoDetalle,
+                    item.idBanco,
+                    1,
+                    item.monto,
+                    1,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
 
                 idIngreso++;
+                idBancoDetalle++;
             }
 
             /**
@@ -400,6 +423,7 @@ class Factura {
                 idVenta: idVenta
             });
         } catch (error) {
+
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -425,13 +449,13 @@ class Factura {
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario,
                 DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
                 v.hora, 
-                v.idFormaVenta, 
+                v.idFormaPago, 
                 v.estado, 
                 m.simbolo,
                 m.codiso,
                 m.nombre as moneda
             FROM venta AS v 
-                INNER JOIN clienteNatural AS c ON v.idCliente = c.idCliente
+                INNER JOIN persona AS c ON v.idPersona = c.idPersona
                 INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
                 INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
                 INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
@@ -468,13 +492,14 @@ class Factura {
                 i.hora
             FROM ingreso as i 
                 INNER JOIN venta as v  ON i.idVenta = v.idVenta
-                INNER JOIN metodoPago as mp on i.idMetodoPago = mp.idMetodoPago               
+                INNER JOIN banco as mp on i.idBanco = mp.idBanco               
             WHERE v.idVenta = ?
         `, [req.query.idVenta]);
 
             // Enviar respuesta exitosa con la información recopilada
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
+            console.log(error)
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -635,6 +660,21 @@ class Factura {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
+
+    async filtrar(req, res) {
+        try {
+            console.log(req.query)
+            const result = await conec.procedure(`CALL Filtrar_Ventas(?,?)`, [
+                req.query.idSucursal,
+                req.query.filtrar,
+            ])
+
+            return sendSuccess(res, result);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+    }
+
 
     async accountsReceivable(req, res) {
         try {

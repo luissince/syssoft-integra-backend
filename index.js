@@ -88,7 +88,7 @@ app.use('/api/categoria', require('./src/router/Categoria'));
 app.use('/api/producto', require('./src/router/Producto'));
 app.use('/api/almacen', require('./src/router/Almacen'));
 
-app.use('/api/cliente', require('./src/router/Cliente'));
+app.use('/api/persona', require('./src/router/Persona'));
 app.use('/api/factura', require('./src/router/Factura'));
 app.use('/api/login', require('./src/router/Login'));
 
@@ -122,6 +122,9 @@ app.use('/api/tipocomprobante', require('./src/router/TipoComprobante'));
 app.use('/api/traslado', require('./src/router/Traslado'));
 app.use('/api/motivotraslado', require('./src/router/MotivoTraslado'));
 app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
+app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
+app.use('/api/tipopeso', require('./src/router/TipoPeso'));
+app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 
 app.use('/api/salida', require('./src/router/Salida'));
 app.use('/api/ingreso', require('./src/router/Ingreso'));

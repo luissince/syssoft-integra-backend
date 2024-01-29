@@ -43,7 +43,7 @@ class Compra {
             // Extrae los datos del cuerpo de la solicitud
             const {
                 idComprobante,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idSucursal,
                 idAlmacen,
@@ -84,7 +84,7 @@ class Compra {
             // Inserta la información principal de la compra en la base de datos
             await conec.execute(connection, `INSERT INTO compra(
                 idCompra,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -101,7 +101,7 @@ class Compra {
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idCompra,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -290,7 +290,7 @@ class Compra {
                 INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
                 INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
                 INNER JOIN almacen AS al ON al.idAlmacen = c.idAlmacen
-                INNER JOIN clienteNatural AS cn ON cn.idCliente = c.idCliente
+                INNER JOIN persona AS cn ON cn.idPersona = c.idPersona
                 INNER JOIN usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCompra = ?`, [
