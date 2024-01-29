@@ -1,19 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { decrypt } = require('../tools/CryptoJS');
-const { generateExcelCliente, generateExcelDeudas, generarSociosPorFecha } = require('../excel/FileClientes')
-const empresa = require('../services/Empresa');
-const Cliente = require('../services/Cliente');
-const RepCliente = require('../report/RepCliente');
+const Persona = require('../services/Persona');
 
-const cliente = new Cliente();
-const repCliente = new RepCliente();
-/**
- * Api usado en los modulos
- * [facturación: clientes]
- */
+const persona = new Persona();
+
 router.get('/list', async function (req, res) {
-    const result = await cliente.list(req)
+    const result = await persona.list(req)
     if (typeof result === 'object') {
         res.status(200).send(result);
     } else {
@@ -21,8 +13,26 @@ router.get('/list', async function (req, res) {
     }
 });
 
-router.get('/listsocios', async function (req, res) {
-    const result = await cliente.listsocios(req)
+router.get('/list/clientes', async function (req, res) {
+    const result = await persona.listClientes(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result);
+    } else {
+        res.status(500).send(result);
+    }
+});
+
+router.get('/list/proveedores', async function (req, res) {
+    const result = await persona.listProveedores(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result);
+    } else {
+        res.status(500).send(result);
+    }
+});
+
+router.get('/list/conductores', async function (req, res) {
+    const result = await persona.listConductores(req)
     if (typeof result === 'object') {
         res.status(200).send(result);
     } else {
@@ -31,16 +41,16 @@ router.get('/listsocios', async function (req, res) {
 });
 
 router.post('/create', async function (req, res) {
-    const result = await cliente.create(req)
+    const result = await persona.create(req)
     if (result === 'create') {
-        res.status(201).send("Se registró correctamente el cliente.");
+        res.status(201).send("Se registró correctamente la persona.");
     } else {
         res.status(500).send(result);
     }
 });
 
 router.get('/id', async function (req, res) {
-    const result = await cliente.id(req)
+    const result = await persona.id(req)
     if (typeof result === 'object') {
         res.status(200).send(result);
     } else {
@@ -49,25 +59,25 @@ router.get('/id', async function (req, res) {
 });
 
 router.post('/update', async function (req, res) {
-    const result = await cliente.update(req)
+    const result = await persona.update(req)
     if (result === 'update') {
-        res.status(201).send("Se actualizó correctamente el cliente.");
+        res.status(201).send("Se actualizó correctamente la persona.");
     } else {
         res.status(500).send(result);
     }
 });
 
 router.delete('/', async function (req, res) {
-    const result = await cliente.delete(req)
+    const result = await persona.delete(req)
     if (result === 'delete') {
-        res.status(201).send("Se eliminó correctamente el cliente.");
+        res.status(201).send("Se eliminó correctamente la persona.");
     } else {
         res.status(500).send(result);
     }
 });
 
-router.get('/listcombo', async function (req, res) {
-    const result = await cliente.listcombo(req)
+router.get('/combo', async function (req, res) {
+    const result = await persona.combo(req)
     if (Array.isArray(result)) {
         res.status(200).send(result);
     } else {
@@ -76,7 +86,7 @@ router.get('/listcombo', async function (req, res) {
 });
 
 router.get('/filtrar', async function (req, res) {
-    const result = await cliente.filtrar(req)
+    const result = await persona.filtrar(req)
     if (Array.isArray(result)) {
         res.status(200).send(result);
     } else {
@@ -85,7 +95,7 @@ router.get('/filtrar', async function (req, res) {
 });
 
 router.get('/predeterminado', async function (req, res) {
-    const result = await cliente.predeterminado(req)
+    const result = await persona.predeterminado(req)
     if (typeof result === 'object') {
         res.status(200).send(result);
     } else if (result === "") {

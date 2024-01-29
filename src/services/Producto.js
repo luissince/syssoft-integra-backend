@@ -503,8 +503,7 @@ class Producto {
 
             await conec.commit(connection);
             return "update";
-        } catch (error) {
-            console.log(error)
+        } catch (error) {       
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -605,7 +604,7 @@ class Producto {
 
             const venta = await conec.query(`SELECT 
             v.idVenta,
-            v.idCliente
+            v.idPersona
             FROM venta AS v 
             INNER JOIN ventaDetalle AS vd ON v.idVenta = vd.idVenta
             WHERE vd.idProducto = ? AND v.estado IN (1,2)`, [
@@ -614,12 +613,12 @@ class Producto {
 
             if (venta.length > 0) {
                 const socios = await conec.query(`SELECT 
-                    c.idCliente ,
+                    c.idPersona ,
                     c.documento,
                     c.informacion,
                     a.estado
                     FROM asociado AS a
-                    INNER JOIN clienteNatural AS c ON a.idCliente = c.idCliente
+                    INNER JOIN persona AS c ON a.idPersona = c.idPersona
                     WHERE a.idVenta = ?`, [
                     venta[0].idVenta
                 ]);
@@ -643,7 +642,7 @@ class Producto {
                     c.hora,
                     IFNULL(SUM(cd.precio*cd.cantidad),SUM(cv.precio)) AS monto
                     FROM cobro AS c
-                    INNER JOIN clienteNatural AS cl ON c.idCliente = cl.idCliente
+                    INNER JOIN persona AS cl ON c.idPersona = cl.idPersona
                     INNER JOIN banco AS b ON c.idBanco = b.idBanco
                     INNER JOIN moneda AS m ON c.idMoneda = m.idMoneda 
                     INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante

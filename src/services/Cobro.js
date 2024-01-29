@@ -40,7 +40,7 @@ class Cobro {
             connection = await conec.beginTransaction();
 
             const {
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -48,7 +48,7 @@ class Cobro {
                 estado,
                 observacion,
                 detalle,
-                metodoPago,
+                bancosAgregados,
             } = req.body;
 
             /**
@@ -86,7 +86,7 @@ class Cobro {
             // Proceso de registro
             await conec.execute(connection, `INSERT INTO cobro(
                 idCobro,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -99,7 +99,7 @@ class Cobro {
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idCobro,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -147,13 +147,16 @@ class Cobro {
             const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
             let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
 
+            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
+
             // Proceso de registro  
-            for (const item of metodoPago) {
+            for (const item of bancosAgregados) {
                 await conec.execute(connection, `INSERT INTO ingreso(
                     idIngreso,
                     idVenta,
                     idCobro,
-                    idMetodoPago,
+                    idBanco,
                     monto,
                     descripcion,
                     estado,
@@ -164,16 +167,37 @@ class Cobro {
                     idIngreso,
                     null,
                     idCobro,
-                    item.idMetodoPago,
+                    item.idBanco,
                     item.monto,
                     item.descripcion,
                     1,
                     currentDate(),
                     currentTime(),
                     idUsuario
-                ])
+                ]);
+
+                await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    idBancoDetalle,
+                    idBanco,
+                    tipo,
+                    monto,
+                    estado,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    idBancoDetalle,
+                    item.idBanco,
+                    1,
+                    item.monto,
+                    1,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
 
                 idIngreso++;
+                idBancoDetalle++;
             }
 
             /**
@@ -227,7 +251,7 @@ class Cobro {
                 u.apellidos,
                 u.nombres
                 FROM cobro AS c
-                INNER JOIN clienteNatural AS cn on cn.idCliente = c.idCliente
+                INNER JOIN persona AS cn on cn.idPersona = c.idPersona
                 INNER JOIN comprobante AS co on co.idComprobante = c.idComprobante
                 INNER JOIN moneda AS m on m.idMoneda = c.idMoneda
                 INNER JOIN usuario AS u ON u.idUsuario = c.idUsuario
@@ -377,7 +401,7 @@ class Cobro {
 
             const total = await conec.query(`SELECT COUNT(*) AS Total 
             FROM cobro AS v 
-            INNER JOIN clienteNatural AS c ON v.idCliente = c.idCliente
+            INNER JOIN persona AS c ON v.idPersona = c.idPersona
             INNER JOIN comprobante as co ON v.idComprobante = co.idComprobante
             INNER JOIN moneda AS m ON v.idMoneda = m.idMoneda
             WHERE 
@@ -389,7 +413,7 @@ class Cobro {
 
             SELECT COUNT(*) AS Total 
             FROM notaCredito AS nc 
-            INNER JOIN clienteNatural AS c ON nc.idCliente = c.idCliente
+            INNER JOIN persona AS c ON nc.idPersona = c.idPersona
             INNER JOIN comprobante as co ON nc.idComprobante = co.idComprobante
             INNER JOIN moneda AS m ON nc.idMoneda = m.idMoneda
             WHERE 

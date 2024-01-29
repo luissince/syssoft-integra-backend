@@ -55,14 +55,25 @@ router.delete('/', async function (req, res) {
     }
 });
 
-router.get('/listcombo', async function (req, res) {
-    const result = await banco.listcombo(req)
+router.get('/combo', async function (req, res) {
+    const result = await banco.combo(req)
     if (Array.isArray(result)) {
         res.status(200).send(result);
     } else {
         res.status(500).send(result);
     }
 });
+
+
+router.get('/detail', async function (req, res) {
+    const result = await banco.detail(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result)
+    } else {
+        res.status(500).send(result)
+    }
+});
+
 
 router.get('/iddetalle', async function (req, res) {
     const result = await banco.idDetalle(req)

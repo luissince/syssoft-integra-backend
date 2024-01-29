@@ -24,7 +24,7 @@ class Dashboard {
                 req.query.idSucursal,
             ])
 
-            let totalClientes = await conec.query(`SELECT IFNULL(COUNT(*), 0) AS total FROM clienteNatural`)
+            let totalClientes = await conec.query(`SELECT IFNULL(COUNT(*), 0) AS total FROM persona`)
 
             let totalVentas = await conec.query(`SELECT 
                 IFNULL(SUM(vd.precio*vd.cantidad),0) AS total

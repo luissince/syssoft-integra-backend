@@ -2,9 +2,37 @@ const { currentDate, currentTime, generateAlphanumericCode } = require('../tools
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
-class Cliente {
+class Persona {
 
     async list(req) {
+        try {
+            const lista = await conec.procedure(`CALL Listar_Personas(?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ])
+            
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_Personas_Count(?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+            ]);
+
+            return { "result": resultLista, "total": total[0].Total };
+        } catch (error) {
+            console.log(error)
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
+    async listClientes(req) {
         try {
             const lista = await conec.procedure(`CALL Listar_Clientes(?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -12,7 +40,7 @@ class Cliente {
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
-
+            
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
@@ -27,63 +55,63 @@ class Cliente {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
 
-    async listsocios(req) {
+    async listProveedores(req) {
         try {
-            let lista = await conec.procedure(`CALL Listar_Socios(?,?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Proveedores(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idConcepto,
-                req.query.idSucursal,
-
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ]);
-
-            let newLista = [];
-
-            for (let value of lista) {
-                let detalle = await conec.query(`SELECT 
-                    l.descripcion,
-                    m.nombre AS categoria
-                    FROM venta AS v
-                    INNER JOIN ventaDetalle AS vd ON vd.idVenta = v.idVenta
-                    INNER JOIN producto AS l ON l.idProducto = vd.idProducto
-                    INNER JOIN categoria AS m ON m.idCategoria = l.idCategoria
-                    WHERE v.idVenta = ?`, [
-                    value.idVenta
-                ]);
-
-                newLista.push({
-                    ...value,
-                    detalle
-                });
-            }
-
-            const resultLista = newLista.map(function (item, index) {
+            ])
+            
+            const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Socios_Count(?,?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Proveedores_Count(?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idConcepto,
-                req.query.idSucursal
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.error(error);
+            console.log(error)
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
+    async listConductores(req) {
+        try {
+            const lista = await conec.procedure(`CALL Listar_Conductores(?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ])
+            
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_Conductores_Count(?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+            ]);
+
+            return { "result": resultLista, "total": total[0].Total };
+        } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -92,8 +120,8 @@ class Cliente {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-
-            const validate = await conec.execute(connection, `SELECT informacion FROM clienteNatural WHERE documento = ?`, [
+            console.log(req.body)
+            const validate = await conec.execute(connection, `SELECT informacion FROM persona WHERE documento = ?`, [
                 req.body.documento,
             ]);
 
@@ -102,15 +130,21 @@ class Cliente {
                 return `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`;
             }
 
-            const result = await conec.execute(connection, 'SELECT idCliente FROM clienteNatural');
-            const idCliente = generateAlphanumericCode("CN0001", result, 'idCliente');
+            const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
+            const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-            await conec.execute(connection, `INSERT INTO clienteNatural(
-                idCliente, 
+            await conec.execute(connection, `INSERT INTO persona(
+                idPersona, 
                 idTipoCliente,
                 idTipoDocumento,
                 documento,
                 informacion,
+
+                cliente,
+                proveedor,
+                conductor,
+                licenciaConducir,
+
                 celular,
                 telefono,
                 fechaNacimiento,
@@ -127,12 +161,18 @@ class Cliente {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                idCliente,
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                idPersona,
                 req.body.idTipoCliente,
                 req.body.idTipoDocumento,
                 req.body.documento,
                 req.body.informacion,
+
+                req.body.cliente,
+                req.body.proveedor,
+                req.body.conductor,
+                req.body.licenciaConducir,
+
                 req.body.celular,
                 req.body.telefono,
                 req.body.fechaNacimiento,
@@ -149,7 +189,7 @@ class Cliente {
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
-            ])
+            ]);
 
             await conec.commit(connection);
             return "create";
@@ -166,11 +206,15 @@ class Cliente {
         try {
             const result = await conec.query(`
             SELECT 
-                cn.idCliente,
+                cn.idPersona,
                 cn.idTipoCliente,
                 cn.idTipoDocumento,
                 cn.documento,
                 cn.informacion,
+                cn.cliente,
+                cn.proveedor,
+                cn.conductor,
+                cn.licenciaConducir,
                 cn.celular,
                 cn.telefono, 
                 IFNULL(DATE_FORMAT(cn.fechaNacimiento,'%Y-%m-%d'),'') as fechaNacimiento,
@@ -187,12 +231,12 @@ class Cliente {
                 cn.estado, 
                 cn.observacion
             FROM 
-                clienteNatural AS cn 
+                persona AS cn 
             LEFT JOIN 
                 ubigeo AS u ON u.idUbigeo = cn.idUbigeo
             WHERE 
-                cn.idCliente = ?`, [
-                req.query.idCliente,
+                cn.idPersona = ?`, [
+                req.query.idPersona,
             ]);
 
             if (result.length > 0) {
@@ -201,6 +245,7 @@ class Cliente {
                 return "Datos no encontrados";
             }
         } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -210,8 +255,8 @@ class Cliente {
         try {
             connection = await conec.beginTransaction();
 
-            const validate = await conec.execute(connection, `SELECT * FROM clienteNatural WHERE idCliente <> ? AND documento = ?`, [
-                req.body.idCliente,
+            const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
+                req.body.idPersona,
                 req.body.documento,
             ]);
 
@@ -221,15 +266,19 @@ class Cliente {
             }
 
             if (req.body.predeterminado) {
-                await conec.execute(connection, `UPDATE clienteNatural SET predeterminado = 0`);
+                await conec.execute(connection, `UPDATE persona SET predeterminado = 0`);
             }
 
-            await conec.execute(connection, `UPDATE clienteNatural
+            await conec.execute(connection, `UPDATE persona
             SET
                 idTipoCliente=?,
                 idTipoDocumento=?, 
                 documento=?,
                 informacion=?, 
+                cliente=?,
+                proveedor=?,
+                conductor=?,
+                licenciaConducir=?,
                 celular=?,
                 telefono=?,
                 fechaNacimiento=?,
@@ -245,11 +294,17 @@ class Cliente {
                 hupdate=?,
                 idUsuario=?
             WHERE 
-                idCliente=?`, [
+                idPersona=?`, [
                 req.body.idTipoCliente,
                 req.body.idTipoDocumento,
                 req.body.documento,
                 req.body.informacion,
+
+                req.body.cliente,
+                req.body.proveedor,
+                req.body.conductor,
+                req.body.licenciaConducir,
+
                 req.body.celular,
                 req.body.telefono,
                 req.body.fechaNacimiento,
@@ -264,7 +319,7 @@ class Cliente {
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
-                req.body.idCliente
+                req.body.idPersona
             ]);
 
             await conec.commit(connection)
@@ -282,8 +337,8 @@ class Cliente {
         try {
             connection = await conec.beginTransaction();
 
-            const cobro = await conec.execute(connection, `SELECT * FROM cobro WHERE idCliente = ?`, [
-                req.query.idCliente
+            const cobro = await conec.execute(connection, `SELECT * FROM cobro WHERE idPersona = ?`, [
+                req.query.idPersona
             ]);
 
             if (cobro.length > 0) {
@@ -291,8 +346,8 @@ class Cliente {
                 return 'No se puede eliminar el cliente ya que esta ligada a un cobro.';
             }
 
-            const gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idCliente = ?`, [
-                req.query.idCliente
+            const gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idPersona = ?`, [
+                req.query.idPersona
             ]);
 
             if (gasto.length > 0) {
@@ -300,8 +355,8 @@ class Cliente {
                 return 'No se puede eliminar el cliente ya que esta ligada a un gasto.';
             }
 
-            const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idCliente = ?`, [
-                req.query.idCliente
+            const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idPersona = ?`, [
+                req.query.idPersona
             ]);
 
             if (venta.length > 0) {
@@ -309,8 +364,8 @@ class Cliente {
                 return 'No se puede eliminar el cliente ya que esta ligada a una venta.';
             }
 
-            await conec.execute(connection, `DELETE FROM clienteNatural WHERE idCliente  = ?`, [
-                req.query.idCliente
+            await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
+                req.query.idPersona
             ]);
 
             await conec.commit(connection);
@@ -323,9 +378,15 @@ class Cliente {
         }
     }
 
-    async listcombo(req) {
+    async combo(req) {
         try {
-            const result = await conec.query('SELECT idCliente, documento, informacion FROM clienteNatural');
+            const result = await conec.query(`
+            SELECT 
+                idPersona, 
+                documento, 
+                informacion 
+            FROM 
+                persona`);
             return result;
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
@@ -336,11 +397,11 @@ class Cliente {
         try {
             const result = await conec.query(`
             SELECT 
-                cn.idCliente, 
+                cn.idPersona, 
                 cn.documento, 
                 cn.informacion
             FROM 
-                clienteNatural AS cn
+                persona AS cn
             WHERE 
                 cn.documento LIKE CONCAT('%',?,'%')
                 OR 
@@ -358,10 +419,10 @@ class Cliente {
         try {
             const result = await conec.query(`
             SELECT 
-            idCliente, 
+            idPersona, 
             documento, 
             informacion
-            FROM clienteNatural
+            FROM persona
             WHERE predeterminado = 1`);
             if (result.length !== 0) {
                 return result[0];
@@ -375,4 +436,4 @@ class Cliente {
 }
 
 
-module.exports = Cliente;
+module.exports = Persona;

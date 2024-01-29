@@ -40,7 +40,7 @@ class Gasto {
             connection = await conec.beginTransaction();
 
             const {
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -86,7 +86,7 @@ class Gasto {
             // Proceso de registro
             await conec.execute(connection, `INSERT INTO gasto(
                 idGasto,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -99,7 +99,7 @@ class Gasto {
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idGasto,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -226,7 +226,7 @@ class Gasto {
                 u.apellidos,
                 u.nombres
                 FROM gasto AS g
-                INNER JOIN clienteNatural AS cn on cn.idCliente = g.idCliente
+                INNER JOIN persona AS cn on cn.idPersona = g.idPersona
                 INNER JOIN comprobante AS co on co.idComprobante = g.idComprobante
                 INNER JOIN moneda AS m on m.idMoneda = g.idMoneda
                 INNER JOIN usuario AS u ON u.idUsuario = g.idUsuario

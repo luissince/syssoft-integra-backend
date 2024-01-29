@@ -10,6 +10,10 @@ router.get("/list/cpesunat", async function (req, res) {
     return await factura.listCpeSunat(req, res);
 });
 
+router.get("/filtrar", async function (req, res) {
+    return await factura.filtrar(req, res);
+});
+
 router.post("/create", async function (req, res) {
     return await factura.create(req, res);
 });
