@@ -30,7 +30,6 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -59,7 +58,7 @@ class Factura {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {          
+        } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -499,7 +498,6 @@ class Factura {
             // Enviar respuesta exitosa con la información recopilada
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
-            console.log(error)
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -663,23 +661,50 @@ class Factura {
 
     async filtrar(req, res) {
         try {
-            console.log(req.query)
             const result = await conec.procedure(`CALL Filtrar_Ventas(?,?)`, [
                 req.query.idSucursal,
                 req.query.filtrar,
             ])
-
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
+    async detailOnly(req, res) {
+        try {
+            // Obtener detalles de productos vendidos en la venta
+            const detalle = await conec.query(`
+            SELECT 
+                p.codigo,
+                p.nombre AS producto,
+                md.nombre AS medida, 
+                m.nombre AS categoria, 
+                vd.idProducto,
+                vd.precio,
+                vd.cantidad,
+                vd.idImpuesto,
+                imp.nombre AS impuesto,
+                imp.porcentaje
+            FROM ventaDetalle AS vd 
+                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
+                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
+                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
+                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            WHERE vd.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            // Enviar respuesta exitosa con la información recopilada
+            return sendSuccess(res, detalle);
+        } catch (error) {
+            // Manejar errores y enviar mensaje de error al cliente
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+    }
 
     async accountsReceivable(req, res) {
         try {
-            console.log("sss")
-            console.log(req.query)
             const lista = await conec.procedure(`CALL Listar_Cuenta_Cobrar(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -704,7 +729,6 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }

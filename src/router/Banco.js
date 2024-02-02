@@ -74,53 +74,12 @@ router.get('/detail', async function (req, res) {
     }
 });
 
-
-router.get('/iddetalle', async function (req, res) {
-    const result = await banco.idDetalle(req)
+router.get('/detail/list', async function (req, res) {
+    const result = await banco.detailList(req)
     if (typeof result === 'object') {
         res.status(200).send(result)
     } else {
         res.status(500).send(result)
-    }
-});
-
-router.get('/detalle', async function (req, res) {
-    const result = await banco.detalleBanco(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.get('/repdetallebanco', async function (req, res) {
-    const decryptedData = decrypt(req.query.params, 'key-report-inmobiliaria');
-    
-    req.query.idBanco = decryptedData.idBanco;
-    req.query.idEmpresa = decryptedData.idEmpresa;
-
-    const empresaInfo = await empresa.infoEmpresaReporte(req)
-    
-    if (typeof empresaInfo !== 'object') {
-        res.status(500).send(empresaInfo)
-        return;
-    }
-    
-    const detalle = await banco.detalleBancoReporte(req)
-    if (typeof detalle === 'object') {
-
-        let data = await repFinanciero.repDetalleBanco(empresaInfo, detalle);
-
-        if (typeof data === 'string') {
-            res.status(500).send(data);
-        } else {
-            res.setHeader('Content-disposition', `inline; filename=REPORTE DE CAJA BANCO AL ${currentDate()}.pdf`);
-            res.contentType("application/pdf");
-            res.send(data);
-        }
-
-    } else {
-        res.status(500).send(detalle);
     }
 });
 

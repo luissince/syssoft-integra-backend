@@ -10,7 +10,8 @@ const {
     writeFile,
     mkdir,
     chmod,
-    processImage
+    processImage,
+    generateAlphanumericCode
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
@@ -206,7 +207,7 @@ class Empresa {
 
     async config(req, res) {
         try {
-            let result = await conec.query(`SELECT 
+            const result = await conec.query(`SELECT 
             idEmpresa,
             documento,
             razonSocial,
@@ -229,39 +230,16 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            let empresa = await conec.execute(connection, `SELECT * FROM empresa`);
+            const empresa = await conec.execute(connection, `SELECT * FROM empresa`);
             if (empresa.length > 0) {
                 await conec.rollback(connection);
                 return sendSuccess(res, "Ya existe una empresa registrada.");
             }
 
-            let result = await conec.execute(connection, 'SELECT idEmpresa FROM empresa');
-            let idEmpresa = "";
-            if (result.length != 0) {
+            const listaEmpresa = await conec.execute(connection, 'SELECT idEmpresa FROM empresa');
+            const idEmpresa = generateAlphanumericCode("EM0001", listaEmpresa, 'idEmpresa');
 
-                let quitarValor = result.map(function (item) {
-                    return parseInt(item.idEmpresa.replace("EM", ''));
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-                let codigoGenerado = "";
-                if (incremental <= 9) {
-                    codigoGenerado = 'EM000' + incremental;
-                } else if (incremental >= 10 && incremental <= 99) {
-                    codigoGenerado = 'EM00' + incremental;
-                } else if (incremental >= 100 && incremental <= 999) {
-                    codigoGenerado = 'EM0' + incremental;
-                } else {
-                    codigoGenerado = 'EM' + incremental;
-                }
-
-                idEmpresa = codigoGenerado;
-            } else {
-                idEmpresa = "EM0001";
-            }
-
-            let file = path.join(__dirname, '../', 'path/company');
+            const file = path.join(__dirname, '../', 'path/company');
             if (!isDirectory(file)) {
                 mkdir(file);
                 chmod(file);
@@ -271,14 +249,14 @@ class Empresa {
             let fileImage = "";
 
             if (req.body.logo !== "") {
-                let nameImage = `${Date.now() + 'logo'}.${req.body.extlogo}`;
+                const nameImage = `${Date.now() + 'logo'}.${req.body.extlogo}`;
 
                 writeFile(path.join(file, nameImage), req.body.logo)
                 fileLogo = nameImage;
             }
 
             if (req.body.image !== "") {
-                let nameImage = `${Date.now() + 'image'}.${req.body.extimage}`;
+                const nameImage = `${Date.now() + 'image'}.${req.body.extimage}`;
 
                 writeFile(path.join(file, nameImage), req.body.image);
                 fileImage = nameImage;
@@ -348,6 +326,8 @@ class Empresa {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
+
+    
 
 }
 

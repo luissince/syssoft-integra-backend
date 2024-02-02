@@ -101,8 +101,7 @@ class Ingreso {
 
             await conec.commit(connection);
             return "cancel";
-        } catch (error) {
-            console.log(error)
+        } catch (error) {       
             if (connection != null) {
                 await conec.rollback(connection);
             }

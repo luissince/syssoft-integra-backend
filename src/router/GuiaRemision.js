@@ -34,8 +34,8 @@ router.get('/detail', async function (req, res) {
 
 router.post('/create', async function (req, res) {
     const result = await guiaRemision.create(req)
-    if (result === 'create') {
-        res.status(200).send("Se registró correctamente la guían de remisión.");
+    if (typeof result === 'object') {
+        res.status(200).send(result);
     } else {
         res.status(500).send(result);
     }

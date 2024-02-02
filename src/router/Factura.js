@@ -26,6 +26,10 @@ router.get("/detail", async function (req, res) {
     return await factura.detail(req, res);
 });
 
+router.get("/detail/only", async function (req, res) {
+    return await factura.detailOnly(req, res);
+});
+
 router.get("/accounts/receivable", async function (req, res) {
     return await factura.accountsReceivable(req, res);
 });

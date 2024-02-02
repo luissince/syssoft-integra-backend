@@ -128,8 +128,6 @@ class Vehiculo {
         try {
             connection = await conec.beginTransaction();
 
-            console.log(req.body)
-
             if (req.body.preferido) {
                 await conec.execute(connection, `UPDATE vehiculo SET preferido = 0`);
             }
@@ -163,8 +161,7 @@ class Vehiculo {
 
     async delete(req, res) {
         let connection = null;
-        try {
-            console.log(req.query.idVehiculo)
+        try {        
             connection = await conec.beginTransaction();
 
             const guiaRemision = await conec.execute(connection, `SELECT * FROM guiaRemision WHERE idVehiculo = ?`, [
@@ -235,8 +232,7 @@ class Vehiculo {
                 req.query.filter,
             ]);
             return sendSuccess(res, result);
-        } catch (error) {
-            console.log(error)
+        } catch (error) {         
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }

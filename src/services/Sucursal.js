@@ -307,9 +307,7 @@ class Sucursal {
             p.direccion,
             p.ruta,
             p.estado
-            FROM sucursal AS p          
-            `);
-
+            FROM sucursal AS p`);
             return sendSuccess(res, sucursales);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");

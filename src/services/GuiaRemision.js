@@ -76,39 +76,15 @@ class GuiaRemision {
 
     async detail(req) {
         try {
-            const ajuste = await conec.query(`SELECT 
-            a.idAjuste,
-            DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
-            a.hora,
-            tp.nombre as tipo,
-            mt.nombre as motivo,
-            al.nombre as almacen,
-            a.observacion,
-            a.estado
-            from ajuste as a 
-            INNER JOIN tipoAjuste as tp ON tp.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN motivoAjuste as mt on mt.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN almacen as al on al.idAlmacen = a.idAlmacen
-            INNER JOIN usuario us on us.idUsuario = a.idUsuario
-            WHERE a.idAjuste = ?`, [
-                req.query.idAjuste,
+            const guiaRemision = await conec.procedure(`CALL Guia_Remision_Por_Id(?)`, [
+                req.query.idGuiaRemision,
             ])
 
-            const detalle = await conec.query(`SELECT 
-            p.codigo,
-            p.nombre as producto,
-            aj.cantidad,
-            m.nombre as unidad,
-            c.nombre as categoria
-            from ajusteDetalle as aj
-            INNER JOIN producto as p on p.idProducto = aj.idProducto
-            INNER JOIN medida as m on m.idMedida = p.idMedida
-            INNER JOIN categoria as c on c.idCategoria = p.idCategoria
-            WHERE aj.idAjuste = ?`, [
-                req.query.idAjuste,
+            const detalle = await conec.procedure(`CALL Guia_Remision_Detalle_Por_Id(?)`, [
+                req.query.idGuiaRemision,
             ])
 
-            return { cabecera: ajuste[0], detalle };
+            return { cabecera: guiaRemision[0], detalle };
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
@@ -129,12 +105,15 @@ class GuiaRemision {
                 idTipoPeso,
                 peso,
                 idVehiculo,
+                idConductor,
+                direccionPartida,
+                idUbigeoPartida,
+                direccionLlegada,
+                idUbigeoLlegada,
                 estado,
-                idUsuario
+                idUsuario,
+                detalle
             } = req.body;
-
-            console.log(req.body)
-
 
             const result = await conec.execute(connection, 'SELECT idGuiaRemision FROM guiaRemision');
             const idGuiaRemision = generateAlphanumericCode("GR0001", result, 'idGuiaRemision');
@@ -143,8 +122,7 @@ class GuiaRemision {
             serie,
             numeracion 
             FROM comprobante 
-            WHERE idComprobante  = ?
-            `, [
+            WHERE idComprobante  = ?`, [
                 idComprobante
             ]);
 
@@ -170,11 +148,16 @@ class GuiaRemision {
                 idTipoPeso,
                 peso,
                 idVehiculo,
+                idConductor,
+                direccionPartida,
+                idUbigeoPartida,
+                direccionLlegada,
+                idUbigeoLlegada,
                 fecha,
                 hora,
                 estado,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idGuiaRemision,
                 idSucursal,
                 idVenta,
@@ -187,16 +170,42 @@ class GuiaRemision {
                 idTipoPeso,
                 peso,
                 idVehiculo,
+                idConductor,
+                direccionPartida,
+                idUbigeoPartida,
+                direccionLlegada,
+                idUbigeoLlegada,
                 currentDate(),
                 currentTime(),
                 estado,
                 idUsuario
             ]);
 
+            const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
+            let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
+
+            for (const producto of detalle) {
+                await conec.execute(connection, `INSERT INTO guiaRemisionDetalle(
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    idProducto,
+                    cantidad
+                ) VALUES (?,?,?,?)`, [
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    producto.idProducto,
+                    producto.cantidad
+                ]);
+
+                idGuiaRemisionDetalle++;
+            }
+
             await conec.commit(connection);
-            return "create";
+            return {
+                message: "Se registró correctamente la guían de remisión.",
+                idGuiaRemision: idGuiaRemision
+            };
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

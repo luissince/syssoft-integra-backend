@@ -12,7 +12,7 @@ class Persona {
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
-            
+
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
@@ -27,7 +27,6 @@ class Persona {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -40,7 +39,7 @@ class Persona {
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
-            
+
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
@@ -55,7 +54,6 @@ class Persona {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -68,7 +66,7 @@ class Persona {
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
-            
+
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
@@ -83,7 +81,6 @@ class Persona {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -96,7 +93,7 @@ class Persona {
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
-            
+
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
@@ -111,7 +108,6 @@ class Persona {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -120,7 +116,7 @@ class Persona {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            console.log(req.body)
+
             const validate = await conec.execute(connection, `SELECT informacion FROM persona WHERE documento = ?`, [
                 req.body.documento,
             ]);
@@ -194,7 +190,6 @@ class Persona {
             await conec.commit(connection);
             return "create";
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -245,7 +240,6 @@ class Persona {
                 return "Datos no encontrados";
             }
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -395,20 +389,13 @@ class Persona {
 
     async filtrar(req) {
         try {
-            const result = await conec.query(`
-            SELECT 
-                cn.idPersona, 
-                cn.documento, 
-                cn.informacion
-            FROM 
-                persona AS cn
-            WHERE 
-                cn.documento LIKE CONCAT('%',?,'%')
-                OR 
-                cn.informacion LIKE CONCAT('%',?,'%')`, [
-                req.query.filtrar,
-                req.query.filtrar,
-            ]);
+            const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.filter,
+                Boolean(req.query.cliente),
+                Boolean(req.query.proveedor),
+                Boolean(req.query.conductor),
+            ]); 
             return result;
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
