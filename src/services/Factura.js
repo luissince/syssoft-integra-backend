@@ -70,7 +70,7 @@ class Factura {
 
             const {
                 idComprobante,
-                idPersona,
+                idCliente,
                 idUsuario,
                 idSucursal,
                 idMoneda,
@@ -126,6 +126,7 @@ class Factura {
              * Validar si el cliente existe
              */
 
+            let nuevoIdCliente = idCliente;
 
             if (nuevoCliente) {
                 const cliente = await conec.execute(connection, `SELECT * FROM persona WHERE documento = ?`, [
@@ -163,6 +164,8 @@ class Factura {
                         currentTime(),
                         idUsuario
                     ])
+
+                    nuevoIdCliente = idPersona;
                 }
             }
 
@@ -199,7 +202,7 @@ class Factura {
 
             await conec.execute(connection, `INSERT INTO venta(
                 idVenta,
-                idPersona,
+                idCliente,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -213,7 +216,7 @@ class Factura {
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
-                idPersona,
+                nuevoIdCliente,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -454,7 +457,7 @@ class Factura {
                 m.codiso,
                 m.nombre as moneda
             FROM venta AS v 
-                INNER JOIN persona AS c ON v.idPersona = c.idPersona
+                INNER JOIN persona AS c ON v.idCliente = c.idPersona
                 INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
                 INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
                 INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
