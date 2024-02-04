@@ -21,7 +21,7 @@ services:
     ports:
       - 6001:80
     volumes:
-      - test-volumen:/app/src/path
+      - test-backend-volumen:/app/src/path
 
   app-bodega:
     # Configuración para construir la imagen del contenedor desde el contexto actual
@@ -67,4 +67,4 @@ networks:
     external: true
 
 volumes:
-  test-volumen:
+  test-backend-volumen:
