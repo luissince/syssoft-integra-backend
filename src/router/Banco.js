@@ -1,14 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { currentDate } = require('../tools/Tools');
-const { decrypt } = require('../tools/CryptoJS');
 
 const Banco = require('../services/Banco');
-const empresa = require('../services/Empresa');
-const RepFinanciero = require('../report/RepFinanciero');
 
 const banco = new Banco();
-const repFinanciero = new RepFinanciero();
 
 router.get('/list', async function (req, res) {
     const result = await banco.list(req)

@@ -29,7 +29,7 @@ class GuiaRemision {
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {
+        } catch (error) {           
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

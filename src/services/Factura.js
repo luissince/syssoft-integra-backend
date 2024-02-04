@@ -351,7 +351,7 @@ class Factura {
                     idIngreso,
                     idVenta,
                     idCobro,
-                    idBanco,
+                    idBancoDetalle,
                     monto,
                     descripcion,
                     estado,
@@ -362,7 +362,7 @@ class Factura {
                     idIngreso,
                     idVenta,
                     null,
-                    item.idBanco,
+                    idBancoDetalle,
                     item.monto,
                     item.descripcion,
                     1,
@@ -493,15 +493,20 @@ class Factura {
                 i.monto,
                 DATE_FORMAT(i.fecha,'%d/%m/%Y') as fecha,
                 i.hora
-            FROM ingreso as i 
-                INNER JOIN venta as v  ON i.idVenta = v.idVenta
-                INNER JOIN banco as mp on i.idBanco = mp.idBanco               
-            WHERE v.idVenta = ?
+            FROM 
+                ingreso as i 
+            INNER JOIN 
+                bancoDetalle AS bd ON bd.idBancoDetalle = i.idBancoDetalle
+            INNER JOIN 
+                banco as mp on mp.idBanco = bd.idBanco              
+            WHERE 
+                i.idVenta = ?
         `, [req.query.idVenta]);
 
             // Enviar respuesta exitosa con la información recopilada
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
+            console.log(error)
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -509,7 +514,6 @@ class Factura {
 
     async cancel(req, res) {
         let connection = null;
-
         try {
             // Iniciar una transacción
             connection = await conec.beginTransaction();
@@ -547,7 +551,11 @@ class Factura {
                 req.query.idVenta
             ]);
 
-            // Actualizar el estado de los ingresos asociados a la venta
+            // Actualizar el estado de los ingresos y banco detalle
+            const ingresos = await conec.execute(connection, `SELECT idBancoDetalle FROM ingreso WHERE idVenta = ?`, [
+                req.query.idVenta
+            ])
+
             await conec.execute(connection, `UPDATE ingreso 
             SET 
                 estado = 0 
@@ -555,6 +563,16 @@ class Factura {
                 idVenta = ?`, [
                 req.query.idVenta
             ]);
+
+            for (const item of ingresos) {
+                await conec.execute(connection, `UPDATE bancoDetalle 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idBancoDetalle = ?`, [
+                        item.idBancoDetalle
+                ])
+            }
 
             // Obtener detalles de la venta
             const detalleVenta = await conec.execute(connection, `SELECT 

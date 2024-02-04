@@ -242,18 +242,75 @@ class Banco {
         try {         
             const lista = await conec.query(`
             SELECT 
-                DATE_FORMAT(fecha,'%d/%m/%Y') AS fecha, 
-                hora,
-                tipo,
-                estado,
-                monto
+                DATE_FORMAT(bd.fecha, '%d/%m/%Y') AS fecha, 
+                bd.hora,
+                bd.tipo,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL('venta', 'cobro')
+                    ELSE 
+                        IFNULL('compra', 'gasto')
+                END AS opcion,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.idVenta, co.idCobro)
+                    ELSE 
+                        IFNULL(cm.idCompra, gt.idGasto)
+                END AS idComprobante,             
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(cov.nombre, coc.nombre)
+                    ELSE 
+                        IFNULL(com.nombre, cog.nombre)
+                END AS comprobante,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.serie, co.serie)
+                    ELSE 
+                        IFNULL(co.serie, gt.serie)
+                END AS serie,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.numeracion, co.numeracion)
+                    ELSE 
+                        IFNULL(co.numeracion, gt.numeracion)
+                END AS numeracion,
+                --
+                bd.estado,
+                bd.monto
             FROM 
-                bancoDetalle
-            WHERE 
-                idBanco = ?
+                bancoDetalle AS bd
+            LEFT JOIN
+                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                venta AS vt ON vt.idVenta = i.idVenta
+            LEFT JOIN
+                comprobante AS cov ON cov.idComprobante = vt.idComprobante
+            LEFT JOIN
+                cobro AS co ON co.idCobro = i.idCobro
+            LEFT JOIN
+                comprobante AS coc ON coc.idComprobante = co.idComprobante
+                
+            LEFT JOIN 
+                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                compra AS cm ON s.idCompra = cm.idCompra
+            LEFT JOIN
+                comprobante AS com ON com.idComprobante = cm.idComprobante
+            LEFT JOIN
+                gasto AS gt ON s.idGasto = gt.idGasto
+            LEFT JOIN
+                comprobante AS cog ON cog.idComprobante = gt.idComprobante
+            WHERE
+                bd.idBanco = ?
             ORDER BY 
-                fecha DESC, 
-                hora DESC
+                bd.fecha DESC, 
+                bd.hora DESC
             LIMIT ?,?`, [
                 req.query.idBanco,
                 parseInt(req.query.posicionPagina),
@@ -270,10 +327,30 @@ class Banco {
             const total = await conec.query(`
             SELECT 
                 COUNT(*) AS Total
-            FROM
-                bancoDetalle
+            FROM 
+                bancoDetalle AS bd
+            LEFT JOIN
+                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                venta AS vt ON vt.idVenta = i.idVenta
+            LEFT JOIN
+                comprobante AS cov ON cov.idComprobante = vt.idComprobante
+            LEFT JOIN
+                cobro AS co ON co.idCobro = i.idCobro
+            LEFT JOIN
+                comprobante AS coc ON coc.idComprobante = co.idComprobante
+            LEFT JOIN 
+                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                compra AS cm ON s.idCompra = cm.idCompra
+            LEFT JOIN
+                comprobante AS com ON com.idComprobante = cm.idComprobante
+            LEFT JOIN
+                gasto AS gt ON s.idGasto = gt.idGasto
+            LEFT JOIN
+                comprobante AS cog ON cog.idComprobante = gt.idComprobante
             WHERE 
-                idBanco = ?`, [
+                bd.idBanco = ?`, [
                 req.query.idBanco
             ])
 

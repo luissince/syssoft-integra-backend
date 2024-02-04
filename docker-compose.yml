@@ -20,6 +20,8 @@ services:
     # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
     ports:
       - 6001:80
+    volumes:
+      - test-volumen:/app/src/path
 
   app-bodega:
     # Configuración para construir la imagen del contenedor desde el contexto actual
@@ -63,3 +65,6 @@ networks:
   luis:
     # Configuración para usar una red externa existente
     external: true
+
+volumes:
+  test-volumen:
