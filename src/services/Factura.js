@@ -346,7 +346,7 @@ class Factura {
             let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
 
             // Proceso de registro  
-            for (const item of bancosAgregados) {
+            for (const item of bancosAgregados) {               
                 await conec.execute(connection, `INSERT INTO ingreso(
                     idIngreso,
                     idVenta,

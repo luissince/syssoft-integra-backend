@@ -156,7 +156,7 @@ class Cobro {
                     idIngreso,
                     idVenta,
                     idCobro,
-                    idBanco,
+                    idBancoDetalle,
                     monto,
                     descripcion,
                     estado,
@@ -167,7 +167,7 @@ class Cobro {
                     idIngreso,
                     null,
                     idCobro,
-                    item.idBanco,
+                    idBancoDetalle,
                     item.monto,
                     item.descripcion,
                     1,
@@ -269,16 +269,21 @@ class Cobro {
                 req.query.idCobro
             ])
 
-            const ingresos = await conec.query(`SELECT 
+            const ingresos = await conec.query(`
+            SELECT 
                 mp.nombre,
                 i.descripcion,
                 i.monto,
                 DATE_FORMAT(i.fecha,'%d/%m/%Y') as fecha,
                 i.hora
-                from ingreso as i 
-                INNER JOIN cobro AS c ON c.idCobro = i.idCobro
-                INNER JOIN metodoPago as mp on i.idMetodoPago = mp.idMetodoPago               
-                WHERE c.idCobro = ?`, [
+            FROM 
+                ingreso as i 
+            INNER JOIN 
+                bancoDetalle AS bd ON bd.idBancoDetalle = i.idBancoDetalle
+            INNER JOIN 
+                banco as mp on mp.idBanco = bd.idBanco              
+            WHERE 
+                i.idCobro = ?`, [
                 req.query.idCobro
             ])
 
@@ -305,6 +310,20 @@ class Cobro {
             await conec.execute(connection, `UPDATE cobro SET estado = 0 WHERE idCobro = ?`, [
                 req.query.idCobro
             ])
+
+            const ingresos = await conec.execute(connection, `SELECT idBancoDetalle FROM ingreso WHERE idCobro = ?`, [
+                req.query.idCobro
+            ])
+
+            for (const item of ingresos) {
+                await conec.execute(connection, `UPDATE bancoDetalle 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idBancoDetalle = ?`, [
+                        item.idBancoDetalle
+                ])
+            }
 
             await conec.execute(connection, `UPDATE ingreso SET estado = 0 WHERE idCobro = ?`, [
                 req.query.idCobro

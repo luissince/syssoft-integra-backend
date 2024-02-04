@@ -248,9 +248,15 @@ class Banco {
                 --
                 CASE 
                     WHEN i.idIngreso IS NOT NULL THEN  
-                        IFNULL('venta', 'cobro')
+                        CASE 
+                            WHEN vt.idVenta is not null THEN  'venta'
+                            ELSE 'cobro'
+                        END
                     ELSE 
-                        IFNULL('compra', 'gasto')
+                        CASE 
+                            WHEN cm.idCompra is not null THEN  'compra'
+                            ELSE 'gasto'
+                        END
                 END AS opcion,
                 --
                 CASE 
