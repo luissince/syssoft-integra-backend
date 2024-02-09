@@ -312,19 +312,26 @@ class Compra {
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 compra AS c
-                INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
-                INNER JOIN formaCobro AS fc ON fc.idFormaCobro = c.idFormaCobro
-                INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
-                INNER JOIN almacen AS al ON al.idAlmacen = c.idAlmacen
-                INNER JOIN persona AS cn ON cn.idPersona = c.idProveedor
-                INNER JOIN usuario AS us ON us.idUsuario = c.idUsuario 
+            INNER JOIN 
+                comprobante AS co ON co.idComprobante = c.idComprobante
+            INNER JOIN 
+                formaCobro AS fc ON fc.idFormaCobro = c.idFormaCobro
+            INNER JOIN 
+                moneda AS mo ON mo.idMoneda = c.idMoneda
+            INNER JOIN 
+                almacen AS al ON al.idAlmacen = c.idAlmacen
+            INNER JOIN 
+                persona AS cn ON cn.idPersona = c.idProveedor
+            INNER JOIN 
+                usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCompra = ?`, [
                 req.query.idCompra,
             ]);
 
             // Consulta los detalles de la compra
-            const detalle = await conec.query(`SELECT 
+            const detalle = await conec.query(`
+            SELECT 
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -333,12 +340,18 @@ class Compra {
                 cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
-            FROM compraDetalle AS cd 
-                INNER JOIN producto AS p ON cd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON cd.idImpuesto = imp.idImpuesto  
-            WHERE cd.idCompra = ?`, [
+            FROM 
+                compraDetalle AS cd 
+            INNER JOIN 
+                producto AS p ON cd.idProducto = p.idProducto 
+            INNER JOIN 
+                medida AS md ON md.idMedida = p.idMedida 
+            INNER JOIN 
+                categoria AS m ON p.idCategoria = m.idCategoria 
+            INNER JOIN 
+                impuesto AS imp ON cd.idImpuesto = imp.idImpuesto  
+            WHERE 
+                cd.idCompra = ?`, [
                 req.query.idCompra,
             ]);
 
@@ -369,8 +382,8 @@ class Compra {
         }
     }
 
-    async accountsPayable(req){
-        try{
+    async accountsPayable(req) {
+        try {
             const lista = await conec.procedure(`CALL Listar_Cuenta_Pagar(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -394,7 +407,8 @@ class Compra {
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        }catch(error){           
+        } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -449,8 +463,23 @@ class Compra {
                 req.query.idCompra
             ]);
 
+            const salidas = await conec.execute(connection, `SELECT idBancoDetalle FROM salida WHERE idCompra = ?`, [
+                req.query.idCompra
+            ]);
+
+            for (const item of salidas) {
+                await conec.execute(connection, `UPDATE bancoDetalle 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idBancoDetalle = ?`, [
+                    item.idBancoDetalle
+                ])
+            }
+
             // Obtiene los detalles de la compra
-            const detalleCompra = await conec.execute(connection, `SELECT 
+            const detalleCompra = await conec.execute(connection, `
+            SELECT 
                 idProducto,
                 costo,
                 cantidad 
@@ -500,19 +529,24 @@ class Compra {
                 ]);
 
                 // Obtiene el inventario asociado al producto y almacén
-                const inventario = await conec.execute(connection, `SELECT 
+                const inventario = await conec.execute(connection, `
+                SELECT 
                     idInventario 
                     FROM inventario 
-                WHERE idProducto = ? AND idAlmacen = ?`, [
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
                     item.idProducto,
                     compra[0].idAlmacen,
                 ]);
 
                 // Actualiza la cantidad en el inventario
-                await conec.execute(connection, `UPDATE inventario 
+                await conec.execute(connection, `
+                UPDATE 
+                    inventario 
                 SET 
                     cantidad = cantidad - ?
-                WHERE idInventario = ?`, [
+                WHERE 
+                    idInventario = ?`, [
                     item.cantidad,
                     inventario[0].idInventario
                 ]);

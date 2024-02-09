@@ -236,7 +236,8 @@ class Gasto {
 
     async detail(req) {
         try {
-            const gasto = await conec.query(`SELECT 
+            const gasto = await conec.query(`
+            SELECT 
                 g.idGasto,
                 co.nombre AS comprobante,
                 g.serie,
@@ -249,22 +250,32 @@ class Gasto {
                 m.codiso,
                 u.apellidos,
                 u.nombres
-                FROM gasto AS g
-                INNER JOIN persona AS cn on cn.idPersona = g.idPersona
-                INNER JOIN comprobante AS co on co.idComprobante = g.idComprobante
-                INNER JOIN moneda AS m on m.idMoneda = g.idMoneda
-                INNER JOIN usuario AS u ON u.idUsuario = g.idUsuario
-                WHERE g.idGasto = ?`, [
+            FROM 
+                gasto AS g
+            INNER JOIN 
+                persona AS cn on cn.idPersona = g.idPersona
+            INNER JOIN 
+                comprobante AS co on co.idComprobante = g.idComprobante
+            INNER JOIN 
+                moneda AS m on m.idMoneda = g.idMoneda
+            INNER JOIN 
+                usuario AS u ON u.idUsuario = g.idUsuario
+            WHERE 
+                g.idGasto = ?`, [
                 req.query.idGasto
             ])
 
-            const detalle = await conec.query(`SELECT 
+            const detalle = await conec.query(`
+            SELECT 
                 cp.nombre,
                 gd.cantidad,
                 gd.precio
-                FROM gastoDetalle as gd
-                INNER JOIN concepto as cp on cp.idConcepto = gd.idConcepto
-                WHERE gd.idGasto = ?`, [
+            FROM 
+                gastoDetalle as gd
+            INNER JOIN 
+                concepto as cp on cp.idConcepto = gd.idConcepto
+            WHERE 
+                gd.idGasto = ?`, [
                 req.query.idGasto
             ])
 

@@ -338,61 +338,76 @@ class Factura {
              * Proceso para ingresa la lista de ingresos con sus método de pagos
              */
 
-            // Generar el Id único
-            const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
-            let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
+            if (idFormaPago === "FP0001") {
+                // Generar el Id único
+                const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
+                let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
 
-            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
-            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
+                const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+                let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
 
-            // Proceso de registro  
-            for (const item of bancosAgregados) {               
-                await conec.execute(connection, `INSERT INTO ingreso(
-                    idIngreso,
-                    idVenta,
-                    idCobro,
-                    idBancoDetalle,
-                    monto,
-                    descripcion,
-                    estado,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
-                    idIngreso,
-                    idVenta,
-                    null,
-                    idBancoDetalle,
-                    item.monto,
-                    item.descripcion,
-                    1,
-                    currentDate(),
-                    currentTime(),
-                    idUsuario
-                ]);
+                // Proceso de registro  
+                for (const item of bancosAgregados) {
+                    await conec.execute(connection, `INSERT INTO ingreso(
+                        idIngreso,
+                        idVenta,
+                        idCobro,
+                        idBancoDetalle,
+                        monto,
+                        descripcion,
+                        estado,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                        idIngreso,
+                        idVenta,
+                        null,
+                        idBancoDetalle,
+                        item.monto,
+                        item.descripcion,
+                        1,
+                        currentDate(),
+                        currentTime(),
+                        idUsuario
+                    ]);
 
-                await conec.execute(connection, `INSERT INTO bancoDetalle(
-                    idBancoDetalle,
-                    idBanco,
-                    tipo,
-                    monto,
-                    estado,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?)`, [
-                    idBancoDetalle,
-                    item.idBanco,
-                    1,
-                    item.monto,
-                    1,
-                    currentDate(),
-                    currentTime(),
-                    idUsuario
-                ]);
+                    await conec.execute(connection, `INSERT INTO bancoDetalle(
+                        idBancoDetalle,
+                        idBanco,
+                        tipo,
+                        monto,
+                        estado,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                        idBancoDetalle,
+                        item.idBanco,
+                        1,
+                        item.monto,
+                        1,
+                        currentDate(),
+                        currentTime(),
+                        idUsuario
+                    ]);
 
-                idIngreso++;
-                idBancoDetalle++;
+                    idIngreso++;
+                    idBancoDetalle++;
+                }
+
+            }
+
+            if (idFormaPago === "FP0002") {
+                
+            }
+
+            if (idFormaPago === "FP0003") {
+                
+            }
+
+            if (idFormaPago === "FP0004") {
+                
             }
 
             /**
@@ -570,7 +585,7 @@ class Factura {
                     estado = 0 
                 WHERE 
                     idBancoDetalle = ?`, [
-                        item.idBancoDetalle
+                    item.idBancoDetalle
                 ])
             }
 
