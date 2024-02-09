@@ -173,7 +173,7 @@ class Gasto {
                     currentDate(),
                     currentTime(),
                     idUsuario
-                ])
+                ]);
 
                 await conec.execute(connection, `INSERT INTO bancoDetalle(
                     idBancoDetalle,
@@ -194,7 +194,6 @@ class Gasto {
                     currentTime(),
                     idUsuario
                 ]);
-
 
                 idSalida++;
                 idBancoDetalle++;

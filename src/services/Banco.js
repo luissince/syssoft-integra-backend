@@ -277,14 +277,14 @@ class Banco {
                     WHEN i.idIngreso IS NOT NULL THEN  
                         IFNULL(vt.serie, co.serie)
                     ELSE 
-                        IFNULL(co.serie, gt.serie)
+                        IFNULL(cm.serie, gt.serie)
                 END AS serie,
                 --
                 CASE 
                     WHEN i.idIngreso IS NOT NULL THEN  
                         IFNULL(vt.numeracion, co.numeracion)
                     ELSE 
-                        IFNULL(co.numeracion, gt.numeracion)
+                        IFNULL(cm.numeracion, gt.numeracion)
                 END AS numeracion,
                 --
                 bd.estado,

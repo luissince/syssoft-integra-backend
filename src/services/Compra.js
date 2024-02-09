@@ -43,19 +43,20 @@ class Compra {
             // Extrae los datos del cuerpo de la solicitud
             const {
                 idComprobante,
-                idPersona,
+                idProveedor,
                 idUsuario,
                 idSucursal,
                 idAlmacen,
                 idMoneda,
                 observacion,
                 nota,
-                tipo,
-                credito,
+                idFormaCobro,
                 estado,
                 detalle,
                 metodoPago
             } = req.body;
+
+            console.log(req.body)
 
             // Genera un nuevo ID para la compra
             const resultCompra = await conec.execute(connection, 'SELECT idCompra FROM compra');
@@ -84,7 +85,7 @@ class Compra {
             // Inserta la información principal de la compra en la base de datos
             await conec.execute(connection, `INSERT INTO compra(
                 idCompra,
-                idPersona,
+                idProveedor,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -92,16 +93,15 @@ class Compra {
                 idAlmacen,
                 serie,
                 numeracion,
+                idFormaCobro,
                 observacion,
                 nota,
-                tipo,
-                credito,
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idCompra,
-                idPersona,
+                idProveedor,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -109,10 +109,9 @@ class Compra {
                 idAlmacen,
                 comprobante[0].serie,
                 numeracion,
+                idFormaCobro,
                 observacion,
                 nota,
-                tipo,
-                credito,
                 estado,
                 currentDate(),
                 currentTime()
@@ -196,9 +195,12 @@ class Compra {
             }
 
             // Si el tipo de compra es 1 (contado), realiza acciones adicionales
-            if (tipo === 1) {
+            if (idFormaCobro === 'FC0001') {
                 const listaSalidas = await conec.execute(connection, 'SELECT idSalida FROM salida');
                 let idSalida = generateNumericCode(1, listaSalidas, 'idSalida');
+
+                const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+                let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
 
                 // Inserta información en la tabla de salidas
                 for (const item of metodoPago) {
@@ -206,7 +208,7 @@ class Compra {
                         idSalida,
                         idCompra,
                         idGasto,
-                        idMetodoPago,
+                        idBancoDetalle,
                         monto,
                         descripcion,
                         estado,
@@ -217,16 +219,37 @@ class Compra {
                         idSalida,
                         idCompra,
                         null,
-                        item.idMetodoPago,
+                        idBancoDetalle,
                         item.monto,
                         item.descripcion,
                         1,
                         currentDate(),
                         currentTime(),
                         idUsuario
-                    ])
+                    ]);
+
+                    await conec.execute(connection, `INSERT INTO bancoDetalle(
+                        idBancoDetalle,
+                        idBanco,
+                        tipo,
+                        monto,
+                        estado,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                        idBancoDetalle,
+                        item.idBanco,
+                        2,
+                        item.monto,
+                        1,
+                        currentDate(),
+                        currentTime(),
+                        idUsuario
+                    ]);
 
                     idSalida++;
+                    idBancoDetalle++;
                 }
             }
 
@@ -254,6 +277,7 @@ class Compra {
             await conec.commit(connection);
             return "create";
         } catch (error) {
+            console.log(error)
             // En caso de error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
@@ -266,7 +290,8 @@ class Compra {
     async detail(req) {
         try {
             // Consulta la información principal de la compra
-            const compra = await conec.query(`SELECT 
+            const compra = await conec.query(`
+            SELECT 
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
                 c.hora,
                 co.nombre AS comprobante,
@@ -279,7 +304,7 @@ class Compra {
                 cn.email,
                 cn.direccion,                
                 al.nombre AS almacen,
-                c.tipo,
+                fc.nombre AS tipo,
                 c.estado,
                 c.observacion,
                 c.nota,
@@ -288,9 +313,10 @@ class Compra {
             FROM 
                 compra AS c
                 INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
+                INNER JOIN formaCobro AS fc ON fc.idFormaCobro = c.idFormaCobro
                 INNER JOIN moneda AS mo ON mo.idMoneda = c.idMoneda
                 INNER JOIN almacen AS al ON al.idAlmacen = c.idAlmacen
-                INNER JOIN persona AS cn ON cn.idPersona = c.idPersona
+                INNER JOIN persona AS cn ON cn.idPersona = c.idProveedor
                 INNER JOIN usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCompra = ?`, [
@@ -317,22 +343,27 @@ class Compra {
             ]);
 
             // Consulta las salidas asociadas a la compra
-            const salidas = await conec.query(`SELECT 
+            const salidas = await conec.query(`
+            SELECT 
                 mp.nombre,
-                i.descripcion,
-                i.monto,
-                DATE_FORMAT(i.fecha,'%d/%m/%Y') as fecha,
-                i.hora
-            FROM salida as i 
-                INNER JOIN compra as c  ON i.idCompra = c.idCompra
-                INNER JOIN metodoPago as mp on i.idMetodoPago = mp.idMetodoPago 
-            WHERE i.idCompra = ?`, [
+                s.descripcion,
+                s.monto,
+                DATE_FORMAT(s.fecha,'%d/%m/%Y') AS fecha,
+                s.hora
+            FROM 
+                salida AS s 
+            INNER JOIN 
+                bancoDetalle AS bd ON bd.idBancoDetalle = s.idBancoDetalle
+            INNER JOIN 
+                banco as mp on mp.idBanco = bd.idBanco       
+            WHERE s.idCompra = ?`, [
                 req.query.idCompra
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
             return { cabecera: compra[0], detalle, salidas };
         } catch (error) {
+            console.log(error)
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return "Se produjo un error de servidor, intente nuevamente.";
         }
