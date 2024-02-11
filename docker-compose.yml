@@ -23,25 +23,43 @@ services:
     volumes:
       - test-backend-volumen:/app/src/path
 
-  app-bodega:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: sysintegra-backend-image
-    # Nombre del contenedor
-    container_name: sysintegra-backend-bodega
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
-    ports:
-      - 6004:80
+  # app-bodega:
+  #   # Configuración para construir la imagen del contenedor desde el contexto actual
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   # Nombre de la imagen de la imagen generada
+  #   image: sysintegra-backend-image
+  #   # Nombre del contenedor
+  #   container_name: sysintegra-backend-bodega
+  #   # Configuración para reiniciar siempre el contenedor
+  #   restart: always
+  #   # Configuración de redes
+  #   networks:
+  #     - luis
+  #   # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
+  #   ports:
+  #     - 6004:80
 
-  app-autopartes:
+  # app-autopartes:
+  #   # Configuración para construir la imagen del contenedor desde el contexto actual
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   # Nombre de la imagen de la imagen generada
+  #   image: sysintegra-backend-image
+  #   # Nombre del contenedor
+  #   container_name: sysintegra-backend-autopartes
+  #   # Configuración para reiniciar siempre el contenedor
+  #   restart: always
+  #   # Configuración de redes
+  #   networks:
+  #     - luis
+  #   # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
+  #   ports:
+  #     - 6007:80
+
+  app-legrand-tiquepos:
     # Configuración para construir la imagen del contenedor desde el contexto actual
     build:
       context: .
@@ -49,7 +67,7 @@ services:
     # Nombre de la imagen de la imagen generada
     image: sysintegra-backend-image
     # Nombre del contenedor
-    container_name: sysintegra-backend-autopartes
+    container_name: legrand-tiquepos-backend
     # Configuración para reiniciar siempre el contenedor
     restart: always
     # Configuración de redes
@@ -57,7 +75,9 @@ services:
       - luis
     # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
     ports:
-      - 6007:80
+      - 6011:80
+    volumes:
+      - legrand-tiquepos-backend-volumen:/app/src/path
 
 # Definición de redes
 networks:
@@ -68,3 +88,4 @@ networks:
 
 volumes:
   test-backend-volumen:
+  legrand-tiquepos-backend-volumen:
