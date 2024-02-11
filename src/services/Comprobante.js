@@ -16,9 +16,7 @@ class Comprobante {
                 c.numeracion,
                 c.impresion,
                 c.estado, 
-                c.preferida,
-                DATE_FORMAT(c.fecha,'%d/%m/%Y') as fecha,
-                c.hora
+                c.preferida
                 FROM comprobante AS c
                 INNER JOIN tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
                 WHERE 
@@ -101,12 +99,14 @@ class Comprobante {
             estado,
             preferida,
             numeroCampo,
+            facturado,
+            anulacion,
             fecha,
             hora,
             fupdate,
             hupdate,
             idUsuario) 
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idComprobante,
                 req.body.idTipoComprobante,
                 req.body.nombre,
@@ -117,6 +117,8 @@ class Comprobante {
                 req.body.estado,
                 req.body.preferida,
                 req.body.numeroCampo,
+                req.body.facturado,
+                req.body.anulacion,
                 currentDate(),
                 currentTime(),
                 currentDate(),
@@ -136,7 +138,7 @@ class Comprobante {
 
             await conec.commit(connection);
             return sendSuccess(res, "Se inserto correctamente el comprobante.")
-        } catch (error) {    
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -164,12 +166,7 @@ class Comprobante {
         try {
             connection = await conec.beginTransaction();
 
-            const venta = await conec.execute(connection, `SELECT  * FROM venta WHERE idComprobante = ?`, [
-                req.body.idComprobante
-            ]);
-
-            if (venta.length > 0) {
-                await conec.execute(connection, `UPDATE comprobante SET 
+            await conec.execute(connection, `UPDATE comprobante SET 
                 idTipoComprobante = ?,
                 nombre = ?,
                 impresion = ?,
@@ -177,56 +174,29 @@ class Comprobante {
                 estado = ?,
                 preferida = ?,
                 numeroCampo = ?,
+                facturado = ?,                
+                anulacion = ?,
                 fupdate = ?,
                 hupdate = ?,
                 idUsuario = ?
                 WHERE idComprobante = ?`, [
-                    req.body.idTipoComprobante,
-                    req.body.nombre,
-                    req.body.impresion,
-                    req.body.codigo,
-                    req.body.estado,
-                    req.body.preferida,
-                    req.body.numeroCampo,
-                    currentDate(),
-                    currentTime(),
-                    req.body.idUsuario,
-                    req.body.idComprobante
-                ]);
+                req.body.idTipoComprobante,
+                req.body.nombre,
+                req.body.impresion,
+                req.body.codigo,
+                req.body.estado,
+                req.body.preferida,
+                req.body.numeroCampo,
+                req.body.facturado,
+                req.body.anulacion,
+                currentDate(),
+                currentTime(),
+                req.body.idUsuario,
+                req.body.idComprobante
+            ]);
 
-                await conec.commit(connection);
-                sendSuccess(res, "Se actualizó correctamente el comprobante. !Hay campos que no se van editar ya que el comprobante esta ligado a un venta¡");
-            } else {
-                await conec.execute(connection, `UPDATE comprobante SET 
-                idTipoComprobante = ?,
-                nombre = ?,
-                serie = ?,
-                numeracion = ?,
-                impresion = ?,
-                estado = ?,
-                preferida = ?,
-                numeroCampo = ?,
-                fupdate = ?,
-                hupdate = ?,
-                idUsuario = ?
-                WHERE idComprobante = ?`, [
-                    req.body.idTipoComprobante,
-                    req.body.nombre,
-                    req.body.serie,
-                    req.body.numeracion,
-                    req.body.impresion,
-                    req.body.estado,
-                    req.body.preferida,
-                    req.body.numeroCampo,
-                    currentDate(),
-                    currentTime(),
-                    req.body.idUsuario,
-                    req.body.idComprobante
-                ]);
-
-                await conec.commit(connection);
-                return sendSuccess(res, "Se actualizó correctamente el comprobante.");
-            }
+            await conec.commit(connection);
+            return sendSuccess(res, "Se actualizó correctamente el comprobante.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);

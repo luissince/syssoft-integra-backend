@@ -1,80 +1,43 @@
-// const http = require('http');
 const express = require('express');
 const app = express();
+const router = express.Router();  // Crear un router para organizar rutas
 const path = require('path');
-// const socket = require('socket.io');
+
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swagger = require('./src/swagger');
-/**
- * Carga de variable de entorno
- */
+const { isFile } = require('./src/tools/Tools');
+
 require('dotenv').config();
 
-/**
- * Inicializando el constructor
- */
-
-// const server = http.createServer(app);
-// const io = socket(server, {
-//     cors: { origin: "*" }
-// });
-
-// global.io = io;
-
-// io.on('connection', (socket) => {
-//     console.log('a user connected');
-
-//     socket.on('message', (message) => {
-//         console.log(message);
-//         io.emit('message', `${socket.id.substr(0, 2)} said ${message}`);
-//     });
-
-//     socket.on("disconnect", () => {
-//         console.log('desconnected ' + socket.id)
-//     });
-// });
-
-// Configurar morgan para que imprima en la consola
+// Middleware para el registro de solicitudes (morgan)
 app.use(morgan('dev'));
 
-/**
- * CORS para peticiones externas
- * setHeader('Access-Control-Allow-Origin', '*')
- * setHeader('Access-Control-Allow-Headers', 'X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Request-Method')
- * setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
- */
+// Middleware para permitir solicitudes CORS
 app.use(cors());
 
-/**
- * 
- */
+// Middleware para servir archivos estáticos desde diferentes carpetas
+router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
+router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
+router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
+router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
+
+// Montar el router en la ruta 'imagenes, archivos entre otros'
+app.use('/files', router);
+
+// Configuración del puerto
 app.set('port', process.env.PORT || 5000);
 
+// Configuración de middleware para manejar JSON y datos codificados en URL
 app.use(express.json({ limit: '1024mb' }));
-app.use(express.urlencoded({ limit: '1024mb', extended: false }));
+app.use(express.urlencoded({ extended: false }));
+
+// Middleware para servir la documentación de Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
 
-/**
- * Cargar la app estatica compilada
- */
-// app.use(express.static(path.join(__dirname, "..", "app/build")));
-
-/**
- * Mostar estaticanmente las imagenes del sucursal
- */
-app.use(express.static(path.join(__dirname, "src/path/proyect")));
-
-/**
- * Mostar estaticanmente las imagenes de la empresa
- */
-app.use(express.static(path.join(__dirname, "src/path/company")));
-
-/**
- * Ruta que inicia la entrada a los recursos
- */
-app.get('/', (req, res) => {
+// Ruta principal
+app.get('/', (_, res) => {
     res.json({
         "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
         "Fecha y hora actuales": new Date().toLocaleDateString(),
@@ -82,10 +45,39 @@ app.get('/', (req, res) => {
     });
 });
 
+// Ruta para obtener las imagene por nombre
+app.get('/imagen/:nombreImagen', (req, res) => {
+    const nombreImagen = req.params.nombreImagen;
 
-/**
- * Cargar las rutas de la apis
- */
+    if (!nombreImagen) {
+        return res.status(404).json({ error: 'El parametro de nombre de imagen falta completar.' });
+    }
+
+    const rutaImagenTo = path.join(__dirname, 'src', 'path', 'to', nombreImagen);
+    const rutaImagenCompany = path.join(__dirname, 'src', 'path', 'company', nombreImagen);
+    const rutaImagenProyect = path.join(__dirname, 'src', 'path', 'proyect', nombreImagen);
+    const rutaImagenProduct = path.join(__dirname, 'src', 'path', 'product', nombreImagen);
+
+    if (isFile(rutaImagenTo)) {
+        return res.sendFile(rutaImagenTo);
+    }
+
+    if (isFile(rutaImagenCompany)) {
+        return res.sendFile(rutaImagenCompany);
+    }
+
+    if (isFile(rutaImagenProyect)) {
+        return res.sendFile(rutaImagenProyect);
+    }
+
+    if (isFile(rutaImagenProduct)) {
+        return res.sendFile(rutaImagenProduct);
+    }
+
+    res.status(404).json({ error: 'Imagen no encontrada' });
+});
+
+// Rutas API
 app.use('/api/comprobante', require('./src/router/Comprobante'));
 app.use('/api/moneda', require('./src/router/Moneda'));
 app.use('/api/banco', require('./src/router/Banco'));
@@ -96,7 +88,7 @@ app.use('/api/categoria', require('./src/router/Categoria'));
 app.use('/api/producto', require('./src/router/Producto'));
 app.use('/api/almacen', require('./src/router/Almacen'));
 
-app.use('/api/cliente', require('./src/router/Cliente'));
+app.use('/api/persona', require('./src/router/Persona'));
 app.use('/api/factura', require('./src/router/Factura'));
 app.use('/api/login', require('./src/router/Login'));
 
@@ -116,6 +108,7 @@ app.use('/api/motivo', require('./src/router/Motivo'));
 
 app.use('/api/empresa', require('./src/router/Empresa'));
 app.use('/api/dashboard', require('./src/router/Dashboard'));
+app.use('/api/notificacion', require('./src/router/Notificacion'));
 
 app.use('/api/kardex', require('./src/router/Kardex'));
 app.use('/api/metodopago', require('./src/router/MetodoPago'));
@@ -130,74 +123,14 @@ app.use('/api/tipocomprobante', require('./src/router/TipoComprobante'));
 app.use('/api/traslado', require('./src/router/Traslado'));
 app.use('/api/motivotraslado', require('./src/router/MotivoTraslado'));
 app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
+app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
+app.use('/api/tipopeso', require('./src/router/TipoPeso'));
+app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 
 app.use('/api/salida', require('./src/router/Salida'));
 app.use('/api/ingreso', require('./src/router/Ingreso'));
-/**
- * 
- */
-// app.use((req, res, next) => {
-//     res.sendFile(path.join(__dirname, "..", "app/build", "index.html"));
-// });
 
-// // Se ejecuta cuando los clientes se conectan
-// io.on("connection", (socket) => {
-//     console.log(io.of("/").adapter);
-//     socket.on("joinRoom", ({ username, room }) => {
-//         const user = userJoin(socket.id, username, room);
-
-//         socket.join(user.room);
-
-//         // Mensaje de bienvenida
-//         socket.emit("message", formatMessage(botName, "Welcome to ChatCord!"));
-
-//         // Se emite un mensaje cuando un cliente se conecta
-//         socket.broadcast
-//             .to(user.room)
-//             .emit(
-//                 "message",
-//                 formatMessage(botName, `${user.username} has joined the chat`)
-//             );
-
-//         // Enviar información de usuarios y salas
-//         io.to(user.room).emit("roomUsers", {
-//             room: user.room,
-//             users: getRoomUsers(user.room),
-//         });
-//     });
-
-//     // Se listan los mensaje guardados
-//     socket.on("chatMessage", (msg) => {
-//         const user = getCurrentUser(socket.id);
-
-//         io.to(user.room).emit("message", formatMessage(user.username, msg));
-//     });
-
-//     // Se ejecuta cuando un cliente se desconecta
-//     socket.on("disconnect", () => {
-//         const user = userLeave(socket.id);
-
-//         if (user) {
-//             io.to(user.room).emit(
-//                 "message",
-//                 formatMessage(botName, `${user.username} has left the chat`)
-//             );
-
-//             // Enviar información de usuarios y salas
-//             io.to(user.room).emit("roomUsers", {
-//                 room: user.room,
-//                 users: getRoomUsers(user.room),
-//             });
-//         }
-//     });
-// });
-
-/**
- * 
- */
-// server.listen(app.get("port"), "192.168.101.2",() => {
-//     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
-// });
+// Iniciar el servidor
 app.listen(app.get("port"), () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 });

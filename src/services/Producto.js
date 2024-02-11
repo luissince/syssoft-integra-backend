@@ -1,7 +1,18 @@
+const path = require("path");
 const Conexion = require('../database/Conexion');
-const { sendSuccess, sendError, sendClient, sendSave } = require('../tools/Message');
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const {
+    currentDate,
+    currentTime,
+    generateAlphanumericCode,
+    isDirectory,
+    processImage,
+    mkdir,
+    chmod,
+    generateNumericCode,
+} = require('../tools/Tools');
 const conec = new Conexion();
+
+require('dotenv').config();
 
 class Producto {
 
@@ -10,11 +21,12 @@ class Producto {
             const lista = await conec.query(`SELECT 
                 p.idProducto,
                 t.nombre as tipo,
-                v.nombre as venta,
+                ttp.nombre as venta,
                 p.codigo,
                 p.nombre,
                 pc.valor as precio,
                 p.preferido,
+                p.imagen,
                 p.estado,
                 c.nombre AS categoria,
                 m.nombre AS medida
@@ -23,7 +35,7 @@ class Producto {
                 INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
                 INNER JOIN medida AS m ON p.idMedida = m.idMedida       
                 INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoVenta AS v ON v.idTipoVenta = p.idTipoVenta
+                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
                 WHERE
                 ? = 0 
                 OR
@@ -42,6 +54,7 @@ class Producto {
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
+                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -52,7 +65,7 @@ class Producto {
                 INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
                 INNER JOIN medida AS m ON p.idMedida = m.idMedida 
                 INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoVenta AS v ON v.idTipoVenta = p.idTipoVenta
+                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
                 WHERE
                 ? = 0 
                 OR
@@ -81,9 +94,9 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
-                precio,                
+                precio,
                 tipo,
                 publicar,
                 inventariado,
@@ -114,6 +127,16 @@ class Producto {
                 return "No se puede haber 2 producto con el mismo nombre.";
             }
 
+            const fileDirectory = path.join(__dirname, '..', 'path', 'product');
+            const exists = await isDirectory(fileDirectory);
+
+            if (!exists) {
+                await mkdir(fileDirectory);
+                await chmod(fileDirectory);
+            }
+
+            const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, null);
+
             const resultProducto = await conec.execute(connection, 'SELECT idProducto FROM producto');
             const idProducto = generateAlphanumericCode("PD0001", resultProducto, 'idProducto');
 
@@ -126,7 +149,7 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
                 publicar,
@@ -134,12 +157,13 @@ class Producto {
                 negativo,
                 preferido,
                 estado,
+                imagen,
                 fecha,
                 hora,
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 'CP0001',
@@ -148,7 +172,7 @@ class Producto {
                 codigo,
                 idCodigoSunat,
                 descripcion,
-                idTipoVenta,
+                idTipoTratamientoProducto,
                 costo,
                 tipo,
                 publicar,
@@ -156,13 +180,13 @@ class Producto {
                 negativo,
                 preferido,
                 estado,
+                imagen,
                 currentDate(),
                 currentTime(),
                 currentDate(),
                 currentTime(),
                 idUsuario,
             ])
-
 
             if (tipo === "TP0001") {
 
@@ -193,13 +217,13 @@ class Producto {
 
                     if (inventario) {
                         await conec.execute(connection, `INSERT INTO inventario(
-                                idInventario,
-                                idProducto,
-                                idAlmacen,
-                                cantidad,
-                                cantidadMaxima,
-                                cantidadMinima
-                            ) VALUES(?,?,?,?,?,?)`, [
+                            idInventario,
+                            idProducto,
+                            idAlmacen,
+                            cantidad,
+                            cantidadMaxima,
+                            cantidadMinima
+                        VALUES(?,?,?,?,?,?)`, [
                             idInventario,
                             idProducto,
                             inventario.idAlmacen,
@@ -209,18 +233,18 @@ class Producto {
                         ]);
 
                         await conec.execute(connection, `INSERT INTO kardex(
-                                idKardex,
-                                idProducto,
-                                idTipoKardex,
-                                idMotivoKardex,
-                                detalle,
-                                cantidad,
-                                costo,
-                                idAlmacen,
-                                hora,
-                                fecha,
-                                idUsuario
-                            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            hora,
+                            fecha,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             idProducto,
                             'TK0002',
@@ -315,7 +339,7 @@ class Producto {
                 p.codigo,
                 p.idCodigoSunat,
                 p.descripcion,
-                p.idTipoVenta,
+                p.idTipoTratamientoProducto,
                 pc.valor AS precio,
                 p.costo,
                 p.idTipoProducto,
@@ -323,12 +347,18 @@ class Producto {
                 p.inventariado,
                 p.negativo,
                 p.preferido,
+                p.imagen,
                 p.estado
                 FROM producto AS p
                 INNER JOIN precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
                 WHERE p.idProducto = ?`, [
                 req.query.idProducto
             ]);
+
+            const respuesta = {
+                ...producto[0],
+                imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
+            };
 
             const precios = await conec.query(`SELECT
                 ROW_NUMBER() OVER () AS id,
@@ -340,7 +370,7 @@ class Producto {
             ]);
 
             const newProducto = {
-                ...producto[0],
+                ...respuesta,
                 precios
             }
 
@@ -358,7 +388,7 @@ class Producto {
             const validateCodigo = await conec.execute(connection, `SELECT 1 FROM producto WHERE codigo = ? AND idProducto <> ?`, [
                 req.body.codigo,
                 req.body.idProducto
-            ]);         
+            ]);
 
             if (validateCodigo.length !== 0) {
                 await conec.rollback(connection);
@@ -375,6 +405,20 @@ class Producto {
                 return "No se puede haber 2 producto con el mismo nombre.";
             }
 
+            const fileDirectory = path.join(__dirname, '..', 'path', 'product');
+            const exists = await isDirectory(fileDirectory);
+
+            if (!exists) {
+                await mkdir(fileDirectory);
+                await chmod(fileDirectory);
+            }
+
+            const producto = await await conec.execute(connection, `SELECT imagen FROM producto WHERE idProducto = ?`, [
+                req.body.idProducto
+            ])
+
+            const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, producto[0].imagen);
+
             await conec.execute(connection, `UPDATE producto SET
                 idCategoria = ?,
                 idMedida = ?,     
@@ -382,13 +426,14 @@ class Producto {
                 codigo = ?,
                 idCodigoSunat = ?,
                 descripcion = ?,
-                idTipoVenta = ?,
+                idTipoTratamientoProducto = ?,
                 costo = ?,
                 publicar = ?,
                 inventariado = ?,
                 negativo = ?,
                 preferido = ?,
                 estado = ?,
+                imagen = ?,
                 fupdate = ?,
                 hupdate = ?,
                 idUsuario = ?
@@ -399,13 +444,14 @@ class Producto {
                 req.body.codigo,
                 req.body.idCodigoSunat,
                 req.body.descripcion,
-                req.body.idTipoVenta,
+                req.body.idTipoTratamientoProducto,
                 req.body.costo,
                 req.body.publicar,
                 req.body.inventariado,
                 req.body.negativo,
                 req.body.preferido,
-                req.body.estado,                
+                req.body.estado,
+                imagen,
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
@@ -456,7 +502,6 @@ class Producto {
 
             await conec.commit(connection);
             return "update";
-
         } catch (error) {       
             if (connection != null) {
                 await conec.rollback(connection);
@@ -558,7 +603,7 @@ class Producto {
 
             const venta = await conec.query(`SELECT 
             v.idVenta,
-            v.idCliente
+            v.idPersona
             FROM venta AS v 
             INNER JOIN ventaDetalle AS vd ON v.idVenta = vd.idVenta
             WHERE vd.idProducto = ? AND v.estado IN (1,2)`, [
@@ -567,12 +612,12 @@ class Producto {
 
             if (venta.length > 0) {
                 const socios = await conec.query(`SELECT 
-                    c.idCliente ,
+                    c.idPersona ,
                     c.documento,
                     c.informacion,
                     a.estado
                     FROM asociado AS a
-                    INNER JOIN clienteNatural AS c ON a.idCliente = c.idCliente
+                    INNER JOIN persona AS c ON a.idPersona = c.idPersona
                     WHERE a.idVenta = ?`, [
                     venta[0].idVenta
                 ]);
@@ -596,7 +641,7 @@ class Producto {
                     c.hora,
                     IFNULL(SUM(cd.precio*cd.cantidad),SUM(cv.precio)) AS monto
                     FROM cobro AS c
-                    INNER JOIN clienteNatural AS cl ON c.idCliente = cl.idCliente
+                    INNER JOIN persona AS cl ON c.idPersona = cl.idPersona
                     INNER JOIN banco AS b ON c.idBanco = b.idBanco
                     INNER JOIN moneda AS m ON c.idMoneda = m.idMoneda 
                     INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
@@ -653,8 +698,16 @@ class Producto {
                 req.query.filtrar,
                 req.query.idSucursal,
             ])
-            return result;
-        } catch (error) {          
+
+            const resultLista = result.map(function (item) {
+                return {
+                    ...item,
+                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                }
+            });
+
+            return resultLista;
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -684,7 +737,7 @@ class Producto {
     }
 
     async filterAlmacen(req) {
-        try {            
+        try {
             const result = await conec.query(`SELECT 
             p.idProducto,
             p.nombre,
@@ -715,7 +768,15 @@ class Producto {
     async preferidos(req) {
         try {
             const result = await conec.procedure("CALL Listar_Productos_Preferidos()")
-            return result
+
+            const resultLista = result.map(function (item) {
+                return {
+                    ...item,
+                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                }
+            });
+
+            return resultLista
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
@@ -741,116 +802,13 @@ class Producto {
         }
     }
 
-    async obtenerListPrecio(req){
-        try{
-            const lista = await conec.query(`select nombre, valor from precio where idProducto = ?`,[
+    async obtenerListPrecio(req) {
+        try {
+            const lista = await conec.query(`select nombre, valor from precio where idProducto = ?`, [
                 req.query.idProducto
             ]);
 
             return lista;
-        }catch(error){
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
-    }
-
-    async listaEstadoProducto(req) {
-        try {
-
-            const sucursal = await conec.query(`SELECT 
-            nombre,
-            ubicacion,
-            area 
-            FROM sucursal WHERE idSucursal = ?`, [
-                req.query.idSucursal,
-            ]);
-
-            const lista = await conec.query(`SELECT 
-                l.idProducto,
-                l.descripcion AS producto,
-                m.nombre AS categoria,
-                l.costo,
-                l.precio,
-                l.estado,
-                l.medidaFrontal,
-                l.costadoDerecho,
-                l.costadoIzquierdo,
-                l.medidaFondo,
-                l.areaProducto
-                FROM producto AS l INNER JOIN categoria AS m 
-                ON l.idCategoria = m.idCategoria 
-                WHERE
-                ? = 0 AND m.idSucursal = ?
-                OR
-                (? <> 0 AND l.estado = ? AND m.idSucursal = ?)`, [
-                req.query.estadoProducto,
-                req.query.idSucursal,
-
-                req.query.estadoProducto,
-                req.query.estadoProducto,
-                req.query.idSucursal,
-            ])
-
-            return { "sucursal": sucursal[0], "lista": lista };
-        } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
-    }
-
-    async listardeudasProducto(req) {
-        try {
-            const result = await conec.query(`SELECT 
-            v.idVenta, 
-            cl.idCliente,
-            cl.documento, 
-            cl.informacion, 
-            lo.descripcion AS producto,
-            ma.nombre AS categoria,
-            cm.nombre AS comprobante, 
-            v.serie, 
-            v.numeracion, 
-            (SELECT IFNULL(DATE_FORMAT(MIN(co.fecha),'%d/%m/%Y'),'') FROM cobro AS co WHERE co.idProcedencia = v.idVenta ) AS primerPago,
-            (SELECT IFNULL(p.monto,0) FROM plazo AS p WHERE p.idVenta = v.idVenta LIMIT 1) AS cuotaMensual,
-            (SELECT IFNULL(COUNT(*), 0) FROM plazo AS p WHERE p.idVenta = v.idVenta) AS cuoTotal,
-            (SELECT IFNULL(COUNT(*), 0) FROM plazo AS p WHERE p.estado = 0 AND p.idVenta = v.idVenta) AS numCuota,
-            CASE WHEN v.frecuencia = 30 THEN 'FIN DE MES' ELSE 'CADA QUINCENA' END AS frecuenciaName, 
-            CASE 
-            WHEN v.credito = 1 THEN DATE_ADD(v.fecha,interval v.frecuencia day)
-            ELSE (SELECT IFNULL(MIN(p.fecha),'') FROM plazo AS p WHERE p.estado = 0 AND p.idVenta = v.idVenta) END AS fechaPago,
-            v.fecha, 
-            v.hora, 
-            v.estado,
-            v.credito,
-            v.frecuencia,
-            m.idMoneda,
-            m.simbolo,
-            IFNULL(SUM(vd.precio*vd.cantidad),0) AS total,
-            (
-             SELECT IFNULL(SUM(cv.precio),0) 
-             FROM cobro AS c 
-             LEFT JOIN notaCredito AS nc ON c.idCobro = nc.idCobro AND nc.estado = 1
-             LEFT JOIN cobroVenta AS cv ON c.idCobro = cv.idCobro 
-             WHERE c.idProcedencia = v.idVenta AND c.estado = 1 AND nc.idNotaCredito IS NULL
-            ) AS cobrado 
-            FROM venta AS v 
-            INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
-            INNER JOIN comprobante AS cm ON v.idComprobante = cm.idComprobante 
-            INNER JOIN clienteNatural AS cl ON v.idCliente = cl.idCliente 
-            INNER JOIN ventaDetalle AS vd ON vd.idVenta = v.idVenta 
-            INNER JOIN producto AS lo ON vd.idProducto = lo.idProducto 
-            INNER JOIN categoria AS ma ON lo.idCategoria = ma.idCategoria 
-            WHERE  
-            ? = 0 AND v.estado = 2 AND v.idSucursal = ? 
-            OR
-            ? = 1 AND v.estado = 2            
-            GROUP BY v.idVenta
-            ORDER BY v.fecha DESC, v.hora DESC`, [
-                parseInt(req.query.porSucursal),
-                req.query.idSucursal,
-
-                parseInt(req.query.porSucursal),
-            ]);
-
-            return result;
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }

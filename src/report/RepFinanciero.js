@@ -515,7 +515,6 @@ class RepFinanciero {
 
             return getStream.buffer(doc);
         } catch (error) {
-            console.log(error)
             return "Se genero un error al generar el reporte.";
         }
     }

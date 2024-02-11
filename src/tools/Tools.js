@@ -1,4 +1,11 @@
+const { promisify } = require('util');
 const fs = require("fs");
+const path = require("path");
+const lstatAsync = promisify(fs.lstat);
+const unlinkAsync = promisify(fs.unlink);
+const writeFileAsync = promisify(fs.writeFile);
+const mkdirAsync = promisify(fs.mkdir);
+const chmodAsync = promisify(fs.chmod);
 
 function isNumber(value) {
     return typeof value === 'number';
@@ -9,51 +16,54 @@ function isEmail(value) {
     return value.match(validRegex) != null ? true : false;
 }
 
-function isDirectory(file) {
+async function isDirectory(file) {
     try {
-        let result = fs.lstatSync(file).isDirectory()
-        return result;
+        const stats = await lstatAsync(file);
+        return stats.isDirectory();
+    } catch (error) {
+        return false;
+    }
+}
+async function isFile(file) {
+    try {
+        const stats = await lstatAsync(file);
+        return stats.isFile();
     } catch (error) {
         return false;
     }
 }
 
-function isFile(file) {
+async function removeFile(file) {
     try {
-        let result = fs.lstatSync(file).isFile()
-        return result;
-    } catch (error) {
-        return false;
-    }
-}
-
-function removeFile(file) {
-    try {
-        fs.unlinkSync(file)
+        await unlinkAsync(file);
         return true;
     } catch (error) {
         return false;
     }
 }
 
-function writeFile(file, data, options = 'base64') {
+async function writeFile(file, data, options = 'base64') {
     try {
-        fs.writeFileSync(file, data, options);
+        await writeFileAsync(file, data, options);
+        return true;
     } catch (error) {
+        return false;
     }
 }
 
-function mkdir(file) {
+async function mkdir(file) {
     try {
-        fs.mkdirSync(file);
+        await mkdirAsync(file);
     } catch (error) {
+        // Manejar el error si es necesario
     }
 }
 
-async function chmod(file, mode = 755) {
+async function chmod(file, mode = 0o755) {
     try {
-        fs.chmodSync(file, mode);
-    } catch (err) {
+        await chmodAsync(file, mode);
+    } catch (error) {
+        // Manejar el error si es necesario
     }
 }
 
@@ -82,6 +92,24 @@ function dateFormat(value) {
         "/" +
         today.getFullYear()
     );
+}
+
+async function processImage(fileDirectory, image, ext, existingImage) {
+    if (image !== '') {
+        if (existingImage) {
+            await removeFile(path.join(fileDirectory, existingImage));
+        }
+
+        const timestamp = Date.now();
+        const uniqueId = Math.random().toString(36).substring(2, 9);
+        const nameImage = `${timestamp}_${uniqueId}.${ext}`;
+
+        await writeFile(path.join(fileDirectory, nameImage), image);
+
+        return nameImage;
+    }
+
+    return existingImage;
 }
 
 function formatMoney(amount, decimalCount = 2, decimal = ".", thousands = "") {
@@ -227,5 +255,6 @@ module.exports = {
     categoriaProducto,
     isEmail,
     generateAlphanumericCode,
-    generateNumericCode
+    generateNumericCode,
+    processImage
 };

@@ -4,11 +4,13 @@ const conec = new Conexion();
 
 class TipoDocumento {
 
-    async listcombo(req, res) {
+    async combo(req, res) {
         try {
             const result = await conec.query(`SELECT 
             idTipoDocumento,
-            nombre
+            nombre,
+            longitud,
+            obligado
             FROM tipoDocumento 
             WHERE 
             estado = 1`);

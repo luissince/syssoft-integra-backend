@@ -6,32 +6,10 @@ class Banco {
 
     async list(req) {
         try {
-            const lista = await conec.query(`SELECT 
-            b.idBanco, 
-            b.nombre, 
-            CASE 
-            WHEN b.tipoCuenta = 1 THEN 'Banco'
-            WHEN b.tipoCuenta = 2 THEN 'Tarjeta'
-            ELSE 'Efectivo' END AS 'tipoCuenta',
-            m.nombre as moneda,
-            m.codiso,
-            b.numCuenta,
-            b.cci,
-            IFNULL(SUM(CASE WHEN bd.tipo = 1 THEN bd.monto ELSE -bd.monto END),0)AS saldo
-            FROM banco AS b 
-            INNER JOIN moneda AS m ON m.idMoneda = b.idMoneda 
-            LEFT JOIN bancoDetalle AS bd ON bd.idBanco = b.idBanco 
-            WHERE 
-            ? = 0
-            OR
-            ? = 1 and b.nombre like concat(?,'%')
-            GROUP BY b.idBanco
-            LIMIT ?,?`, [
-                parseInt(req.query.opcion),
-
+            const lista = await conec.procedure(`CALL Listar_Bancos(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
-
+                req.query.idSucursal,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
@@ -43,17 +21,10 @@ class Banco {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total 
-            FROM banco AS b INNER JOIN moneda AS m
-            ON m.idMoneda = b.idMoneda 
-            WHERE 
-            ? = 0
-            OR
-            ? = 1 and b.nombre like concat(?,'%')`, [
+            const total = await conec.procedure(`CALL Listar_Bancos_Count(?,?,?)`, [
                 parseInt(req.query.opcion),
-
-                parseInt(req.query.opcion),
-                req.query.buscar
+                req.query.buscar,
+                req.query.idSucursal,
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
@@ -71,24 +42,32 @@ class Banco {
             const idBanco = generateAlphanumericCode("BC0001", result, 'idBanco');
 
             await conec.execute(connection, `INSERT INTO banco(
-            idBanco,
-            nombre,
-            tipoCuenta,
-            idMoneda,
-            numCuenta,
-            cci, 
-            fecha,
-            hora,
-            fupdate,
-            hupdate,
-            idUsuario) 
-            values (?,?,?,?,?,?,?,?,?,?,?)`, [
+                idBanco,
+                nombre,
+                tipoCuenta,
+                idMoneda,
+                numCuenta,
+                cci, 
+                preferido,
+                vuelto,
+                reporte,
+                estado,
+                fecha,
+                hora,
+                fupdate,
+                hupdate,
+                idUsuario
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idBanco,
                 req.body.nombre,
                 req.body.tipoCuenta,
                 req.body.idMoneda,
                 req.body.numCuenta,
                 req.body.cci,
+                req.body.preferido,
+                req.body.vuelto,
+                req.body.reporte,
+                req.body.estado,
                 currentDate(),
                 currentTime(),
                 currentDate(),
@@ -126,21 +105,31 @@ class Banco {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            await conec.execute(connection, `UPDATE banco SET 
-            nombre=?, 
-            tipoCuenta=?, 
-            idMoneda=?, 
-            numCuenta=?, 
-            cci=?, 
-            fecha=?,
-            hora=?,
-            idUsuario=?
-            WHERE idBanco=?`, [
+            await conec.execute(connection, `UPDATE banco 
+            SET 
+                nombre=?, 
+                tipoCuenta=?, 
+                idMoneda=?, 
+                numCuenta=?, 
+                cci=?, 
+                preferido=?,
+                vuelto=?,
+                reporte=?,
+                estado=?,
+                fecha=?,
+                hora=?,
+                idUsuario=?
+            WHERE 
+                idBanco=?`, [
                 req.body.nombre,
                 req.body.tipoCuenta,
                 req.body.idMoneda,
                 req.body.numCuenta,
                 req.body.cci,
+                req.body.preferido,
+                req.body.vuelto,
+                req.body.reporte,
+                req.body.estado,
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
@@ -153,6 +142,43 @@ class Banco {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
+
+    async detail(req) {
+        try {
+            const banco = await conec.query(`SELECT 
+            ba.nombre,
+            ba.tipoCuenta,
+            ba.numCuenta,
+            ba.cci,
+            ba.estado,
+            mo.nombre as moneda,
+            mo.codiso
+            from banco as ba
+            INNER JOIN moneda as mo ON ba.idMoneda = mo.idMoneda
+            WHERE ba.idBanco = ?`, [
+                req.query.idBanco,
+            ])
+
+            const total = await conec.query(`
+            SELECT 
+                IFNULL(SUM(CASE 
+                WHEN tipo = 1 THEN monto
+                ELSE  -monto
+            END),0) AS monto 
+            FROM bancoDetalle
+            WHERE idBanco = ? AND estado = 1`, [
+                req.query.idBanco,
+            ])
+
+            return {
+                "banco": banco[0],
+                "monto": total[0].monto
+            }
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -194,66 +220,103 @@ class Banco {
         }
     }
 
-    async listcombo() {
+    async combo() {
         try {
-            const result = await conec.query('SELECT idBanco, nombre, tipoCuenta FROM banco');
+            const result = await conec.query(`
+            SELECT 
+                idBanco, 
+                nombre, 
+                preferido,
+                vuelto 
+            FROM 
+                banco   
+            WHERE 
+                estado = 1`);
             return result;
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
 
-    async idDetalle(req) {
-        try {
-            const cabecera = await conec.query(`SELECT 
-            b.idBanco,
-            b.nombre, 
-            CASE 
-            WHEN b.tipoCuenta = 1 THEN 'Banco'
-            WHEN b.tipoCuenta = 2 THEN 'Tarjeta'
-            ELSE 'Efectivo' END AS 'tipoCuenta',
-            m.nombre as moneda,
-            m.codiso,
-            b.numCuenta,
-            b.cci,
-            IFNULL(SUM(CASE WHEN bd.tipo = 1 THEN bd.monto ELSE -bd.monto END),0)AS saldo
-            FROM banco AS b 
-            INNER JOIN moneda AS m ON m.idMoneda = b.idMoneda 
-            LEFT JOIN bancoDetalle AS bd ON bd.idBanco = b.idBanco 
-            WHERE b.idBanco = ?`, [
-                req.query.idBanco
-            ])
-
-            return { "cabecera": cabecera[0] };
-        } catch (error) {
-            return 'Error interno de conexión, intente nuevamente.'
-        }
-    }
-
-    async detalleBanco(req) {
-        try {
-
-            const lista = await conec.query(`SELECT 
-            DATE_FORMAT(bd.fecha,'%d/%m/%Y') as fecha, 
-            bd.hora,
-            IFNULL(cl.informacion,IFNULL(cf.informacion,'')) AS proveedor,
-            IFNULL(CONCAT(cc.nombre,' ',c.serie,'-',c.numeracion),
-                   CONCAT(cg.nombre,' ',g.serie,'-',g.numeracion)) AS cuenta,
-            bd.tipo,
-            SUM(CASE WHEN bd.tipo = 1 THEN bd.monto ELSE 0 END ) AS ingreso,
-            SUM(CASE WHEN bd.tipo = 0 THEN bd.monto ELSE 0 END ) AS salida
-            FROM bancoDetalle AS bd 
-            INNER JOIN banco AS b ON b.idBanco = bd.idBanco
-            LEFT JOIN cobro AS c ON c.idCobro = bd.idProcedencia     
-            LEFT JOIN clienteNatural AS cl ON cl.idCliente = c.idCliente
-            LEFT JOIN comprobante AS cc ON cc.idComprobante = c.idComprobante
-            LEFT JOIN gasto AS g ON g.idGasto = bd.idProcedencia
-            LEFT JOIN clienteNatural AS cf ON cf.idCliente = g.idCliente
-            LEFT JOIN comprobante AS cg ON cg.idComprobante = g.idComprobante
-            
-            WHERE bd.idBanco = ?
-            GROUP BY bd.idBanco,bd.idProcedencia
-            ORDER BY bd.fecha DESC,bd.hora DESC
+    async detailList(req) {
+        try {         
+            const lista = await conec.query(`
+            SELECT 
+                DATE_FORMAT(bd.fecha, '%d/%m/%Y') AS fecha, 
+                bd.hora,
+                bd.tipo,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        CASE 
+                            WHEN vt.idVenta is not null THEN  'venta'
+                            ELSE 'cobro'
+                        END
+                    ELSE 
+                        CASE 
+                            WHEN cm.idCompra is not null THEN  'compra'
+                            ELSE 'gasto'
+                        END
+                END AS opcion,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.idVenta, co.idCobro)
+                    ELSE 
+                        IFNULL(cm.idCompra, gt.idGasto)
+                END AS idComprobante,             
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(cov.nombre, coc.nombre)
+                    ELSE 
+                        IFNULL(com.nombre, cog.nombre)
+                END AS comprobante,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.serie, co.serie)
+                    ELSE 
+                        IFNULL(cm.serie, gt.serie)
+                END AS serie,
+                --
+                CASE 
+                    WHEN i.idIngreso IS NOT NULL THEN  
+                        IFNULL(vt.numeracion, co.numeracion)
+                    ELSE 
+                        IFNULL(cm.numeracion, gt.numeracion)
+                END AS numeracion,
+                --
+                bd.estado,
+                bd.monto
+            FROM 
+                bancoDetalle AS bd
+            LEFT JOIN
+                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                venta AS vt ON vt.idVenta = i.idVenta
+            LEFT JOIN
+                comprobante AS cov ON cov.idComprobante = vt.idComprobante
+            LEFT JOIN
+                cobro AS co ON co.idCobro = i.idCobro
+            LEFT JOIN
+                comprobante AS coc ON coc.idComprobante = co.idComprobante
+                
+            LEFT JOIN 
+                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                compra AS cm ON s.idCompra = cm.idCompra
+            LEFT JOIN
+                comprobante AS com ON com.idComprobante = cm.idComprobante
+            LEFT JOIN
+                gasto AS gt ON s.idGasto = gt.idGasto
+            LEFT JOIN
+                comprobante AS cog ON cog.idComprobante = gt.idComprobante
+            WHERE
+                bd.idBanco = ?
+            ORDER BY 
+                bd.fecha DESC, 
+                bd.hora DESC
             LIMIT ?,?`, [
                 req.query.idBanco,
                 parseInt(req.query.posicionPagina),
@@ -267,79 +330,38 @@ class Banco {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total
-            FROM bancoDetalle AS bd 
-            INNER JOIN banco AS b ON b.idBanco = bd.idBanco
-            LEFT JOIN cobro AS c ON c.idCobro = bd.idProcedencia     
-            LEFT JOIN clienteNatural AS cl ON cl.idCliente = c.idCliente
-            LEFT JOIN comprobante AS cc ON cc.idComprobante = c.idComprobante
-            LEFT JOIN gasto AS g ON g.idGasto = bd.idProcedencia
-            LEFT JOIN clienteNatural AS cf ON cf.idCliente = g.idCliente
-            LEFT JOIN comprobante AS cg ON cg.idComprobante = g.idComprobante            
-            WHERE bd.idBanco = ?`, [
+            const total = await conec.query(`
+            SELECT 
+                COUNT(*) AS Total
+            FROM 
+                bancoDetalle AS bd
+            LEFT JOIN
+                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                venta AS vt ON vt.idVenta = i.idVenta
+            LEFT JOIN
+                comprobante AS cov ON cov.idComprobante = vt.idComprobante
+            LEFT JOIN
+                cobro AS co ON co.idCobro = i.idCobro
+            LEFT JOIN
+                comprobante AS coc ON coc.idComprobante = co.idComprobante
+            LEFT JOIN 
+                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
+            LEFT JOIN
+                compra AS cm ON s.idCompra = cm.idCompra
+            LEFT JOIN
+                comprobante AS com ON com.idComprobante = cm.idComprobante
+            LEFT JOIN
+                gasto AS gt ON s.idGasto = gt.idGasto
+            LEFT JOIN
+                comprobante AS cog ON cog.idComprobante = gt.idComprobante
+            WHERE 
+                bd.idBanco = ?`, [
                 req.query.idBanco
             ])
 
-            return { "lista": resultLista, "total": total[0].Total };
-        } catch (error) {
-            return 'Error interno de conexión, intente nuevamente.'
-        }
-    }
-
-    async detalleBancoReporte(req) {
-        try {
-            const cabecera = await conec.query(`SELECT 
-            b.idBanco,
-            b.nombre, 
-            CASE 
-            WHEN b.tipoCuenta = 1 THEN 'Banco'
-            WHEN b.tipoCuenta = 2 THEN 'Tarjeta'
-            ELSE 'Efectivo' END AS 'tipoCuenta',
-            m.nombre as moneda,
-            m.codiso,
-            b.numCuenta,
-            b.cci,
-            IFNULL(SUM(CASE WHEN bd.tipo = 1 THEN bd.monto ELSE -bd.monto END),0)AS saldo
-            FROM banco AS b 
-            INNER JOIN moneda AS m ON m.idMoneda = b.idMoneda 
-            LEFT JOIN bancoDetalle AS bd ON bd.idBanco = b.idBanco 
-            WHERE b.idBanco = ?`, [
-                req.query.idBanco
-            ])
-
-            const lista = await conec.query(`SELECT 
-            DATE_FORMAT(bd.fecha,'%d/%m/%Y') as fecha, 
-            bd.hora,
-            IFNULL(cl.informacion,IFNULL(cf.informacion,'')) AS proveedor,
-            IFNULL(CONCAT(cc.nombre,' ',c.serie,'-',c.numeracion),
-                   CONCAT(cg.nombre,' ',g.serie,'-',g.numeracion)) AS cuenta,
-            bd.tipo,
-            SUM(CASE WHEN bd.tipo = 1 THEN bd.monto ELSE 0 END ) AS ingreso,
-            SUM(CASE WHEN bd.tipo = 0 THEN bd.monto ELSE 0 END ) AS salida
-            FROM bancoDetalle AS bd 
-            INNER JOIN banco AS b ON b.idBanco = bd.idBanco
-            LEFT JOIN cobro AS c ON c.idCobro = bd.idProcedencia     
-            LEFT JOIN clienteNatural AS cl ON cl.idCliente = c.idCliente
-            LEFT JOIN comprobante AS cc ON cc.idComprobante = c.idComprobante
-            LEFT JOIN gasto AS g ON g.idGasto = bd.idProcedencia
-            LEFT JOIN clienteNatural AS cf ON cf.idCliente = g.idCliente
-            LEFT JOIN comprobante AS cg ON cg.idComprobante = g.idComprobante
-            
-            WHERE bd.idBanco = ?
-            GROUP BY bd.idBanco,bd.idProcedencia
-            ORDER BY bd.fecha DESC,bd.hora DESC`, [
-                req.query.idBanco
-            ]);
-
-            const resultLista = lista.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            });
-
-            return { "cabecera": cabecera[0], "lista": resultLista };
-        } catch (error) {
+            return { "result": resultLista, "total": total[0].Total };
+        } catch (error) {         
             return 'Error interno de conexión, intente nuevamente.'
         }
     }

@@ -452,7 +452,6 @@ async function generarSociosPorFecha(req, empresaInfo, data) {
 
         return wb.writeToBuffer();
     } catch (error) {
-        console.log(error);
         return "Error en generar el excel.";
     }
 }

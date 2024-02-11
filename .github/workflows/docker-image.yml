@@ -1,19 +1,27 @@
+# Nombre del flujo de trabajo: Docker Image CI - SySoftIntegra BackEnd
 name: Docker Image CI - SySoftIntegra BackEnd
 
+# Desencadenadores de eventos: se activará en el push a las ramas 'master' y 'test'
 on:
   push:
     branches: [ "master", "test"]
   # pull_request:
     # branches: [ "master" ]
 
+# Definición de los trabajos
 jobs:
+  # Job para construir y desplegar la aplicación en el entorno de prueba
   build-and-deploy-app-test:
+    # Condición para ejecutar este job: cuando se hace un push a la rama 'test'
     if: github.event_name == 'push' && github.ref == 'refs/heads/test'
     runs-on: self-hosted
     environment: test
 
+    # Variables de entorno específicas para este job
     env:  
+      # Paso: Checkout del código fuente
       PORT: ${{ secrets.PORT }}
+      APP_URL: ${{secrets.APP_URL}}
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
@@ -23,13 +31,16 @@ jobs:
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
 
     steps:
+      # Paso: Checkout del código fuente
       - name: Checkout código
         uses: actions/checkout@v3
-
+    
+      # Paso: Crear archivo .env con las variables de entorno
       - name: Crear archivo .env
         run: |
           cat > .env <<EOL
           PORT="${{env.PORT}}"
+          APP_URL="${{env.APP_URL}}"
           DB_HOST="${{env.DB_HOST}}"
           DB_USER="${{env.DB_USER}}"
           DB_PASSWORD="${{env.DB_PASSWORD}}"
@@ -39,84 +50,15 @@ jobs:
           ENVIRONMENT=${{env.ENVIRONMENT}}
           EOL
 
+      # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build app-test -d
 
-  build-and-deploy-app-bodega:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: self-hosted
-    environment: produccion-bodega
-      
-    env:  
-      PORT: ${{ secrets.PORT }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      TZ: ${{ secrets.TZ }}
-      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-      
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-      
-      - name: Crear archivo .env
-        run: |
-          cat > .env <<EOL
-          PORT="${{env.PORT}}"
-          DB_HOST="${{env.DB_HOST}}"
-          DB_USER="${{env.DB_USER}}"
-          DB_PASSWORD="${{env.DB_PASSWORD}}"
-          DB_NAME="${{env.DB_NAME}}"
-          DB_PORT="${{env.DB_PORT}}"
-          TZ="${{env.TZ}}"
-          ENVIRONMENT=${{env.ENVIRONMENT}}
-          EOL
-      
-      - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build app-bodega -d
-
-  build-and-deploy-app-autopartes:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: self-hosted
-    environment: produccion-autopartes
-      
-    env:  
-      PORT: ${{ secrets.PORT }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      TZ: ${{ secrets.TZ }}
-      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-      
-    steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-      
-      - name: Crear archivo .env
-        run: |
-          cat > .env <<EOL
-          PORT="${{env.PORT}}"
-          DB_HOST="${{env.DB_HOST}}"
-          DB_USER="${{env.DB_USER}}"
-          DB_PASSWORD="${{env.DB_PASSWORD}}"
-          DB_NAME="${{env.DB_NAME}}"
-          DB_PORT="${{env.DB_PORT}}"
-          TZ="${{env.TZ}}"
-          ENVIRONMENT=${{env.ENVIRONMENT}}
-          EOL
-      
-      - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build app-autopartes -d
-
-  # deploy_master:
+  # build-and-deploy-app-bodega:
   #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
   #   runs-on: self-hosted
   #   environment: produccion-bodega
-
+      
   #   env:  
   #     PORT: ${{ secrets.PORT }}
   #     DB_HOST: ${{ secrets.DB_HOST }}
@@ -125,13 +67,12 @@ jobs:
   #     DB_NAME: ${{ secrets.DB_NAME }}
   #     DB_PORT: ${{ secrets.DB_PORT }}
   #     TZ: ${{ secrets.TZ }}
-  #     CONTAINER_NAME: sysintegra-backend-bodega
-  #     CONTAINER_PORT: 6002
-
+  #     ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+      
   #   steps:
   #     - name: Checkout código
   #       uses: actions/checkout@v3
-
+      
   #     - name: Crear archivo .env
   #       run: |
   #         cat > .env <<EOL
@@ -142,23 +83,17 @@ jobs:
   #         DB_NAME="${{env.DB_NAME}}"
   #         DB_PORT="${{env.DB_PORT}}"
   #         TZ="${{env.TZ}}"
+  #         ENVIRONMENT=${{env.ENVIRONMENT}}
   #         EOL
-
-  #     - name: Mostrar contenido del archivo .env
-  #       run: cat .env
-
-  #     - name: Deploy on Master branch
-  #       run: echo "Deploying on the master branch..."
-
+      
   #     - name: Creando y ejecutando contenedor
-  #       run: docker compose -f docker-compose-bodega.yml up --build -d
+  #       run: docker compose -f docker-compose.yml up --build app-bodega -d
 
-
-  # deploy_development:
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+  # build-and-deploy-app-autopartes:
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
   #   runs-on: self-hosted
-  #   environment: desarrollo
-
+  #   environment: produccion-autopartes
+      
   #   env:  
   #     PORT: ${{ secrets.PORT }}
   #     DB_HOST: ${{ secrets.DB_HOST }}
@@ -167,13 +102,12 @@ jobs:
   #     DB_NAME: ${{ secrets.DB_NAME }}
   #     DB_PORT: ${{ secrets.DB_PORT }}
   #     TZ: ${{ secrets.TZ }}
-  #     CONTAINER_NAME: sysintegra-backend-development
-  #     CONTAINER_PORT: 6001
-
+  #     ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+      
   #   steps:
   #     - name: Checkout código
   #       uses: actions/checkout@v3
-
+      
   #     - name: Crear archivo .env
   #       run: |
   #         cat > .env <<EOL
@@ -184,68 +118,51 @@ jobs:
   #         DB_NAME="${{env.DB_NAME}}"
   #         DB_PORT="${{env.DB_PORT}}"
   #         TZ="${{env.TZ}}"
+  #         ENVIRONMENT=${{env.ENVIRONMENT}}
   #         EOL
-
-  #     - name: Mostrar contenido del archivo .env
-  #       run: cat .env
-        
-  #     - name: Deploy on Development branch
-  #       run: echo "Deploying on the development branch..."
-
+      
   #     - name: Creando y ejecutando contenedor
-  #       run: docker compose -f docker-compose-development.yml up --build -d
+  #       run: docker compose -f docker-compose.yml up --build app-autopartes -d
 
-  # build:
-
-  #   runs-on: self-hosted
-  #   environment: desarrollo
-
-  #   env:  
-  #     PORT: ${{ secrets.PORT }}
-  #     DB_HOST: ${{ secrets.DB_HOST }}
-  #     DB_USER: ${{ secrets.DB_USER }}
-  #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-  #     DB_NAME: ${{ secrets.DB_NAME }}
-  #     DB_PORT: ${{ secrets.DB_PORT }}
-  #     TZ: ${{ secrets.TZ }}
-  #     VGG: "HOLA"
-
-  #   steps:
-  #     - name: Checkout código
-  #       uses: actions/checkout@v3
-
-  #     - name: Crear archivo .env
-  #       run: |
-  #         cat > .env <<EOL
-  #         PORT="${{env.PORT}}"
-  #         DB_HOST="${{env.DB_HOST}}"
-  #         DB_USER="${{env.DB_USER}}"
-  #         DB_PASSWORD="${{env.DB_PASSWORD}}"
-  #         DB_NAME="${{env.DB_NAME}}"
-  #         DB_PORT="${{env.DB_PORT}}"
-  #         TZ="${{env.TZ}}"
-  #         EOL
-
-  #     - name: Mostrar contenido del archivo .env
-  #       run: cat .env
-
-  #     - name: Set up environment
-  #       run: echo "${{ github.ref }}"
-
-  #     - name: Mostrar vars
-  #       run: |
-  #         echo "${{vars.ENVIRONMENT}}"
-  #         echo "${{env.TZ}}"
-
-  #     - name: Build and deploy
-  #       run: |
-  #         if [ "${{vars.ENVIRONMENT}}" = "production-bodega" ]; then
-  #           # Lógica específica para producción
-  #           echo "Deploying to production..."
-  #         else
-  #           # Lógica específica para desarrollo
-  #           echo "Deploying to desarrollo..."
-  #         fi
-
-      # - name: Creando y ejecutando contenedor
-      #   run: docker compose up --build -d
+  # Job para construir y desplegar la aplicación en el entorno de desarrollo - Legrand Tiquepos
+  build-and-deploy-app-legrand-tiquepos:
+    # Condición para ejecutar este job: cuando se hace un push a la rama 'master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: self-hosted
+    environment: legrand.tiquepos
+    
+    # Variables de entorno específicas para este job
+    env:  
+      PORT: ${{ secrets.PORT }}
+      APP_URL: ${{secrets.APP_URL}}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      TZ: ${{ secrets.TZ }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+    
+    steps:
+      # Paso: Checkout del código fuente
+      - name: Checkout código
+        uses: actions/checkout@v3
+    
+      # Paso: Crear archivo .env con las variables de entorno
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{env.PORT}}"
+          APP_URL="${{env.APP_URL}}"
+          DB_HOST="${{env.DB_HOST}}"
+          DB_USER="${{env.DB_USER}}"
+          DB_PASSWORD="${{env.DB_PASSWORD}}"
+          DB_NAME="${{env.DB_NAME}}"
+          DB_PORT="${{env.DB_PORT}}"
+          TZ="${{env.TZ}}"
+          ENVIRONMENT=${{env.ENVIRONMENT}}
+          EOL
+    
+      # Paso: Crear y ejecutar el contenedor Docker
+      - name: Creando y ejecutando contenedor
+        run: docker compose -f docker-compose.yml up --build app-legrand-tiquepos -d

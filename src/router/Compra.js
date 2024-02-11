@@ -42,4 +42,14 @@ router.delete('/cancel', async function (req, res) {
 });
 
 
+router.delete('/accounts/payable', async function (req, res) {
+    const result = await compra.accountsPayable(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result);
+    } else {
+        res.status(500).send(result);
+    }
+});
+
+
 module.exports = router;

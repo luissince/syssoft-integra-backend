@@ -29,7 +29,7 @@ class Gasto {
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {         
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -40,7 +40,7 @@ class Gasto {
             connection = await conec.beginTransaction();
 
             const {
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -49,7 +49,7 @@ class Gasto {
                 observacion,
                 detalle,
                 metodoPago
-            } = req.body;          
+            } = req.body;
 
             /**
             * Generar un código unico para el gasto. 
@@ -86,7 +86,7 @@ class Gasto {
             // Proceso de registro
             await conec.execute(connection, `INSERT INTO gasto(
                 idGasto,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -99,7 +99,7 @@ class Gasto {
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idGasto,
-                idCliente,
+                idPersona,
                 idUsuario,
                 idMoneda,
                 idSucursal,
@@ -146,13 +146,16 @@ class Gasto {
             const listaSalidasId = await conec.execute(connection, 'SELECT idSalida FROM salida');
             let idSalida = generateNumericCode(1, listaSalidasId, 'idSalida');
 
+            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
+
             // Proceso de registro  
             for (const item of metodoPago) {
                 await conec.execute(connection, `INSERT INTO salida(
                     idSalida,
                     idCompra,
                     idGasto,
-                    idMetodoPago,
+                    idBancoDetalle,
                     monto,
                     descripcion,
                     estado,
@@ -163,16 +166,37 @@ class Gasto {
                     idSalida,
                     null,
                     idGasto,
-                    item.idMetodoPago,
+                    idBancoDetalle,
                     item.monto,
                     item.descripcion,
                     1,
                     currentDate(),
                     currentTime(),
                     idUsuario
-                ])
+                ]);
+
+                await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    idBancoDetalle,
+                    idBanco,
+                    tipo,
+                    monto,
+                    estado,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    idBancoDetalle,
+                    item.idBanco,
+                    2,
+                    item.monto,
+                    1,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
 
                 idSalida++;
+                idBancoDetalle++;
             }
 
             /**
@@ -202,7 +226,7 @@ class Gasto {
 
             await conec.commit(connection);
             return 'create';
-        } catch (error) {        
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -212,60 +236,69 @@ class Gasto {
 
     async detail(req) {
         try {
-            const gasto = await conec.query(`SELECT 
+            const gasto = await conec.query(`
+            SELECT 
                 g.idGasto,
                 co.nombre AS comprobante,
                 g.serie,
                 g.numeracion,
                 DATE_FORMAT(g.fecha,'%d/%m/%Y') AS fecha,
                 g.hora,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.documento
-                    ELSE  cj.documento
-                END AS documento,
-                CASE 
-                    WHEN cn.idCliente IS NOT NULL THEN cn.informacion
-                    ELSE  cj.informacion
-                END AS informacion,
+                cn.documento,
+                cn.informacion,
                 g.estado,
                 m.codiso,
                 u.apellidos,
                 u.nombres
-                FROM gasto AS g
-                LEFT JOIN clienteNatural AS cn on cn.idCliente = g.idCliente
-                LEFT JOIN clienteJuridico AS cj on cj.idCliente = g.idCliente
-                INNER JOIN comprobante AS co on co.idComprobante = g.idComprobante
-                INNER JOIN moneda AS m on m.idMoneda = g.idMoneda
-                INNER JOIN usuario AS u ON u.idUsuario = g.idUsuario
-                WHERE g.idGasto = ?`, [
+            FROM 
+                gasto AS g
+            INNER JOIN 
+                persona AS cn on cn.idPersona = g.idPersona
+            INNER JOIN 
+                comprobante AS co on co.idComprobante = g.idComprobante
+            INNER JOIN 
+                moneda AS m on m.idMoneda = g.idMoneda
+            INNER JOIN 
+                usuario AS u ON u.idUsuario = g.idUsuario
+            WHERE 
+                g.idGasto = ?`, [
                 req.query.idGasto
             ])
 
-            const detalle = await conec.query(`SELECT 
+            const detalle = await conec.query(`
+            SELECT 
                 cp.nombre,
                 gd.cantidad,
                 gd.precio
-                FROM gastoDetalle as gd
-                INNER JOIN concepto as cp on cp.idConcepto = gd.idConcepto
-                WHERE gd.idGasto = ?`, [
+            FROM 
+                gastoDetalle as gd
+            INNER JOIN 
+                concepto as cp on cp.idConcepto = gd.idConcepto
+            WHERE 
+                gd.idGasto = ?`, [
                 req.query.idGasto
             ])
 
-            const salidas = await conec.query(`SELECT 
+            const salidas = await conec.query(`
+            SELECT 
                 mp.nombre,
                 s.descripcion,
                 s.monto,
-                DATE_FORMAT(s.fecha,'%d/%m/%Y') as fecha,
+                DATE_FORMAT(s.fecha,'%d/%m/%Y') AS fecha,
                 s.hora
-                from salida as s 
-                INNER JOIN gasto AS g ON g.idGasto = s.idGasto
-                INNER JOIN metodoPago as mp on mp.idMetodoPago = s.idMetodoPago
-                WHERE g.idGasto = ?`, [
+            FROM 
+                salida AS s 
+            INNER JOIN 
+                bancoDetalle AS bd ON bd.idBancoDetalle = s.idBancoDetalle
+            INNER JOIN 
+                banco as mp on mp.idBanco = bd.idBanco
+            WHERE 
+                s.idGasto = ?`, [
                 req.query.idGasto
             ])
 
             return { "cabecera": gasto[0], "detalle": detalle, "salidas": salidas };
-        } catch (error) {     
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -287,6 +320,20 @@ class Gasto {
             await conec.execute(connection, `UPDATE gasto SET estado = 0 WHERE idGasto = ?`, [
                 req.query.idGasto
             ])
+
+            const salidas = await conec.execute(connection, `SELECT idBancoDetalle FROM salida WHERE idGasto = ?`, [
+                req.query.idGasto
+            ])
+
+            for (const item of salidas) {
+                await conec.execute(connection, `UPDATE bancoDetalle 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idBancoDetalle = ?`, [
+                    item.idBancoDetalle
+                ])
+            }
 
             await conec.execute(connection, `UPDATE salida SET estado = 0 WHERE idGasto = ?`, [
                 req.query.idGasto

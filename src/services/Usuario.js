@@ -352,7 +352,7 @@ class Usuario {
                 return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un cobro.');
             }
 
-            let cliente = await conec.execute(connection, `SELECT * FROM clienteNatural WHERE idUsuario = ?`, [
+            let cliente = await conec.execute(connection, `SELECT * FROM persona WHERE idUsuario = ?`, [
                 req.query.idUsuario
             ]);
 

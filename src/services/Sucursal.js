@@ -58,7 +58,7 @@ class Sucursal {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {        
+        } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -69,7 +69,7 @@ class Sucursal {
             connection = await conec.beginTransaction();
 
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
-            const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');          
+            const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
 
             const file = path.join(__dirname, '../', 'path/proyect');
 
@@ -78,38 +78,41 @@ class Sucursal {
                 chmod(file);
             }
 
-            const fileImage = "";
+            const ruta = "";
             if (req.body.imagen !== "") {
                 let nameImage = `${Date.now() + idSucursal}.${req.body.extension}`;
 
                 writeFile(path.join(file, nameImage), req.body.imagen);
-                fileImage = nameImage;
+                ruta = nameImage;
             }
 
             await conec.execute(connection, `INSERT INTO sucursal(
-                    idSucursal,
-                    nombre, 
-                    direccion,
-                    idUbigeo,
-                    imagen,
-                    extension,
-                    ruta,
-                    estado,
-                    fecha,
-                    hora,
-                    fupdate,
-                    hupdate,
-                    idUsuario
-                )VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                idSucursal,
+                nombre, 
+                telefono,
+                celular,
+                email,
+                paginaWeb,
+                direccion,
+                idUbigeo,
+                ruta,
+                estado,
+                fecha,
+                hora,
+                fupdate,
+                hupdate,
+                idUsuario
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
                 //datos
                 req.body.nombre,
+                req.body.telefono,
+                req.body.celular,
+                req.body.email,
+                req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
-                //imagen
-                req.body.imagen,
-                req.body.extension,
-                '',
+                ruta,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -120,7 +123,7 @@ class Sucursal {
 
             await conec.commit(connection);
             return sendSave(res, "Se registró correctamente el sucursal.");
-        } catch (error) {          
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -133,16 +136,19 @@ class Sucursal {
             let result = await conec.query(`SELECT 
             p.idSucursal,
             p.nombre,
-            p.estado,
+            p.telefono,
+            p.celular,
+            p.email,
+            p.paginaWeb,
             p.direccion,
+            p.estado,
 
             p.idUbigeo,
             u.ubigeo,
             u.departamento,
             u.provincia,
-            u.distrito,
+            u.distrito
 
-            p.ruta
             FROM sucursal AS p
             INNER JOIN ubigeo AS u ON u.idUbigeo = p.idUbigeo
             WHERE p.idSucursal = ?`, [
@@ -164,59 +170,61 @@ class Sucursal {
         try {
             connection = await conec.beginTransaction();
 
-            const file = path.join(__dirname, '../', 'path/proyect');
+            // const file = path.join(__dirname, '../', 'path/proyect');
 
-            if (!isDirectory(file)) {
-                mkdir(file);
-                chmod(file);
-            }
+            // if (!isDirectory(file)) {
+            //     mkdir(file);
+            //     chmod(file);
+            // }
 
-            const sucursal = await conec.execute(connection, `SELECT
-            imagen,
-            extension,
-            ruta
-            FROM sucursal
-            WHERE idSucursal = ?`, [
-                req.body.idSucursal
-            ]);
+            // const sucursal = await conec.execute(connection, `SELECT
+            // imagen,
+            // extension,
+            // ruta
+            // FROM sucursal
+            // WHERE idSucursal = ?`, [
+            //     req.body.idSucursal
+            // ]);
 
-            let imagen = "";
-            let extension = "";
-            let ruta = "";
+            // let imagen = "";
+            // let extension = "";
+            // let ruta = "";
 
-            if (req.body.imagen !== "") {
-                removeFile(path.join(file, sucursal[0].ruta));
+            // if (req.body.imagen !== "") {
+            //     removeFile(path.join(file, sucursal[0].ruta));
 
-                const nameImage = `${Date.now() + req.body.idSucursal}.${req.body.extension}`;
-                writeFile(path.join(file, nameImage), req.body.imagen);
-                imagen = req.body.imagen;
-                extension = req.body.extension;
-                ruta = nameImage;
-            } else {
-                imagen = sucursal[0].imagen;
-                extension = sucursal[0].extension;
-                ruta = sucursal[0].ruta;
-            }
+            //     const nameImage = `${Date.now() + req.body.idSucursal}.${req.body.extension}`;
+            //     writeFile(path.join(file, nameImage), req.body.imagen);
+            //     imagen = req.body.imagen;
+            //     extension = req.body.extension;
+            //     ruta = nameImage;
+            // } else {
+            //     imagen = sucursal[0].imagen;
+            //     extension = sucursal[0].extension;
+            //     ruta = sucursal[0].ruta;
+            // }
 
             await conec.execute(connection, `UPDATE sucursal SET
                 nombre = ?,
+                telefono = ?,
+                celular = ?,
+                email = ?,
+                paginaWeb = ?,
                 direccion = ?,
                 idUbigeo = ?,
-                estado = ?,
-                imagen = ?,
-                extension = ?,
-                ruta = ?,            
+                estado = ?,   
                 fupdate = ?,
                 hupdate = ? ,
                 idUsuario = ?
                 WHERE idSucursal=?`, [
                 req.body.nombre,
+                req.body.telefono,
+                req.body.celular,
+                req.body.email,
+                req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.estado,
-                imagen,
-                extension,
-                ruta,
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
@@ -283,7 +291,7 @@ class Sucursal {
 
             await conec.commit(connection);
             return sendSave(res, "Se eliminó correctamente el sucursal.");
-        } catch (error) {          
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -299,11 +307,9 @@ class Sucursal {
             p.direccion,
             p.ruta,
             p.estado
-            FROM sucursal AS p          
-            `);
-
+            FROM sucursal AS p`);
             return sendSuccess(res, sucursales);
-        } catch (error) {           
+        } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }

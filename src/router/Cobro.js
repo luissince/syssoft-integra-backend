@@ -40,24 +40,5 @@ router.delete('/cancel', async function (req, res) {
     }
 });
 
-router.get('/notificaciones', async function (req, res) {
-    const result = await cobro.notificaciones(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.get('/detallenotificaciones', async function (req, res) {
-    const result = await cobro.detalleNotificaciones(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-
 
 module.exports = router;
