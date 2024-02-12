@@ -129,7 +129,7 @@ jobs:
     # Condición para ejecutar este job: cuando se hace un push a la rama 'master'
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: self-hosted
-    environment: legrand.tiquepos
+    environment: legrand-tiquepos
     
     # Variables de entorno específicas para este job
     env:  
