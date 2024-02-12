@@ -52,7 +52,7 @@ jobs:
 
       # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build app-test -d
+        run: docker compose -f docker-compose.yml up --build test-services -d
 
   # build-and-deploy-app-bodega:
   #   if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -165,4 +165,4 @@ jobs:
     
       # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build app-legrand-tiquepos -d
+        run: docker compose -f docker-compose.yml up --build legrand-tiquepos-services -d
