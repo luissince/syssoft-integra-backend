@@ -203,6 +203,7 @@ class Factura {
 
             await conec.execute(connection, `INSERT INTO venta(
                 idVenta,
+                idConcepto,
                 idCliente,
                 idUsuario,
                 idComprobante,
@@ -215,8 +216,9 @@ class Factura {
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
+                "CP0001",
                 nuevoIdCliente,
                 idUsuario,
                 idComprobante,
