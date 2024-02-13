@@ -214,8 +214,8 @@ class Producto {
 
                 for (const almacen of almacenes) {
                     const inventario = inventarios.find(inventario => almacen.idAlmacen === inventario.idAlmacen);
-
-                    if (inventario) {
+                
+                    if (inventario) {                      
                         await conec.execute(connection, `INSERT INTO inventario(
                             idInventario,
                             idProducto,
@@ -223,7 +223,7 @@ class Producto {
                             cantidad,
                             cantidadMaxima,
                             cantidadMinima
-                        VALUES(?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?)`, [
                             idInventario,
                             idProducto,
                             inventario.idAlmacen,
@@ -231,7 +231,7 @@ class Producto {
                             inventario.cantidadMaxima,
                             inventario.cantidadMinima,
                         ]);
-
+                        
                         await conec.execute(connection, `INSERT INTO kardex(
                             idKardex,
                             idProducto,
@@ -320,8 +320,7 @@ class Producto {
 
             await conec.commit(connection);
             return "insert";
-        } catch (error) {
-            console.log(error)
+        } catch (error) {         
             if (connection != null) {
                 await conec.rollback(connection);
             }
