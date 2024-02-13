@@ -321,6 +321,7 @@ class Producto {
             await conec.commit(connection);
             return "insert";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
