@@ -172,7 +172,16 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
-            let cobroDetalle = await conec.execute(connection, `SELECT * FROM cobroDetalle WHERE idConcepto = ?`, [
+            const sistem = await conec.execute(connection, `SELECT * FROM cobroDetalle WHERE idConcepto = ? AND sistema = 1`, [
+                req.query.idConcepto
+            ]);
+
+            if(sistem.length > 0){
+                await conec.rollback(connection);
+                return sendClient(res, 'El concepto es del propio sistema, puede ser eliminado.');
+            }
+
+            const cobroDetalle = await conec.execute(connection, `SELECT * FROM cobroDetalle WHERE idConcepto = ?`, [
                 req.query.idConcepto
             ]);
 
@@ -181,7 +190,7 @@ class Concepto {
                 return sendClient(res, 'No se puede eliminar el concepto ya que esta ligada a un detalle de cobro.');
             }
 
-            let gastoDetalle = await conec.execute(connection, `SELECT * FROM gastoDetalle WHERE idConcepto = ?`, [
+            const gastoDetalle = await conec.execute(connection, `SELECT * FROM gastoDetalle WHERE idConcepto = ?`, [
                 req.query.idConcepto
             ]);
 
@@ -190,7 +199,7 @@ class Concepto {
                 return sendClient(res, 'No se puede eliminar el concepto ya que esta ligada a un detalle de gasto.');
             }
 
-            let producto = await conec.execute(connection, `SELECT * FROM producto WHERE idConcepto = ?`, [
+            const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idConcepto = ?`, [
                 req.query.idConcepto
             ]);
 
@@ -215,7 +224,7 @@ class Concepto {
 
     async listcombo(req, res) {
         try {
-            let result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 2');
+            const result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 2');
             return sendSuccess(res,result);;
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
@@ -233,11 +242,11 @@ class Concepto {
 
     async filtrarCobro(req, res) {
         try {
-            let result = await conec.query(`SELECT 
+            const result = await conec.query(`SELECT 
             idConcepto, 
             nombre 
             FROM concepto 
-            WHERE tipo = 2 AND nombre LIKE concat(?,'%')`,[
+            WHERE tipo = 2 AND nombre LIKE concat(?,'%') AND sistema <> 1`,[
                 req.query.filtrar,
             ]);
             return sendSuccess(res,result);
@@ -248,11 +257,11 @@ class Concepto {
 
     async filtrarGasto(req, res) {
         try {
-            let result = await conec.query(`SELECT 
+            const result = await conec.query(`SELECT 
             idConcepto, 
             nombre 
             FROM concepto 
-            WHERE tipo = 1 AND nombre LIKE concat(?,'%')`,[
+            WHERE tipo = 1 AND nombre LIKE concat(?,'%') AND sistema <> 1`,[
                 req.query.filtrar,
             ]);
             return sendSuccess(res,result);;

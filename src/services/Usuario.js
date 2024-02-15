@@ -1,7 +1,7 @@
 const Conexion = require('../database/Conexion');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
-const { currentDate, currentTime } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendClient, sendSave, sendError } = require('../tools/Message');
 const conec = new Conexion();
 
@@ -86,31 +86,8 @@ class Usuario {
         try {
             connection = await conec.beginTransaction();
 
-            let result = await conec.execute(connection, 'SELECT idUsuario FROM usuario');
-            let idUsuario = "";
-            if (result.length != 0) {
-
-                let quitarValor = result.map(function (item) {
-                    return parseInt(item.idUsuario.replace("US", ''));
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-                let codigoGenerado = "";
-                if (incremental <= 9) {
-                    codigoGenerado = 'US000' + incremental;
-                } else if (incremental >= 10 && incremental <= 99) {
-                    codigoGenerado = 'US00' + incremental;
-                } else if (incremental >= 100 && incremental <= 999) {
-                    codigoGenerado = 'US0' + incremental;
-                } else {
-                    codigoGenerado = 'US' + incremental;
-                }
-
-                idUsuario = codigoGenerado;
-            } else {
-                idUsuario = "US0001";
-            }
+            const resultUsuario = await conec.execute(connection, 'SELECT idUsuario FROM usuario');
+            const idUsuario = generateAlphanumericCode("US0001", resultUsuario, 'idUsuario');
 
             let hash = "";
             if (req.body.activeLogin) {
@@ -129,25 +106,25 @@ class Usuario {
             }
 
             await conec.execute(connection, `INSERT INTO usuario(
-                idUsuario, 
-                nombres, 
-                apellidos, 
-                dni, 
-                genero, 
-                direccion, 
-                telefono, 
-                email,
-                idPerfil, 
-                representante, 
-                estado, 
-                login,
-                usuario, 
-                clave,
-                fecha,
-                hora,
-                fupdate,
-                hupdate ) 
-                VALUES(?,?, ?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)`, [
+                    idUsuario, 
+                    nombres, 
+                    apellidos, 
+                    dni, 
+                    genero, 
+                    direccion, 
+                    telefono, 
+                    email,
+                    idPerfil, 
+                    representante, 
+                    estado, 
+                    login,
+                    usuario, 
+                    clave,
+                    fecha,
+                    hora,
+                    fupdate,
+                    hupdate 
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idUsuario,
                 req.body.nombres,
                 req.body.apellidos,
@@ -184,8 +161,13 @@ class Usuario {
             connection = await conec.beginTransaction();
 
             if (req.body.activeLogin) {
-                let usuario = await conec.execute(connection, `SELECT * FROM usuario
-                WHERE usuario = ? AND idUsuario <> ?`, [
+                const usuario = await conec.execute(connection, `
+                SELECT 
+                    idUsuario 
+                FROM 
+                    usuario
+                WHERE 
+                    usuario = ? AND idUsuario <> ?`, [
                     req.body.usuario,
                     req.body.idUsuario
                 ]);
@@ -196,22 +178,24 @@ class Usuario {
                 }
             }
 
-            await conec.execute(connection, `UPDATE usuario SET 
-            nombres=?, 
-            apellidos=?, 
-            dni=?, 
-            genero=?, 
-            direccion=?, 
-            telefono=?, 
-            email=?, 
-            idPerfil=?, 
-            representante=?, 
-            estado=?, 
-            login=?,
-            usuario=?,
-            fupdate=?,
-            hupdate=?
-            WHERE idUsuario=?`, [
+            await conec.execute(connection, `UPDATE usuario 
+            SET 
+                nombres=?, 
+                apellidos=?, 
+                dni=?, 
+                genero=?, 
+                direccion=?, 
+                telefono=?, 
+                email=?, 
+                idPerfil=?, 
+                representante=?, 
+                estado=?, 
+                login=?,
+                usuario=?,
+                fupdate=?,
+                hupdate=?
+            WHERE   
+                idUsuario=?`, [
                 req.body.nombres,
                 req.body.apellidos,
                 req.body.dni,
@@ -244,139 +228,21 @@ class Usuario {
         try {
             connection = await conec.beginTransaction();
 
-            let venta = await conec.execute(connection, `SELECT * FROM venta WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
+            const tablesToCheck = [
+                'venta', 'empresa', 'sucursal', 'perfil', 'moneda', 
+                'categoria', 'producto', 'impuesto', 'gasto', 'concepto',
+                'comprobante', 'cobro', 'persona', 'bancoDetalle', 'banco'
+            ];
 
-            if (venta.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligada a una venta.');
-            }
-
-            let empresa = await conec.execute(connection, `SELECT * FROM empresa WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (empresa.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligada a una empresa.');
-            }
-
-            let sucursal = await conec.execute(connection, `SELECT * FROM sucursal WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (sucursal.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un sucursal.');
-            }
-
-            let perfil = await conec.execute(connection, `SELECT * FROM perfil WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (perfil.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligada a un perfil.');
-            }
-
-            let moneda = await conec.execute(connection, `SELECT * FROM moneda WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (moneda.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligada a una moneda.');
-            }
-
-            let categoria = await conec.execute(connection, `SELECT * FROM categoria WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (categoria.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligada a una categoria.');
-            }
-
-            let producto = await conec.execute(connection, `SELECT * FROM producto WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (producto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un producto.');
-            }
-
-            let impuesto = await conec.execute(connection, `SELECT * FROM impuesto WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (impuesto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un impuesto.');
-            }
-
-            let gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (gasto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un gasto.');
-            }
-
-            let concepto = await conec.execute(connection, `SELECT * FROM concepto WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (concepto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un concepto.');
-            }
-
-            let comprobante = await conec.execute(connection, `SELECT * FROM comprobante WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (comprobante.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un comprobante.');
-            }
-
-            let cobro = await conec.execute(connection, `SELECT * FROM cobro WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (cobro.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un cobro.');
-            }
-
-            let cliente = await conec.execute(connection, `SELECT * FROM persona WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (cliente.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un cliente.');
-            }
-
-            let bancoDetalle = await conec.execute(connection, `SELECT * FROM bancoDetalle WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (bancoDetalle.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un bancoDetalle.');
-            }
-
-            let banco = await conec.execute(connection, `SELECT * FROM banco WHERE idUsuario = ?`, [
-                req.query.idUsuario
-            ]);
-
-            if (banco.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el usuario ya que esta ligado a un banco.');
+            for (const table of tablesToCheck) {
+                const queryResult = await conec.execute(connection, `SELECT * FROM ${table} WHERE idUsuario = ?`, [
+                    req.query.idUsuario
+                ]);
+    
+                if (queryResult.length > 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, `No se puede eliminar el usuario ya que está ligado a ${table}.`);
+                }
             }
 
             await conec.execute(connection, `DELETE FROM usuario WHERE idUsuario = ?`, [
@@ -398,7 +264,7 @@ class Usuario {
         try {
             connection = await conec.beginTransaction();
 
-            let usuario = await conec.execute(connection, `SELECT * FROM usuario WHERE idUsuario = ? AND login = 0`, [
+            const usuario = await conec.execute(connection, `SELECT * FROM usuario WHERE idUsuario = ? AND login = 0`, [
                 req.body.idUsuario
             ]);
 
@@ -410,9 +276,11 @@ class Usuario {
             const salt = bcrypt.genSaltSync(saltRounds);
             const hash = bcrypt.hashSync(req.body.clave, salt);
 
-            await conec.execute(connection, `UPDATE usuario SET
-            clave = ?
-            WHERE idUsuario=?`, [
+            await conec.execute(connection, `UPDATE usuario 
+            SET
+                clave = ?
+            WHERE 
+                idUsuario=?`, [
                 hash,
                 req.body.idUsuario
             ]);
@@ -429,7 +297,7 @@ class Usuario {
 
     async id(req, res) {
         try {
-            let result = await conec.query('SELECT * FROM usuario WHERE idUsuario  = ?', [
+            const result = await conec.query('SELECT * FROM usuario WHERE idUsuario  = ?', [
                 req.query.idUsuario
             ]);
 
@@ -444,11 +312,17 @@ class Usuario {
         }
     }
 
-    async listcombo(req, res) {
+    async combo(req, res) {
         try {
-            let result = await conec.query(`SELECT 
-                idUsuario, nombres, apellidos, dni, estado
-                FROM usuario`);
+            const result = await conec.query(`
+                SELECT 
+                    idUsuario, 
+                    nombres, 
+                    apellidos,
+                    dni,
+                    estado
+                FROM 
+                    usuario`);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");

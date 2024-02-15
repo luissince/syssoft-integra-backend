@@ -7,7 +7,7 @@ router.get('/list', async function (req, res) {
 });
 
 router.post('/', async function (req, res) {
-   return await usuario.add(req, res);
+    return await usuario.add(req, res);
 });
 
 router.put('/', async function (req, res) {
@@ -15,7 +15,7 @@ router.put('/', async function (req, res) {
 });
 
 router.delete('/', async function (req, res) {
-   return await usuario.delete(req, res);
+    return await usuario.delete(req, res);
 });
 
 router.post('/reset', async function (req, res) {
@@ -23,11 +23,11 @@ router.post('/reset', async function (req, res) {
 });
 
 router.get('/id', async function (req, res) {
-   return await usuario.id(req, res);
+    return await usuario.id(req, res);
 });
 
-router.get('/listcombo', async function (req, res) {
-    return await usuario.listcombo(req, res);
+router.get('/combo', async function (req, res) {
+    return await usuario.combo(req, res);
 })
 
 
