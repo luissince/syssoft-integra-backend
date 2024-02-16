@@ -168,7 +168,7 @@ jobs:
         run: docker compose -f docker-compose.yml up --build legrand-tiquepos-services -d
 
 
-  # Job para construir y desplegar la aplicación en el entorno de desarrollo - Legrand Tiquepos
+  # Job para construir y desplegar la aplicación en el entorno de producción - Raices
   build-and-deploy-app-raices:
     # Condición para ejecutar este job: cuando se hace un push a la rama 'master'
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -210,3 +210,46 @@ jobs:
       # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build raices-services -d
+
+  # Job para construir y desplegar la aplicación en el entorno de producción - Felicitygirls Tiquepos
+  build-and-deploy-app-felicitygirls-tiquepos:
+    # Condición para ejecutar este job: cuando se hace un push a la rama 'master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: self-hosted
+    environment: felicitygirls-tiquepos
+    
+    # Variables de entorno específicas para este job
+    env:  
+      PORT: ${{ secrets.PORT }}
+      APP_URL: ${{secrets.APP_URL}}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      TZ: ${{ secrets.TZ }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+    
+    steps:
+      # Paso: Checkout del código fuente
+      - name: Checkout código
+        uses: actions/checkout@v3
+    
+      # Paso: Crear archivo .env con las variables de entorno
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{env.PORT}}"
+          APP_URL="${{env.APP_URL}}"
+          DB_HOST="${{env.DB_HOST}}"
+          DB_USER="${{env.DB_USER}}"
+          DB_PASSWORD="${{env.DB_PASSWORD}}"
+          DB_NAME="${{env.DB_NAME}}"
+          DB_PORT="${{env.DB_PORT}}"
+          TZ="${{env.TZ}}"
+          ENVIRONMENT=${{env.ENVIRONMENT}}
+          EOL
+    
+      # Paso: Crear y ejecutar el contenedor Docker
+      - name: Creando y ejecutando contenedor
+        run: docker compose -f docker-compose.yml up --build felicitygirls-tiquepos-services -d

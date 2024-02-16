@@ -99,6 +99,26 @@ services:
     volumes:
       - raices-backend-volumen:/app/src/path
 
+  felicitygirls-tiquepos-services:
+    # Configuración para construir la imagen del contenedor desde el contexto actual
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Nombre de la imagen de la imagen generada
+    image: felicitygirls-tiquepos-backend-image
+    # Nombre del contenedor
+    container_name: felicitygirls-tiquepos-backend
+    # Configuración para reiniciar siempre el contenedor
+    restart: always
+    # Configuración de redes
+    networks:
+      - luis
+    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
+    ports:
+      - 6019:80
+    volumes:
+      - felicitygirls-tiquepos-backend-volumen:/app/src/path
+
 # Definición de redes
 networks:
   # Red llamada 'luis'
@@ -110,3 +130,4 @@ volumes:
   test-backend-volumen:
   legrand-tiquepos-backend-volumen:
   raices-backend-volumen:
+  felicitygirls-tiquepos-backend-volumen:
