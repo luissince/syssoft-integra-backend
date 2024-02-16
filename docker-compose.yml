@@ -65,7 +65,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: sysintegra-backend-image
+    image: legrand-tiquepos-backend-image
     # Nombre del contenedor
     container_name: legrand-tiquepos-backend
     # Configuración para reiniciar siempre el contenedor
@@ -85,7 +85,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: sysintegra-backend-image
+    image: raices-backend-image
     # Nombre del contenedor
     container_name: raices-backend
     # Configuración para reiniciar siempre el contenedor
