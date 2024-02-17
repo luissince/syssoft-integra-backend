@@ -1,4 +1,4 @@
-const { currentDate, currentTime, frecuenciaPago, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const { currentDate, currentTime, frecuenciaPago, generateAlphanumericCode, generateNumericCode, rounded } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
@@ -80,8 +80,13 @@ class Factura {
                 comentario,
                 nuevoCliente,
                 detalleVenta,
-                bancosAgregados
+                bancosAgregados,
+                numCuotas,
+                frecuenciaPagoCredito,
+                importeTotal
             } = req.body;
+
+            console.log(req.body)
 
             /**
              * Validación de productos inventariables
@@ -127,12 +132,14 @@ class Factura {
              * Validar si el cliente existe
              */
 
-            let nuevoIdCliente = idCliente;
+            let nuevoIdCliente = "";
 
             if (nuevoCliente) {
                 const cliente = await conec.execute(connection, `SELECT * FROM persona WHERE documento = ?`, [
                     nuevoCliente.numeroDocumento
                 ])
+
+                console.log(cliente)
 
                 if (cliente.length === 0) {
                     const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
@@ -144,6 +151,10 @@ class Factura {
                         idTipoDocumento,
                         documento,
                         informacion,
+                        cliente,
+                        proveedor,
+                        conductor,
+                        licenciaConducir,
                         celular,
                         direccion,
                         predeterminado,
@@ -151,12 +162,16 @@ class Factura {
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         idPersona,
                         nuevoCliente.idTipoCliente,
                         nuevoCliente.idTipoDocumento,
                         nuevoCliente.numeroDocumento,
                         nuevoCliente.informacion,
+                        1,
+                        0,
+                        0,
+                        '',
                         nuevoCliente.numeroCelular,
                         nuevoCliente.direccion,
                         false,
@@ -168,6 +183,8 @@ class Factura {
 
                     nuevoIdCliente = idPersona;
                 }
+            }else{
+                nuevoIdCliente = idCliente;
             }
 
             /**
@@ -337,7 +354,7 @@ class Factura {
             }
 
             /**
-             * Proceso para ingresa la lista de ingresos con sus método de pagos
+             * Proceso cuando la venta es al contado
              */
 
             if (idFormaPago === "FP0001") {
@@ -400,16 +417,63 @@ class Factura {
 
             }
 
+            /**
+            * Proceso cuando la venta es al crédito fijo
+            */
+
             if (idFormaPago === "FP0002") {
-                
+                const listPlazos= await conec.execute(connection, 'SELECT idPlazo FROM plazo');
+                let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
+
+                const current = new Date();
+                current.setMonth(current.getMonth() + 1);
+                current.setDate(1);
+
+                let monto = rounded(importeTotal / parseFloat(numCuotas));
+
+                let i = 0;
+                let cuota = 0;
+                while(i < numCuotas){
+                    let now = new Date();
+
+                    if (parseInt(frecuenciaPagoCredito) > 15){
+                        now = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+                    }else{
+                        now = new Date(current.getFullYear(), current.getMonth(), 15);
+                    }
+
+                    i++;
+                    cuota++;
+
+                    await conec.execute(connection, `INSERT INTO plazo(
+                        idPlazo,
+                        idVenta,
+                        cuota,
+                        fecha,
+                        hora,
+                        monto,
+                        estado) 
+                        VALUES(?,?,?,?,?,?,?)`, [
+                        idPlazo,
+                        idVenta,
+                        cuota,
+                        now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
+                        currentTime(),
+                        monto,
+                        0
+                    ]);
+
+                    idPlazo++;
+                    current.setMonth(current.getMonth() + 1);
+                }   
             }
 
             if (idFormaPago === "FP0003") {
-                
+
             }
 
             if (idFormaPago === "FP0004") {
-                
+
             }
 
             /**
@@ -443,7 +507,7 @@ class Factura {
                 idVenta: idVenta
             });
         } catch (error) {
-
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

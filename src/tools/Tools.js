@@ -177,6 +177,21 @@ function numberFormat(value, currency = "PEN") {
     }
 }
 
+function rounded(amount, decimalCount = 2) {
+    const isNumber = /^-?\d*\.?\d+$/.test(amount);
+    if (!isNumber) return '0';
+
+    decimalCount = Math.abs(decimalCount);
+    decimalCount = isNaN(decimalCount) ? 2 : decimalCount;
+
+    const negativeSign = amount < 0 ? '-' : '';
+
+    const parsedAmount = Math.abs(Number(amount)) || 0;
+    const fixedAmount = parsedAmount.toFixed(decimalCount);
+
+    return negativeSign + fixedAmount;
+}
+
 function calculateTaxBruto(impuesto, monto) {
     return monto / ((impuesto + 100) * 0.01);
 }
@@ -256,5 +271,6 @@ module.exports = {
     isEmail,
     generateAlphanumericCode,
     generateNumericCode,
-    processImage
+    processImage,
+    rounded
 };

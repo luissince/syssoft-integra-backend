@@ -89,24 +89,24 @@ class Comprobante {
             const idComprobante = generateAlphanumericCode("CB0001", result, 'idComprobante');
 
             await conec.execute(connection, `INSERT INTO comprobante(
-            idComprobante,
-            idTipoComprobante,
-            nombre,
-            serie,
-            numeracion,
-            codigo,
-            impresion,
-            estado,
-            preferida,
-            numeroCampo,
-            facturado,
-            anulacion,
-            fecha,
-            hora,
-            fupdate,
-            hupdate,
-            idUsuario) 
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                idComprobante,
+                idTipoComprobante,
+                nombre,
+                serie,
+                numeracion,
+                codigo,
+                impresion,
+                estado,
+                preferida,
+                numeroCampo,
+                facturado,
+                anulacion,
+                fecha,
+                hora,
+                fupdate,
+                hupdate,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idComprobante,
                 req.body.idTipoComprobante,
                 req.body.nombre,
@@ -166,11 +166,15 @@ class Comprobante {
         try {
             connection = await conec.beginTransaction();
 
+            
+
             await conec.execute(connection, `UPDATE comprobante SET 
                 idTipoComprobante = ?,
                 nombre = ?,
-                impresion = ?,
+                serie = ?,
+                numeracion = ?,
                 codigo = ?,
+                impresion = ?,                
                 estado = ?,
                 preferida = ?,
                 numeroCampo = ?,
@@ -182,8 +186,10 @@ class Comprobante {
                 WHERE idComprobante = ?`, [
                 req.body.idTipoComprobante,
                 req.body.nombre,
-                req.body.impresion,
+                req.body.serie,
+                req.body.numeracion,
                 req.body.codigo,
+                req.body.impresion,                
                 req.body.estado,
                 req.body.preferida,
                 req.body.numeroCampo,

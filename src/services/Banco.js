@@ -47,6 +47,7 @@ class Banco {
                 tipoCuenta,
                 idMoneda,
                 numCuenta,
+                idSucursal,
                 cci, 
                 preferido,
                 vuelto,
@@ -57,12 +58,13 @@ class Banco {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idBanco,
                 req.body.nombre,
                 req.body.tipoCuenta,
                 req.body.idMoneda,
                 req.body.numCuenta,
+                req.body.idSucursal,
                 req.body.cci,
                 req.body.preferido,
                 req.body.vuelto,
@@ -78,6 +80,7 @@ class Banco {
             await conec.commit(connection);
             return "insert";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
