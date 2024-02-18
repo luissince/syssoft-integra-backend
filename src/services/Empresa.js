@@ -71,7 +71,9 @@ class Empresa {
                     razonSocial,
                     nombreEmpresa,
                     rutaLogo,
-                    rutaImage
+                    rutaImage,
+                    usuarioSolSunat,
+                    claveSolSunat
                 FROM 
                     empresa 
                 LIMIT 1`);
