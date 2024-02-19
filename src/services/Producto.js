@@ -694,7 +694,8 @@ class Producto {
 
     async filtrarParaVenta(req) {
         try {
-            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?)", [
+            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?)", [
+                parseInt(req.query.codBar),
                 req.query.filtrar,
                 req.query.idSucursal,
             ])
@@ -707,7 +708,7 @@ class Producto {
             });
 
             return resultLista;
-        } catch (error) {
+        } catch (error) {          
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
