@@ -30,8 +30,16 @@ router.get("/detail/only", async function (req, res) {
     return await factura.detailOnly(req, res);
 });
 
-router.get("/accounts/receivable", async function (req, res) {
-    return await factura.accountsReceivable(req, res);
+router.get("/list/accounts/receivable", async function (req, res) {
+    return await factura.listAccountsReceivable(req, res);
+});
+
+router.post("/collet/accounts/receivable", async function (req, res) {
+    return await factura.colletAccountsReceivable(req, res);
+});
+
+router.get("/detail/accounts/receivable", async function (req, res) {
+    return await factura.detailAccountsReceivable(req, res);
 });
 
 module.exports = router;

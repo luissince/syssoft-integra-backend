@@ -59,7 +59,6 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -139,8 +138,6 @@ class Factura {
                     nuevoCliente.numeroDocumento
                 ])
 
-                console.log(cliente)
-
                 if (cliente.length === 0) {
                     const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
                     const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
@@ -183,7 +180,7 @@ class Factura {
 
                     nuevoIdCliente = idPersona;
                 }
-            }else{
+            } else {
                 nuevoIdCliente = idCliente;
             }
 
@@ -269,10 +266,10 @@ class Factura {
 
             // Proceso de registro  
             for (const item of detalleVenta) {
-                let cantidad = 0;
-                let precio = 0;
-
                 if (item.tipo === "PRODUCTO") {
+                    let cantidad = 0;
+                    let precio = 0;
+
                     const inventario = await conec.execute(connection, `SELECT idAlmacen FROM inventario WHERE idInventario = ?`, [
                         item.idInventario
                     ]);
@@ -328,29 +325,53 @@ class Factura {
                         cantidad,
                         item.idInventario
                     ]);
+
+                    await conec.execute(connection, `INSERT INTO ventaDetalle(
+                        idVentaDetalle,
+                        idVenta,
+                        idProducto,
+                        idInventario,
+                        descripcion,
+                        precio,
+                        cantidad,
+                        idImpuesto
+                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                        idVentaDetalle,
+                        idVenta,
+                        item.idProducto,
+                        item.idInventario,
+                        item.nombreProducto,
+                        precio,
+                        cantidad,
+                        item.idImpuesto
+                    ])
+
+                    idVentaDetalle++;
                 }
 
-                await conec.execute(connection, `INSERT INTO ventaDetalle(
-                    idVentaDetalle,
-                    idVenta,
-                    idProducto,
-                    idInventario,
-                    descripcion,
-                    precio,
-                    cantidad,
-                    idImpuesto
-                ) VALUES(?,?,?,?,?,?,?,?)`, [
-                    idVentaDetalle,
-                    idVenta,
-                    item.idProducto,
-                    item.idInventario,
-                    item.nombreProducto,
-                    precio,
-                    cantidad,
-                    item.idImpuesto
-                ])
+                if (item.tipo === "SERVICIO") {
+                    await conec.execute(connection, `INSERT INTO ventaDetalle(
+                        idVentaDetalle,
+                        idVenta,
+                        idProducto,
+                        idInventario,
+                        descripcion,
+                        precio,
+                        cantidad,
+                        idImpuesto
+                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                        idVentaDetalle,
+                        idVenta,
+                        item.idProducto,
+                        item.idInventario,
+                        item.nombreProducto,
+                        item.precio,
+                        item.cantidad,
+                        item.idImpuesto
+                    ])
 
-                idVentaDetalle++;
+                    idVentaDetalle++;
+                }
             }
 
             /**
@@ -422,7 +443,7 @@ class Factura {
             */
 
             if (idFormaPago === "FP0002") {
-                const listPlazos= await conec.execute(connection, 'SELECT idPlazo FROM plazo');
+                const listPlazos = await conec.execute(connection, 'SELECT idPlazo FROM plazo');
                 let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
 
                 const current = new Date();
@@ -433,12 +454,12 @@ class Factura {
 
                 let i = 0;
                 let cuota = 0;
-                while(i < numCuotas){
+                while (i < numCuotas) {
                     let now = new Date();
 
-                    if (parseInt(frecuenciaPagoCredito) > 15){
+                    if (parseInt(frecuenciaPagoCredito) > 15) {
                         now = new Date(current.getFullYear(), current.getMonth() + 1, 0);
-                    }else{
+                    } else {
                         now = new Date(current.getFullYear(), current.getMonth(), 15);
                     }
 
@@ -465,7 +486,7 @@ class Factura {
 
                     idPlazo++;
                     current.setMonth(current.getMonth() + 1);
-                }   
+                }
             }
 
             if (idFormaPago === "FP0003") {
@@ -544,8 +565,10 @@ class Factura {
                 INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
                 INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
                 INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
-            WHERE v.idVenta = ?
-        `, [req.query.idVenta]);
+            WHERE 
+                v.idVenta = ?`, [
+                req.query.idVenta
+            ]);
 
             // Obtener detalles de productos vendidos en la venta
             const detalle = await conec.query(`
@@ -563,8 +586,10 @@ class Factura {
                 INNER JOIN medida AS md ON md.idMedida = p.idMedida 
                 INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
                 INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
-            WHERE vd.idVenta = ?
-        `, [req.query.idVenta]);
+            WHERE 
+                vd.idVenta = ?`, [
+                req.query.idVenta
+            ]);
 
             // Obtener información de ingresos asociados a la venta
             const ingresos = await conec.query(`
@@ -581,13 +606,13 @@ class Factura {
             INNER JOIN 
                 banco as mp on mp.idBanco = bd.idBanco              
             WHERE 
-                i.idVenta = ?
-        `, [req.query.idVenta]);
+                i.idVenta = ?`, [
+                req.query.idVenta
+            ]);
 
             // Enviar respuesta exitosa con la información recopilada
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
-            console.log(error)
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -806,7 +831,7 @@ class Factura {
         }
     }
 
-    async accountsReceivable(req, res) {
+    async listAccountsReceivable(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Cuenta_Cobrar(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -836,43 +861,222 @@ class Factura {
         }
     }
 
-    async cpesunat(req, res) {
+    async colletAccountsReceivable(req, res) {
+        let connection = null;
         try {
-            const lista = await conec.procedure(`CALL Listar_CpeSunat(?,?,?,?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idComprobante,
-                parseInt(req.query.idEstado),
-                req.query.fill,
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+            connection = await conec.beginTransaction();
+            console.log(req.body)
+
+            const {
+                idVenta,
+                idPlazo,
+                idUsuario,
+                estado,
+                bancosAgregados,
+            } = req.body;
+
+
+            const plazo = await conec.execute(connection, `SELECT monto FROM plazo WHERE idPlazo = ?`, [
+                idPlazo
             ]);
 
-            const resultLista = lista.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            });
-
-            const total = await conec.procedure(`CALL Listar_CpeSunat_Count(?,?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idComprobante,
-                parseInt(req.query.idEstado),
-                req.query.fill,
+            const ingreso = await conec.execute(connection, `
+            SELECT 
+                i.monto 
+            FROM 
+                plazoIngreso AS pi
+            INNER JOIN 
+                plazo as p ON p.idPlazo = pi.idPlazo
+            INNER JOIN 
+                ingreso as i ON i.idIngreso = pi.idIngreso
+            WHERE 
+                p.idPlazo = ?`, [
+                idPlazo
             ]);
 
-            const resultTotal = await total.map(item => item.Total).reduce((previousValue, currentValue) => previousValue + currentValue, 0);
+            const actual = ingreso.reduce((accumulator, item) => accumulator + item.monto, 0)
 
-            return sendSuccess(res, { "result": resultLista, "total": resultTotal });
+            const monto = plazo[0].monto;
+
+            const enviado = bancosAgregados.reduce((accumulator, item) => accumulator + parseFloat(item.monto), 0);
+
+            console.log(monto)
+            console.log(actual)
+            console.log(enviado)
+
+            // if(monto>=){
+
+            // }
+
+
+            const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
+            let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
+
+            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
+
+            const listaPlazoIngreso = await conec.execute(connection, 'SELECT idPlazoIngreso FROM plazoIngreso');
+            let idPlazoIngreso = generateNumericCode(1, listaPlazoIngreso, 'idPlazoIngreso');
+
+            // Proceso de registro  
+            for (const item of bancosAgregados) {
+                await conec.execute(connection, `INSERT INTO ingreso(
+                    idIngreso,
+                    idVenta,
+                    idCobro,
+                    idBancoDetalle,
+                    monto,
+                    descripcion,
+                    estado,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                    idIngreso,
+                    idVenta,
+                    null,
+                    idBancoDetalle,
+                    item.monto,
+                    item.descripcion,
+                    estado,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
+
+                await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    idBancoDetalle,
+                    idBanco,
+                    tipo,
+                    monto,
+                    estado,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    idBancoDetalle,
+                    item.idBanco,
+                    1,
+                    item.monto,
+                    estado,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
+
+                await conec.execute(connection, `INSERT INTO plazoIngreso(
+                    idPlazoIngreso,
+                    idPlazo,
+                    idIngreso
+                ) VALUES(?,?,?)`, [
+                    idPlazoIngreso,
+                    idPlazo,
+                    idIngreso
+                ]);
+
+                idIngreso++;
+                idBancoDetalle++;
+                idPlazoIngreso++;
+            }
+
+            await conec.rollback(connection);
+            return sendSuccess(res, "ok");
         } catch (error) {
+            console.log(error)
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+
+    }
+
+    async detailAccountsReceivable(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT
+                v.idVenta, 
+                com.nombre AS comprobante,
+                com.codigo as codigoVenta,
+                v.serie,
+                v.numeracion,
+                td.nombre AS tipoDoc,      
+                td.codigo AS codigoCliente,      
+                c.documento,
+                c.informacion,
+                c.direccion,
+                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
+                DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
+                v.hora, 
+                v.idFormaPago, 
+                v.estado, 
+                m.simbolo,
+                m.codiso,
+                m.nombre as moneda
+            FROM venta AS v 
+                INNER JOIN persona AS c ON v.idCliente = c.idPersona
+                INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
+                INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
+                INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
+                INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
+            WHERE 
+                v.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            const detalles = await conec.query(`
+            SELECT 
+                p.nombre AS producto,
+                md.nombre AS medida, 
+                m.nombre AS categoria, 
+                vd.precio,
+                vd.cantidad,
+                vd.idImpuesto,
+                imp.nombre AS impuesto,
+                imp.porcentaje
+            FROM ventaDetalle AS vd 
+                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
+                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
+                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
+                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            WHERE 
+                vd.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            const resumen = await conec.query(`
+            SELECT 
+                SUM(cd.cantidad * cd.precio) AS total,
+                (
+                    SELECT IFNULL(SUM(s.monto), 0)
+                    FROM ingreso AS s
+                    WHERE s.idVenta = c.idVenta
+                ) AS cobrado
+            FROM 
+                venta AS c 
+                INNER JOIN ventaDetalle AS cd ON cd.idVenta = c.idVenta
+            WHERE c.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            const plazos = await conec.query(`
+            SELECT 
+                idPlazo,
+                cuota,
+                DATE_FORMAT(fecha, '%d/%m/%Y') AS fecha,
+                monto,
+                estado
+            FROM 
+                plazo 
+            WHERE 
+                idVenta = ?`, [
+                req.query.idVenta
+            ])
+
+            // Enviar respuesta exitosa con la información recopilada
+            return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
+        } catch (error) {
+            // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
