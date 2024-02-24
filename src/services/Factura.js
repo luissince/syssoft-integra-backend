@@ -528,7 +528,6 @@ class Factura {
                 idVenta: idVenta
             });
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -606,7 +605,8 @@ class Factura {
             INNER JOIN 
                 banco as mp on mp.idBanco = bd.idBanco              
             WHERE 
-                i.idVenta = ?`, [
+                i.idVenta = ? AND i.estado = 1
+            ORDER BY fecha DESC, i.hora DESC`, [
                 req.query.idVenta
             ]);
 
@@ -706,13 +706,24 @@ class Factura {
             for (const item of detalleVenta) {
                 // Obtener el costo del producto
                 const producto = await conec.execute(connection, `
-                SELECT costo FROM producto WHERE idProducto = ?
-            `, [item.idProducto]);
+                SELECT 
+                    costo 
+                FROM producto 
+                WHERE 
+                    idProducto = ?`, [
+                    item.idProducto
+                ]);
 
                 // Obtener el idAlmacen del inventario
                 const inventario = await conec.execute(connection, `
-                SELECT idAlmacen FROM inventario WHERE idInventario = ?
-            `, [item.idInventario]);
+                SELECT
+                    idAlmacen 
+                FROM 
+                    inventario 
+                WHERE 
+                    idInventario = ?`, [
+                    item.idInventario
+                ]);
 
                 // Insertar registro en la tabla kardex para anulación
                 await conec.execute(connection, `INSERT INTO kardex(
@@ -833,8 +844,9 @@ class Factura {
 
     async listAccountsReceivable(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Cuenta_Cobrar(?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Cuenta_Cobrar(?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
+                req.query.tipo,
                 req.query.buscar,
                 req.query.idSucursal,
 
@@ -849,8 +861,9 @@ class Factura {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Cuenta_Cobrar_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Cuenta_Cobrar_Count(?,?,?,?)`, [
                 parseInt(req.query.opcion),
+                req.query.tipo,
                 req.query.buscar,
                 req.query.idSucursal
             ]);
@@ -880,7 +893,7 @@ class Factura {
                 idPlazo
             ]);
 
-            const ingreso = await conec.execute(connection, `
+            const ingresoPlazo = await conec.execute(connection, `
             SELECT 
                 i.monto 
             FROM 
@@ -890,24 +903,53 @@ class Factura {
             INNER JOIN 
                 ingreso as i ON i.idIngreso = pi.idIngreso
             WHERE 
-                p.idPlazo = ?`, [
+                p.idPlazo = ? AND i.estado = 1`, [
                 idPlazo
             ]);
 
-            const actual = ingreso.reduce((accumulator, item) => accumulator + item.monto, 0)
-
             const monto = plazo[0].monto;
+
+            const actual = ingresoPlazo.reduce((accumulator, item) => accumulator + item.monto, 0)
 
             const enviado = bancosAgregados.reduce((accumulator, item) => accumulator + parseFloat(item.monto), 0);
 
-            console.log(monto)
-            console.log(actual)
-            console.log(enviado)
+            if (actual + enviado >= monto) {
+                await conec.execute(connection, `UPDATE plazo
+                SET 
+                    estado = 1
+                WHERE 
+                    idPlazo = ?`, [
+                    idPlazo
+                ])
+            }
 
-            // if(monto>=){
+            const ingresos = await conec.execute(connection, `SELECT monto FROM ingreso WHERE idVenta = ? AND estado = 1`, [
+                idVenta
+            ]);
 
-            // }
+            const sumaIngresos = ingresos.reduce((accumulator, item) => accumulator + item.monto, 0);
 
+            const venta = await conec.query(`
+            SELECT 
+                SUM(cd.cantidad * cd.precio) AS total
+            FROM 
+                venta AS c 
+                INNER JOIN ventaDetalle AS cd ON cd.idVenta = c.idVenta
+            WHERE 
+                c.idVenta = ?`, [
+                idVenta
+            ]);
+
+
+            if (sumaIngresos + enviado >= venta[0].total) {
+                await conec.execute(connection, `UPDATE venta
+                SET 
+                    estado = 1
+                WHERE 
+                    idVenta = ?`, [
+                    idVenta
+                ])
+            }
 
             const listaIngresos = await conec.execute(connection, 'SELECT idIngreso FROM ingreso');
             let idIngreso = generateNumericCode(1, listaIngresos, 'idIngreso');
@@ -979,10 +1021,9 @@ class Factura {
                 idPlazoIngreso++;
             }
 
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return sendSuccess(res, "ok");
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -1013,12 +1054,18 @@ class Factura {
                 m.simbolo,
                 m.codiso,
                 m.nombre as moneda
-            FROM venta AS v 
-                INNER JOIN persona AS c ON v.idCliente = c.idPersona
-                INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
-                INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-                INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
-                INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
+            FROM 
+                venta AS v 
+            INNER JOIN 
+                persona AS c ON v.idCliente = c.idPersona
+            INNER JOIN 
+                usuario AS us ON us.idUsuario = v.idUsuario 
+            INNER JOIN 
+                tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
+            INNER JOIN 
+                comprobante AS com ON v.idComprobante = com.idComprobante
+            INNER JOIN 
+                moneda AS m ON m.idMoneda = v.idMoneda
             WHERE 
                 v.idVenta = ?`, [
                 req.query.idVenta
@@ -1034,11 +1081,16 @@ class Factura {
                 vd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
-            FROM ventaDetalle AS vd 
-                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            FROM 
+                ventaDetalle AS vd 
+            INNER JOIN 
+                producto AS p ON vd.idProducto = p.idProducto 
+            INNER JOIN 
+                medida AS md ON md.idMedida = p.idMedida 
+            INNER JOIN 
+                categoria AS m ON p.idCategoria = m.idCategoria 
+            INNER JOIN 
+                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
                 vd.idVenta = ?`, [
                 req.query.idVenta
@@ -1050,12 +1102,13 @@ class Factura {
                 (
                     SELECT IFNULL(SUM(s.monto), 0)
                     FROM ingreso AS s
-                    WHERE s.idVenta = c.idVenta
+                    WHERE s.idVenta = c.idVenta AND s.estado = 1
                 ) AS cobrado
             FROM 
                 venta AS c 
                 INNER JOIN ventaDetalle AS cd ON cd.idVenta = c.idVenta
-            WHERE c.idVenta = ?`, [
+            WHERE 
+                c.idVenta = ?`, [
                 req.query.idVenta
             ]);
 
@@ -1071,12 +1124,36 @@ class Factura {
             WHERE 
                 idVenta = ?`, [
                 req.query.idVenta
-            ])
+            ]);
 
-            // Enviar respuesta exitosa con la información recopilada
+            for (const plazo of plazos) {
+                const ingresos = await conec.query(`
+                SELECT 
+                    b.nombre,
+                    DATE_FORMAT(i.fecha, '%d/%m/%Y') AS fecha,
+                    i.hora,
+                    i.monto,
+                    i.descripcion
+                FROM 
+                    plazo AS p
+                INNER JOIN 
+                    plazoIngreso AS pi ON pi.idPlazo = p.idPlazo
+                INNER JOIN 
+                    ingreso AS i ON i.idIngreso = pi.idIngreso
+                INNER JOIN 
+                    bancoDetalle AS bd ON bd.idBancoDetalle = i.idBancoDetalle
+                INNER JOIN 
+                    banco AS b ON b.idBanco = bd.idBanco
+                WHERE 
+                    i.estado = 1 AND p.idPlazo = ?`, [
+                    plazo.idPlazo
+                ]);
+
+                plazo.ingresos = ingresos;
+            }
+
             return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
         } catch (error) {
-            // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
