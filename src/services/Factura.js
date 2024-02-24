@@ -226,11 +226,13 @@ class Factura {
                 serie,
                 numeracion,                
                 idFormaPago,
+                numeroCuota,
+                frecuenciaPago,
                 comentario,
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
                 "CP0001",
                 nuevoIdCliente,
@@ -241,6 +243,8 @@ class Factura {
                 comprobante[0].serie,
                 numeracion,
                 idFormaPago,
+                !numCuotas ? 0 : numCuotas,
+                !frecuenciaPagoCredito ? null : frecuenciaPagoCredito,
                 comentario,
                 estado,
                 currentDate(),
@@ -1050,6 +1054,8 @@ class Factura {
                 DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
                 v.hora, 
                 v.idFormaPago, 
+                v.numeroCuota,
+                v.frecuenciaPago,
                 v.estado, 
                 m.simbolo,
                 m.codiso,
