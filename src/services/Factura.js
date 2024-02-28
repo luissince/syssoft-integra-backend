@@ -526,7 +526,7 @@ class Factura {
                 idUsuario
             ]);
 
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return sendSave(res, {
                 message: "Se completo el proceso correctamente.",
                 idVenta: idVenta
@@ -1160,6 +1160,7 @@ class Factura {
 
             return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
         } catch (error) {
+            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }

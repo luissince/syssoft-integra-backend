@@ -3,10 +3,10 @@ const {
     currentTime,
     isDirectory,
     removeFile,
-    writeFile,
     mkdir,
     chmod,
     generateAlphanumericCode,
+    processImage,
 } = require('../tools/Tools');
 const path = require("path");
 const { sendSuccess, sendSave, sendClient, sendError } = require('../tools/Message');
@@ -68,23 +68,18 @@ class Sucursal {
         try {
             connection = await conec.beginTransaction();
 
+            const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
+            const exists = await isDirectory(fileDirectory);
+
+            if (!exists) {
+                await mkdir(fileDirectory);
+                await chmod(fileDirectory);
+            }
+
+            const imagen = await processImage(fileDirectory, req.body.image, req.body.extension, null);
+
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
             const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
-
-            const file = path.join(__dirname, '../', 'path/proyect');
-
-            if (!isDirectory(file)) {
-                mkdir(file);
-                chmod(file);
-            }
-
-            const ruta = "";
-            if (req.body.imagen !== "") {
-                let nameImage = `${Date.now() + idSucursal}.${req.body.extension}`;
-
-                writeFile(path.join(file, nameImage), req.body.imagen);
-                ruta = nameImage;
-            }
 
             await conec.execute(connection, `INSERT INTO sucursal(
                 idSucursal,
@@ -112,7 +107,7 @@ class Sucursal {
                 req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
-                ruta,
+                imagen,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -133,33 +128,33 @@ class Sucursal {
 
     async id(req, res) {
         try {
-            let result = await conec.query(`SELECT 
-            p.idSucursal,
-            p.nombre,
-            p.telefono,
-            p.celular,
-            p.email,
-            p.paginaWeb,
-            p.direccion,
-            p.estado,
-
-            p.idUbigeo,
-            u.ubigeo,
-            u.departamento,
-            u.provincia,
-            u.distrito
-
-            FROM sucursal AS p
-            INNER JOIN ubigeo AS u ON u.idUbigeo = p.idUbigeo
-            WHERE p.idSucursal = ?`, [
+            let result = await conec.query(`
+            SELECT 
+                p.idSucursal,
+                p.nombre,
+                IFNULL(p.telefono, '') AS telefono,
+                IFNULL(p.celular, '') AS celular,
+                IFNULL(p.email, '') AS email,
+                IFNULL(p.paginaWeb, '') AS paginaWeb,
+                IFNULL(p.direccion, '') AS direccion,
+                IFNULL(p.ruta,'') AS ruta,
+                p.estado,
+                --
+                p.idUbigeo,
+                u.ubigeo,
+                u.departamento,
+                u.provincia,
+                u.distrito
+                --
+                FROM sucursal AS p
+                INNER JOIN ubigeo AS u ON u.idUbigeo = p.idUbigeo
+            WHERE 
+                p.idSucursal = ?`, [
                 req.query.idSucursal,
             ]);
 
-            if (result.length > 0) {
-                return sendSuccess(res, result[0]);
-            } else {
-                return sendClient(res, "Datos no encontrados");
-            }
+
+            return sendSuccess(res, result[0]);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -170,39 +165,19 @@ class Sucursal {
         try {
             connection = await conec.beginTransaction();
 
-            // const file = path.join(__dirname, '../', 'path/proyect');
+            const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
+            const exists = await isDirectory(fileDirectory);
 
-            // if (!isDirectory(file)) {
-            //     mkdir(file);
-            //     chmod(file);
-            // }
+            if (!exists) {
+                await mkdir(fileDirectory);
+                await chmod(fileDirectory);
+            }
 
-            // const sucursal = await conec.execute(connection, `SELECT
-            // imagen,
-            // extension,
-            // ruta
-            // FROM sucursal
-            // WHERE idSucursal = ?`, [
-            //     req.body.idSucursal
-            // ]);
+            const sucursal = await await conec.execute(connection, `SELECT ruta FROM sucursal WHERE idSucursal = ?`, [
+                req.body.idSucursal
+            ])
 
-            // let imagen = "";
-            // let extension = "";
-            // let ruta = "";
-
-            // if (req.body.imagen !== "") {
-            //     removeFile(path.join(file, sucursal[0].ruta));
-
-            //     const nameImage = `${Date.now() + req.body.idSucursal}.${req.body.extension}`;
-            //     writeFile(path.join(file, nameImage), req.body.imagen);
-            //     imagen = req.body.imagen;
-            //     extension = req.body.extension;
-            //     ruta = nameImage;
-            // } else {
-            //     imagen = sucursal[0].imagen;
-            //     extension = sucursal[0].extension;
-            //     ruta = sucursal[0].ruta;
-            // }
+            const imagen = await processImage(fileDirectory, req.body.imagen, req.body.extension, sucursal[0].ruta);
 
             await conec.execute(connection, `UPDATE sucursal SET
                 nombre = ?,
@@ -212,6 +187,7 @@ class Sucursal {
                 paginaWeb = ?,
                 direccion = ?,
                 idUbigeo = ?,
+                ruta = ?,
                 estado = ?,   
                 fupdate = ?,
                 hupdate = ? ,
@@ -224,6 +200,7 @@ class Sucursal {
                 req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
+                imagen,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -246,7 +223,7 @@ class Sucursal {
         try {
             connection = await conec.beginTransaction();
 
-            let sucursal = await conec.execute(connection, `SELECT ruta FROM sucursal WHERE idSucursal = ?`, [
+            const sucursal = await conec.execute(connection, `SELECT ruta FROM sucursal WHERE idSucursal = ?`, [
                 req.query.idSucursal
             ]);
 
@@ -255,7 +232,7 @@ class Sucursal {
                 return sendClient(res, "El sucursal a eliminar no existe, recargue su pantalla.");
             }
 
-            let cobro = await conec.execute(connection, `SELECT idCobro FROM cobro WHERE idSucursal = ?`, [
+            const cobro = await conec.execute(connection, `SELECT idCobro FROM cobro WHERE idSucursal = ?`, [
                 req.query.idSucursal
             ]);
 
@@ -264,7 +241,7 @@ class Sucursal {
                 return sendClient(res, 'No se puede eliminar el sucursal ya que esta ligada a unos cobros.');
             }
 
-            let gasto = await conec.execute(connection, `SELECT idGasto FROM gasto WHERE idSucursal = ?`, [
+            const gasto = await conec.execute(connection, `SELECT idGasto FROM gasto WHERE idSucursal = ?`, [
                 req.query.idSucursal
             ]);
 
@@ -273,7 +250,7 @@ class Sucursal {
                 return sendClient(res, 'No se puede eliminar el sucursal ya que esta ligada a unos gastos.');
             }
 
-            let venta = await conec.execute(connection, `SELECT idVenta  FROM venta WHERE idSucursal = ?`, [
+            const venta = await conec.execute(connection, `SELECT idVenta  FROM venta WHERE idSucursal = ?`, [
                 req.query.idSucursal
             ]);
 
@@ -282,7 +259,7 @@ class Sucursal {
                 return sendClient(res, 'No se puede eliminar el sucursal ya que esta ligada a unas ventas.');
             }
 
-            let file = path.join(__dirname, '../', 'path/proyect');
+            const file = path.join(__dirname, '..', 'path', 'proyect');
             removeFile(path.join(file, sucursal[0].ruta));
 
             await conec.execute(connection, `DELETE FROM sucursal WHERE idSucursal = ?`, [

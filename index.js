@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const router = express.Router();  // Crear un router para organizar rutas
 const path = require('path');
-
+const fs = require('fs');
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
@@ -50,31 +50,29 @@ app.get('/imagen/:nombreImagen', (req, res) => {
     const nombreImagen = req.params.nombreImagen;
 
     if (!nombreImagen) {
-        return res.status(404).json({ error: 'El parametro de nombre de imagen falta completar.' });
+        return res.status(404).json({ error: 'El parámetro de nombre de imagen está incompleto.' });
     }
 
-    const rutaImagenTo = path.join(__dirname, 'src', 'path', 'to', nombreImagen);
-    const rutaImagenCompany = path.join(__dirname, 'src', 'path', 'company', nombreImagen);
-    const rutaImagenProyect = path.join(__dirname, 'src', 'path', 'proyect', nombreImagen);
-    const rutaImagenProduct = path.join(__dirname, 'src', 'path', 'product', nombreImagen);
+    const rutas = [
+        path.join(__dirname, 'src', 'path', 'to', nombreImagen),
+        path.join(__dirname, 'src', 'path', 'company', nombreImagen),
+        path.join(__dirname, 'src', 'path', 'proyect', nombreImagen),
+        path.join(__dirname, 'src', 'path', 'product', nombreImagen)
+    ];
 
-    if (isFile(rutaImagenTo)) {
-        return res.sendFile(rutaImagenTo);
+    let imagenEncontrada = false;
+
+    for (const ruta of rutas) {
+        if (fs.existsSync(ruta)) {
+            res.sendFile(ruta);
+            imagenEncontrada = true;
+            break;
+        }
     }
 
-    if (isFile(rutaImagenCompany)) {
-        return res.sendFile(rutaImagenCompany);
+    if (!imagenEncontrada) {
+        res.status(404).json({ error: 'Imagen no encontrada' });
     }
-
-    if (isFile(rutaImagenProyect)) {
-        return res.sendFile(rutaImagenProyect);
-    }
-
-    if (isFile(rutaImagenProduct)) {
-        return res.sendFile(rutaImagenProduct);
-    }
-
-    res.status(404).json({ error: 'Imagen no encontrada' });
 });
 
 // Rutas API
