@@ -389,7 +389,6 @@ class Persona {
 
     async filtrar(req) {
         try {   
-            console.log(req.query)
             const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.filter,

@@ -715,19 +715,27 @@ class Producto {
 
     async filter(req) {
         try {
-            const result = await conec.query(`SELECT 
-            p.idProducto,
-            p.nombre,
-            p.costo,
-            c.nombre AS categoria,
-            tp.nombre as tipoProducto
-            FROM producto AS p
-            INNER JOIN categoria AS c ON c.idCategoria = p.idCategoria
-            INNER JOIN tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+            const result = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.nombre,
+                p.costo,
+                pc.valor AS precio,
+                c.nombre AS categoria,
+                tp.nombre as tipoProducto,
+                p.idMedida
+            FROM 
+                producto AS p
+            INNER JOIN 
+                categoria AS c ON c.idCategoria = p.idCategoria
+            INNER JOIN 
+                tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+            INNER JOIN 
+                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
-            p.codigo LIKE CONCAT(?,'%') 
-            OR 
-            p.nombre LIKE CONCAT(?,'%')`, [
+                p.codigo LIKE CONCAT(?,'%') 
+                OR 
+                p.nombre LIKE CONCAT(?,'%')`, [
                 req.query.filtrar,
                 req.query.filtrar,
             ])

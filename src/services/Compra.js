@@ -56,26 +56,30 @@ class Compra {
                 metodoPago
             } = req.body;
 
-            console.log(req.body)
-
             // Genera un nuevo ID para la compra
             const resultCompra = await conec.execute(connection, 'SELECT idCompra FROM compra');
             const idCompra = generateAlphanumericCode("CP0001", resultCompra, 'idCompra');
 
             // Consulta datos del comprobante para generar la numeración
-            const comprobante = await conec.execute(connection, `SELECT 
+            const comprobante = await conec.execute(connection, `
+            SELECT 
                 serie,
                 numeracion 
-                FROM comprobante 
-            WHERE idComprobante  = ?`, [
+            FROM 
+                comprobante 
+            WHERE 
+                idComprobante  = ?`, [
                 idComprobante
             ]);
 
             // Consulta numeraciones de compras asociadas al mismo comprobante
-            const compras = await conec.execute(connection, `SELECT 
+            const compras = await conec.execute(connection, `
+            SELECT 
                 numeracion  
-                FROM compra 
-            WHERE idComprobante = ?`, [
+            FROM 
+                compra 
+            WHERE 
+                idComprobante = ?`, [
                 idComprobante
             ]);
 

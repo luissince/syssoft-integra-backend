@@ -165,9 +165,7 @@ class Comprobante {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-
-            
-
+            console.log(req.body)
             await conec.execute(connection, `UPDATE comprobante SET 
                 idTipoComprobante = ?,
                 nombre = ?,
@@ -204,6 +202,7 @@ class Comprobante {
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente el comprobante.");
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

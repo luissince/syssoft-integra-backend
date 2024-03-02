@@ -44,7 +44,7 @@ router.post('/create', async function (req, res) {
 router.delete('/cancel', async function (req, res) {
     const result = await cotizacion.cancel(req)
     if (result === 'cancel') {
-        res.status(200).send(result);
+        res.status(200).send("Se anuló correctamente la cotización.");
     } else {
         res.status(500).send(result);
     }
