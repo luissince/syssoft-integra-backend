@@ -139,15 +139,15 @@ services:
     volumes:
       - bodega-modelo-backend-volumen:/app/src/path
 
-  unnsgro-services:
+  unnagro-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
     build:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: unnsgro-backend-image
+    image: unnagro-backend-image
     # Nombre del contenedor
-    container_name: unnsgro-backend
+    container_name: unnagro-backend
     # Configuración para reiniciar siempre el contenedor
     restart: always
     # Configuración de redes
@@ -157,7 +157,7 @@ services:
     ports:
       - 6027:80
     volumes:
-      - unnsgro-backend-volumen:/app/src/path
+      - unnagro-backend-volumen:/app/src/path
 
 # Definición de redes
 networks:
@@ -172,4 +172,4 @@ volumes:
   raices-backend-volumen:
   felicitygirls-tiquepos-backend-volumen:
   bodega-modelo-backend-volumen:
-  unnsgro-backend-volumen:
+  unnagro-backend-volumen:
