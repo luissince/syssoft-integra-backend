@@ -179,7 +179,7 @@ function numberFormat(value, currency = "PEN") {
 
 function rounded(amount, decimalCount = 2) {
     const isNumber = /^-?\d*\.?\d+$/.test(amount);
-    if (!isNumber) return '0';
+    if (!isNumber) return 0;
 
     decimalCount = Math.abs(decimalCount);
     decimalCount = isNaN(decimalCount) ? 2 : decimalCount;
@@ -189,7 +189,7 @@ function rounded(amount, decimalCount = 2) {
     const parsedAmount = Math.abs(Number(amount)) || 0;
     const fixedAmount = parsedAmount.toFixed(decimalCount);
 
-    return negativeSign + fixedAmount;
+    return parseFloat(negativeSign + fixedAmount);
 }
 
 function calculateTaxBruto(impuesto, monto) {
