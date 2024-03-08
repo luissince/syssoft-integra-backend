@@ -140,7 +140,6 @@ class Compra {
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
             return { cabecera: cotizacion[0], detalle };
         } catch (error) {
-            console.log(error)
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return "Se produjo un error de servidor, intente nuevamente.";
         }

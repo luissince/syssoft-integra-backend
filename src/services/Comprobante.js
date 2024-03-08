@@ -85,6 +85,12 @@ class Comprobante {
         try {
             connection = await conec.beginTransaction();
 
+            if (req.body.preferida) {
+                await conec.execute(connection, `UPDATE comprobante SET preferida = 0 WHERE idTipoComprobante = ?`, [
+                    req.body.idTipoComprobante,
+                ]);
+            }
+
             const result = await conec.execute(connection, 'SELECT idComprobante FROM comprobante');
             const idComprobante = generateAlphanumericCode("CB0001", result, 'idComprobante');
 
@@ -148,14 +154,11 @@ class Comprobante {
 
     async id(req, res) {
         try {
-            let result = await conec.query(`SELECT * FROM comprobante WHERE idComprobante = ?`, [
+            const result = await conec.query(`SELECT * FROM comprobante WHERE idComprobante = ?`, [
                 req.query.idComprobante
             ]);
-            if (result.length > 0) {
-                return sendSuccess(res, result[0])
-            } else {
-                return sendClient(res, "Datos incorrectos, intente nuevamente.");
-            }
+
+            return sendSuccess(res, result[0])
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -165,7 +168,13 @@ class Comprobante {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            console.log(req.body)
+
+            if (req.body.preferida) {
+                await conec.execute(connection, `UPDATE comprobante SET preferida = 0 WHERE idTipoComprobante = ?`, [
+                    req.body.idTipoComprobante,
+                ]);
+            }
+
             await conec.execute(connection, `UPDATE comprobante SET 
                 idTipoComprobante = ?,
                 nombre = ?,
@@ -187,7 +196,7 @@ class Comprobante {
                 req.body.serie,
                 req.body.numeracion,
                 req.body.codigo,
-                req.body.impresion,                
+                req.body.impresion,
                 req.body.estado,
                 req.body.preferida,
                 req.body.numeroCampo,
@@ -202,7 +211,6 @@ class Comprobante {
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente el comprobante.");
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

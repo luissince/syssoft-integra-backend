@@ -283,7 +283,6 @@ class Compra {
             await conec.commit(connection);
             return "create";
         } catch (error) {
-            console.log(error)
             // En caso de error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
@@ -382,7 +381,6 @@ class Compra {
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
             return { cabecera: compra[0], detalle, salidas };
         } catch (error) {
-            console.log(error)
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return "Se produjo un error de servidor, intente nuevamente.";
         }
@@ -414,7 +412,6 @@ class Compra {
 
             return { "result": resultLista, "total": total[0].Total };
         } catch (error) {
-            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

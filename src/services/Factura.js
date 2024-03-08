@@ -85,7 +85,7 @@ class Factura {
                 importeTotal
             } = req.body;
 
-            console.log(req.body)
+            // console.log(req.body)
 
             /**
              * Validación de productos inventariables
@@ -96,27 +96,36 @@ class Factura {
 
             for (const item of detalleVenta) {
                 if (item.tipo === "PRODUCTO") {
-                    const inventario = await conec.execute(connection, `SELECT i.cantidad, p.negativo 
-                    FROM inventario AS i
-                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
-                    INNER JOIN producto AS p ON p.idProducto = i.idProducto
-                    where a.predefinido = 1 AND p.idProducto = ?`, [
-                        item.idProducto,
-                    ]);
+                    for (const inventario of item.inventarios) {
+                        const result = await conec.execute(connection, `
+                        SELECT 
+                            i.cantidad, 
+                            p.negativo 
+                        FROM 
+                            inventario AS i
+                        INNER JOIN 
+                            almacen AS a ON a.idAlmacen = i.idAlmacen
+                        INNER JOIN 
+                            producto AS p ON p.idProducto = i.idProducto
+                        WHERE 
+                            i.idInventario = ? AND p.idProducto = ?`, [
+                            inventario.idInventario,
+                            item.idProducto,
+                        ]);
 
-                    if (inventario[0].negativo === 0) {
-                        const cantidadActual = item.cantidad;
-                        const cantidadReal = inventario[0].cantidad;
+                        if (result[0].negativo === 0) {
+                            const cantidadActual = rounded(inventario.cantidad);
+                            const cantidadReal = rounded(result[0].cantidad);
 
+                            if (cantidadActual > cantidadReal) {
+                                validarInventario++;
 
-                        if (cantidadActual > cantidadReal) {
-                            validarInventario++;
-
-                            mensajeInventario.push({
-                                "nombre": item.nombreProducto,
-                                "cantidadActual": cantidadActual,
-                                "cantidadReal": cantidadReal
-                            });
+                                mensajeInventario.push({
+                                    "nombre": item.nombreProducto,
+                                    "cantidadActual": cantidadActual,
+                                    "cantidadReal": cantidadReal
+                                });
+                            }
                         }
                     }
                 }
@@ -193,19 +202,24 @@ class Factura {
             /**
              * Obtener la serie y numeración del comprobante.
              */
-            const comprobante = await conec.execute(connection, `SELECT 
+            const comprobante = await conec.execute(connection, `
+            SELECT 
                 serie,
                 numeracion 
-                FROM comprobante 
-                WHERE idComprobante  = ?
-                `, [
+            FROM 
+                comprobante 
+            WHERE 
+                idComprobante  = ?`, [
                 idComprobante
             ]);
 
-            const ventas = await conec.execute(connection, `SELECT 
+            const ventas = await conec.execute(connection, `
+            SELECT 
                 numeracion  
-                FROM venta 
-                WHERE idComprobante = ?`, [
+            FROM 
+                venta 
+            WHERE 
+                idComprobante = ?`, [
                 idComprobante
             ]);
 
@@ -270,80 +284,96 @@ class Factura {
 
             // Proceso de registro  
             for (const item of detalleVenta) {
+                // console.log(item)
+
                 if (item.tipo === "PRODUCTO") {
-                    let cantidad = 0;
-                    let precio = 0;
-
-                    const inventario = await conec.execute(connection, `SELECT idAlmacen FROM inventario WHERE idInventario = ?`, [
-                        item.idInventario
-                    ]);
-
-                    const producto = await conec.execute(connection, `SELECT 
-                    p.costo, 
-                    pc.valor AS precio 
-                    FROM producto AS p 
-                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                    WHERE p.idProducto = ?`, [
+                    const producto = await conec.execute(connection, `
+                    SELECT 
+                        p.costo, 
+                        pc.valor AS precio 
+                    FROM 
+                        producto AS p 
+                    INNER JOIN 
+                        precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                    WHERE 
+                        p.idProducto = ?`, [
                         item.idProducto,
                     ]);
 
+                    for (const inventario of item.inventarios) {
+                        let cantidad = 0;
+
+                        if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
+                            cantidad = rounded(inventario.cantidad);
+                        }
+
+                        if (item.idTipoTratamientoProducto === 'TT0002') {
+                            cantidad = rounded(item.precio / producto[0].precio);
+                        }
+
+                        await conec.execute(connection, `INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            hora,
+                            fecha,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0002',
+                            'MK0003',
+                            'SALIDA DEL PRODUCTO POR VENTA',
+                            cantidad,
+                            producto[0].costo,
+                            inventario.idAlmacen,
+                            currentTime(),
+                            currentDate(),
+                            idUsuario
+                        ]);
+
+                        await conec.execute(connection, `
+                        UPDATE 
+                            inventario 
+                        SET
+                            cantidad = cantidad - ? 
+                        WHERE 
+                            idInventario = ?`, [
+                            cantidad,
+                            inventario.idInventario
+                        ]);
+                    }
+
+                    let cantidad = 0;
+                    let precio = 0;
+
                     if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
-                        precio = item.precio;
-                        cantidad = item.cantidad;
+                        precio = rounded(item.precio);
+                        cantidad = item.inventarios.reduce((acc, current) => acc + current.cantidad, 0);
                     }
 
                     if (item.idTipoTratamientoProducto === 'TT0002') {
                         precio = producto[0].precio;
-                        cantidad = item.precio / producto[0].precio;
+                        cantidad = rounded(item.precio / producto[0].precio);
                     }
-
-                    await conec.execute(connection, `INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        hora,
-                        fecha,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0002',
-                        'MK0003',
-                        'SALIDA DEL PRODUCTO POR VENTA',
-                        cantidad,
-                        producto[0].costo,
-                        inventario[0].idAlmacen,
-                        currentTime(),
-                        currentDate(),
-                        idUsuario
-                    ]);
-
-                    await conec.execute(connection, `UPDATE inventario SET
-                    cantidad = cantidad - ? 
-                    WHERE idInventario = ?`, [
-                        cantidad,
-                        item.idInventario
-                    ]);
 
                     await conec.execute(connection, `INSERT INTO ventaDetalle(
                         idVentaDetalle,
                         idVenta,
                         idProducto,
-                        idInventario,
                         descripcion,
                         precio,
                         cantidad,
                         idImpuesto
-                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?)`, [
                         idVentaDetalle,
                         idVenta,
                         item.idProducto,
-                        item.idInventario,
                         item.nombreProducto,
                         precio,
                         cantidad,
@@ -358,19 +388,17 @@ class Factura {
                         idVentaDetalle,
                         idVenta,
                         idProducto,
-                        idInventario,
                         descripcion,
                         precio,
                         cantidad,
                         idImpuesto
-                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?)`, [
                         idVentaDetalle,
                         idVenta,
                         item.idProducto,
-                        item.idInventario,
                         item.nombreProducto,
                         item.precio,
-                        item.cantidad,
+                        rounded(item.cantidad),
                         item.idImpuesto
                     ])
 
@@ -408,7 +436,7 @@ class Factura {
                         idVenta,
                         null,
                         idBancoDetalle,
-                        item.monto,
+                        rounded(item.monto),
                         item.descripcion,
                         1,
                         currentDate(),
@@ -429,7 +457,7 @@ class Factura {
                         idBancoDetalle,
                         item.idBanco,
                         1,
-                        item.monto,
+                        rounded(item.monto),
                         1,
                         currentDate(),
                         currentTime(),
@@ -526,7 +554,7 @@ class Factura {
                 idUsuario
             ]);
 
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return sendSave(res, {
                 message: "Se completo el proceso correctamente.",
                 idVenta: idVenta

@@ -13,15 +13,20 @@ class Almacen {
                 u.departamento,
                 u.distrito,
                 u.provincia,
-                a.codigoSunat
-                FROM almacen AS a
-                INNER JOIN ubigeo AS u ON a.idUbigeo = u.idUbigeo 
-                WHERE
+                a.codigoSunat,
+                a.predefinido
+            FROM 
+                almacen AS a
+            INNER JOIN 
+                ubigeo AS u ON a.idUbigeo = u.idUbigeo 
+            WHERE
                 ? = 0 AND a.idSucursal = ?
                 OR
                 ? = 1 AND a.nombre LIKE CONCAT(?,'%') AND a.idSucursal = ?
-                ORDER BY a.fecha ASC, a.hora ASC
-                LIMIT ?,?;`, [
+            ORDER BY 
+                a.fecha ASC, a.hora ASC
+            LIMIT 
+                ?,?;`, [
                 parseInt(req.query.opcion),
                 req.query.idSucursal,
 
@@ -66,6 +71,10 @@ class Almacen {
         try {
             connection = await conec.beginTransaction();
 
+            if (req.body.predefinido) {
+                await conec.execute(connection, `UPDATE almacen SET predefinido = 0`);
+            }
+
             const result = await conec.execute(connection, 'SELECT idAlmacen FROM almacen');
             const idAlmacen = generateAlphanumericCode("AM0001", result, 'idAlmacen');
 
@@ -81,7 +90,7 @@ class Almacen {
                 idUsuario,
                 fecha,
                 hora)
-                VALUES(?,?,?,?,?,?,?,0,?,?,?)`, [
+                VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
                 idAlmacen,
                 req.body.idSucursal,
                 req.body.nombre,
@@ -89,6 +98,7 @@ class Almacen {
                 req.body.idUbigeo,
                 req.body.codigoSunat,
                 req.body.observacion,
+                req.body.predefinido,
                 req.body.idUsuario,
                 currentDate(),
                 currentTime()
@@ -132,20 +142,25 @@ class Almacen {
 
     async id(req) {
         try {
-            const result = await conec.query(`SELECT 
-            a.idAlmacen,
-            a.nombre,
-            a.direccion,       
-            u.idUbigeo,
-            u.departamento,
-            u.distrito,
-            u.provincia,
-            u.ubigeo,
-            a.codigoSunat,
-            a.observacion
-            FROM almacen AS a
-            INNER JOIN ubigeo AS u ON a.idUbigeo = u.idUbigeo 
-            where a.idAlmacen = ?`, [
+            const result = await conec.query(`
+            SELECT 
+                a.idAlmacen,
+                a.nombre,
+                a.direccion,       
+                u.idUbigeo,
+                u.departamento,
+                u.distrito,
+                u.provincia,
+                u.ubigeo,
+                a.codigoSunat,
+                a.observacion,
+                a.predefinido
+            FROM 
+                almacen AS a
+            INNER JOIN 
+                ubigeo AS u ON a.idUbigeo = u.idUbigeo 
+            WHERE 
+                a.idAlmacen = ?`, [
                 req.query.idAlmacen
             ]);
             return result[0];
@@ -159,19 +174,27 @@ class Almacen {
         try {
             connection = await conec.beginTransaction();
 
+            if (req.body.predefinido) {
+                await conec.execute(connection, `UPDATE almacen SET predefinido = 0`);
+            }
+
             await conec.execute(connection, `UPDATE almacen                  
-                set nombre = ?,
+            SET 
+                nombre = ?,
                 direccion = ?,
                 idUbigeo = ?,
                 codigoSunat = ?,
                 observacion = ?,
+                predefinido = ?,
                 idUsuario = ?
-                where idAlmacen = ?`, [
+            WHERE 
+                idAlmacen = ?`, [
                 req.body.nombre,
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.codigoSunat,
                 req.body.observacion,
+                req.body.predefinido,
                 req.body.idUsuario,
                 req.body.idAlmacen
             ])
@@ -235,10 +258,10 @@ class Almacen {
     async combo(req) {
         try {
             if (!req.query.idSucursal) {
-                const lista = await conec.query(`SELECT idAlmacen, nombre FROM almacen`);
+                const lista = await conec.query(`SELECT idAlmacen, nombre, predefinido FROM almacen`);
                 return lista;
             } else {
-                const lista = await conec.query(`SELECT idAlmacen, nombre FROM almacen WHERE idSucursal = ?`, [
+                const lista = await conec.query(`SELECT idAlmacen, nombre, predefinido FROM almacen WHERE idSucursal = ?`, [
                     req.query.idSucursal
                 ]);
                 return lista;

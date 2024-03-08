@@ -134,13 +134,14 @@ class Impuesto {
 
             await conec.execute(connection, `UPDATE impuesto 
             SET 
-            nombre=?,
-            porcentaje=?,
-            codigo=?,
-            estado=?,
-            preferido=?,
-            idUsuario=?
-            WHERE idImpuesto=?`, [
+                nombre=?,
+                porcentaje=?,
+                codigo=?,
+                estado=?,
+                preferido=?,
+                idUsuario=?
+            WHERE 
+                idImpuesto=?`, [
                 req.body.nombre,
                 req.body.porcentaje,
                 req.body.codigo,

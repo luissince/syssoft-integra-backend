@@ -214,8 +214,8 @@ class Producto {
 
                 for (const almacen of almacenes) {
                     const inventario = inventarios.find(inventario => almacen.idAlmacen === inventario.idAlmacen);
-                
-                    if (inventario) {                      
+
+                    if (inventario) {
                         await conec.execute(connection, `INSERT INTO inventario(
                             idInventario,
                             idProducto,
@@ -231,7 +231,7 @@ class Producto {
                             inventario.cantidadMaxima,
                             inventario.cantidadMinima,
                         ]);
-                        
+
                         await conec.execute(connection, `INSERT INTO kardex(
                             idKardex,
                             idProducto,
@@ -320,7 +320,7 @@ class Producto {
 
             await conec.commit(connection);
             return "insert";
-        } catch (error) {         
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -502,7 +502,7 @@ class Producto {
 
             await conec.commit(connection);
             return "update";
-        } catch (error) {       
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -692,27 +692,6 @@ class Producto {
         }
     }
 
-    async filtrarParaVenta(req) {
-        try {
-            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?)", [
-                parseInt(req.query.codBar),
-                req.query.filtrar,
-                req.query.idSucursal,
-            ])
-
-            const resultLista = result.map(function (item) {
-                return {
-                    ...item,
-                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                }
-            });
-
-            return resultLista;
-        } catch (error) {          
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
-    }
-
     async filter(req) {
         try {
             const result = await conec.query(`
@@ -774,9 +753,34 @@ class Producto {
         }
     }
 
+    async filtrarParaVenta(req) {
+        try {
+            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?)", [
+                parseInt(req.query.codBar),
+                req.query.filtrar,
+                req.query.idSucursal,
+                req.query.idAlmacen,
+            ]);
+
+            const resultLista = result.map(function (item) {
+                return {
+                    ...item,
+                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                }
+            });
+
+            return resultLista;
+        } catch (error) {
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
     async preferidos(req) {
         try {
-            const result = await conec.procedure("CALL Listar_Productos_Preferidos()")
+            const result = await conec.procedure("CALL Listar_Productos_Preferidos(?,?)", [
+                req.query.idSucursal,
+                req.query.idAlmacen
+            ])
 
             const resultLista = result.map(function (item) {
                 return {
