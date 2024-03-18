@@ -42,7 +42,8 @@ class Traslado {
 
     async detail(req) {
         try {
-            const traslado = await conec.query(`SELECT 
+            const traslado = await conec.query(`
+            SELECT 
                 a.idTraslado,
                 DATE_FORMAT(a.fecha, '%d/%m/%Y') AS fecha,
                 a.hora,
@@ -54,18 +55,27 @@ class Traslado {
                 COALESCE(sd.nombre, '') AS sucursalDestino,
                 a.estado,
                 CONCAT(u.nombres, ', ', u.apellidos) AS usuarioNombre
-            FROM traslado AS a
-                INNER JOIN tipoTraslado AS tt ON tt.idTipoTraslado = a.idTipoTraslado
-                INNER JOIN motivoTraslado AS mt ON mt.idMotivoTraslado = a.idMotivoTraslado
-                INNER JOIN usuario AS u ON u.idUsuario = a.idUsuario
-                INNER JOIN almacen AS alo ON alo.idAlmacen = a.idAlmacenOrigen
-                INNER JOIN almacen AS ald ON ald.idAlmacen = a.idAlmacenDestino
-                LEFT JOIN sucursal AS sd ON sd.idSucursal = a.idSucursalDestino
-            WHERE a.idTraslado = ?`, [
+            FROM 
+                traslado AS a
+            INNER JOIN 
+                tipoTraslado AS tt ON tt.idTipoTraslado = a.idTipoTraslado
+            INNER JOIN 
+                motivoTraslado AS mt ON mt.idMotivoTraslado = a.idMotivoTraslado
+            INNER JOIN 
+                usuario AS u ON u.idUsuario = a.idUsuario
+            INNER JOIN 
+                almacen AS alo ON alo.idAlmacen = a.idAlmacenOrigen
+            INNER JOIN 
+                almacen AS ald ON ald.idAlmacen = a.idAlmacenDestino
+            LEFT JOIN 
+                sucursal AS sd ON sd.idSucursal = a.idSucursalDestino
+            WHERE 
+                a.idTraslado = ?`, [
                 req.query.idTraslado,
             ])
 
-            const detalle = await conec.query(`SELECT 
+            const detalle = await conec.query(`
+            SELECT 
                 p.codigo,
                 p.nombre as producto,
                 aj.cantidad,
@@ -73,10 +83,14 @@ class Traslado {
                 c.nombre as categoria
             FROM 
                 trasladoDetalle as aj
-                INNER JOIN producto as p on p.idProducto = aj.idProducto
-                INNER JOIN medida as m on m.idMedida = p.idMedida
-                INNER JOIN categoria as c on c.idCategoria = p.idCategoria
-            WHERE aj.idTraslado = ?`, [
+            INNER JOIN 
+                producto as p on p.idProducto = aj.idProducto
+            INNER JOIN 
+                medida as m on m.idMedida = p.idMedida
+            INNER JOIN 
+                categoria as c on c.idCategoria = p.idCategoria
+            WHERE 
+                aj.idTraslado = ?`, [
                 req.query.idTraslado,
             ])
 
@@ -108,9 +122,10 @@ class Traslado {
             // Genera un nuevo código alfanumérico para el traslado
             const result = await conec.execute(connection, 'SELECT idTraslado FROM traslado');
             const idTraslado = generateAlphanumericCode("TL0001", result, 'idTraslado');
-           
+
             // Inserta un nuevo registro en la tabla traslado
-            await conec.execute(connection, `INSERT INTO traslado(
+            await conec.execute(connection, `
+            INSERT INTO traslado(
                 idTraslado,
                 idTipoTraslado,
                 idMotivoTraslado,
@@ -154,7 +169,8 @@ class Traslado {
             // Itera sobre los detalles de traslado proporcionados en la solicitud
             for (const item of req.body.detalle) {
                 // Inserta un nuevo registro en la tabla trasladoDetalle
-                await conec.execute(connection, `INSERT INTO trasladoDetalle(
+                await conec.execute(connection, `
+                INSERT INTO trasladoDetalle(
                     idTrasladoDetalle,
                     idTraslado,
                     idProducto,
@@ -170,7 +186,8 @@ class Traslado {
                 idTrasladoDetalle++;
 
                 // Obtiene el inventario del producto en el almacén de origen
-                const inventarioOrigen = await conec.execute(connection, `SELECT 
+                const inventarioOrigen = await conec.execute(connection, `
+                SELECT 
                         idInventario 
                     FROM 
                         inventario 
@@ -181,7 +198,8 @@ class Traslado {
                 ]);
 
                 // Obtiene el inventario del producto en el almacén de destino
-                const inventarioDestino = await conec.execute(connection, `SELECT 
+                const inventarioDestino = await conec.execute(connection, `
+                SELECT 
                         idInventario 
                     FROM 
                         inventario 
@@ -192,84 +210,99 @@ class Traslado {
                 ]);
 
                 // Actualiza el inventario en el almacén de origen
-                await conec.execute(connection, `UPDATE inventario 
-                    SET 
-                        cantidad = cantidad - ?
-                    WHERE 
-                        idInventario = ?`, [
+                await conec.execute(connection, `
+                UPDATE 
+                    inventario 
+                SET 
+                    cantidad = cantidad - ?
+                WHERE 
+                    idInventario = ?`, [
                     item.cantidad,
                     inventarioOrigen[0].idInventario
                 ]);
 
                 // Actualiza el inventario en el almacén de destino
-                await conec.execute(connection, `UPDATE inventario 
-                    SET 
-                        cantidad = cantidad + ?
-                    WHERE 
-                        idInventario = ?`, [
+                await conec.execute(connection, `
+                UPDATE 
+                    inventario 
+                SET 
+                    cantidad = cantidad + ?
+                WHERE 
+                    idInventario = ?`, [
                     item.cantidad,
                     inventarioDestino[0].idInventario
                 ]);
 
                 // Obtiene el costo del producto
-                const producto = await conec.execute(connection, `SELECT 
-                        costo 
-                    FROM 
-                        producto 
-                    WHERE 
-                        idProducto = ?`, [
+                const producto = await conec.execute(connection, `
+                SELECT 
+                    costo 
+                FROM 
+                    producto 
+                WHERE 
+                    idProducto = ?`, [
                     item.idProducto,
                 ]);
 
                 // Inserta registros en la tabla kardex para la salida del almacén de origen
-                await conec.execute(connection, `INSERT INTO kardex(
+                await conec.execute(connection, `
+                INSERT INTO kardex(
                     idKardex,
                     idProducto,
                     idTipoKardex,
                     idMotivoKardex,
+                    idTraslado,
                     detalle,
                     cantidad,
                     costo,
                     idAlmacen,
+                    idInventario,
                     hora,
                     fecha,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     item.idProducto,
                     'TK0002',
                     'MK0002',
+                    idTraslado,
                     'SALIDA POR TRASLADO',
                     item.cantidad,
                     producto[0].costo,
                     idAlmacenOrigen,
+                    inventarioOrigen[0].idInventario,
                     currentTime(),
                     currentDate(),
                     idUsuario
                 ]);
 
                 // Inserta registros en la tabla kardex para la entrada en el almacén de destino
-                await conec.execute(connection, `INSERT INTO kardex(
+                await conec.execute(connection, `
+                INSERT INTO kardex(
                     idKardex,
                     idProducto,
                     idTipoKardex,
                     idMotivoKardex,
+                    idTraslado,
                     detalle,
                     cantidad,
                     costo,
                     idAlmacen,
+                    idInventario,
                     hora,
                     fecha,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     item.idProducto,
                     'TK0001',
                     'MK0002',
+                    idTraslado,
                     'INGRESO POR TRASLADO',
                     item.cantidad,
                     producto[0].costo,
                     idAlmacenDestino,
+                    inventarioDestino[0].idInventario,
                     currentTime(),
                     currentDate(),
                     idUsuario
@@ -279,7 +312,7 @@ class Traslado {
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito
             await conec.commit(connection);
             return "create";
-        } catch (error) {           
+        } catch (error) {
             // Manejo de errores: Si hay un error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
@@ -295,7 +328,8 @@ class Traslado {
             connection = await conec.beginTransaction();
 
             // Obtiene información del traslado con el ID proporcionado
-            const traslado = await conec.execute(connection, `SELECT 
+            const traslado = await conec.execute(connection, `
+            SELECT 
                 idTraslado,
                 idAlmacenOrigen,
                 idAlmacenDestino,
@@ -320,7 +354,9 @@ class Traslado {
             }
 
             // Actualiza el estado del traslado a cancelado
-            await conec.execute(connection, `UPDATE traslado 
+            await conec.execute(connection, `
+            UPDATE 
+                traslado 
             SET 
                 estado = 0 
             WHERE 
@@ -329,7 +365,8 @@ class Traslado {
             ])
 
             // Obtiene los detalles del traslado
-            const trasladoDetalle = await conec.execute(connection, `SELECT 
+            const trasladoDetalle = await conec.execute(connection, `
+            SELECT 
                 idProducto,
                 cantidad 
             FROM 
@@ -340,7 +377,11 @@ class Traslado {
             ])
 
             // Obtiene el último código numérico para kardex
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            const resultKardex = await conec.execute(connection, `
+            SELECT 
+                idKardex 
+            FROM 
+                kardex`);
             let idKardex = 0;
 
             if (resultKardex.length != 0) {
@@ -350,111 +391,114 @@ class Traslado {
 
             // Itera sobre los detalles del traslado para realizar las operaciones necesarias
             for (const item of trasladoDetalle) {
-                // Obtiene el inventario del producto en el almacén de origen
-                const inventarioOrigen = await conec.execute(connection, `SELECT 
-                    idInventario 
+                const kardexes = await conec.execute(connection, `
+                SELECT 
+                    k.idProducto,
+                    k.idTipoKardex,
+                    k.cantidad,
+                    k.costo,
+                    k.idAlmacen,
+                    k.idInventario    
                 FROM 
-                    inventario 
+                    kardex AS k 
                 WHERE 
-                    idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    traslado[0].idAlmacenOrigen,
-                ]);
-
-                // Obtiene el inventario del producto en el almacén de destino
-                const inventarioDestino = await conec.execute(connection, `SELECT 
-                    idInventario 
-                FROM 
-                    inventario 
-                WHERE 
-                    idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    traslado[0].idAlmacenDestino,
-                ]);
-
-                // Actualiza el inventario en el almacén de origen (reversa de operaciones)
-                await conec.execute(connection, `UPDATE inventario 
-                SET 
-                    cantidad = cantidad + ?
-                WHERE 
-                    idInventario = ?`, [
-                    item.cantidad,
-                    inventarioOrigen[0].idInventario
-                ]);
-
-                // Actualiza el inventario en el almacén de destino (reversa de operaciones)
-                await conec.execute(connection, `UPDATE inventario 
-                SET 
-                    cantidad = cantidad - ?
-                WHERE 
-                    idInventario = ?`, [
-                    item.cantidad,
-                    inventarioDestino[0].idInventario
-                ]);
-
-                // Obtiene el costo del producto
-                const producto = await conec.execute(connection, `SELECT 
-                    costo 
-                FROM 
-                    producto 
-                WHERE 
-                    idProducto = ?`, [
+                    k.idTraslado = ? AND k.idProducto = ?`, [
+                    req.query.idTraslado,
                     item.idProducto,
                 ]);
 
-                // Inserta registros en la tabla kardex para la anulación de la salida del almacén de origen
-                await conec.execute(connection, `INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0001',
-                    'MK0002',
-                    'ANULAR SALIDA POR TRASLADO',
-                    item.cantidad,
-                    producto[0].costo,
-                    traslado[0].idAlmacenOrigen,
-                    currentTime(),
-                    currentDate(),
-                    req.query.idUsuario
-                ]);
+                for (const kardex of kardexes) {
+                    if (kardex.idTipoKardex === "TK0001") {
 
-                // Inserta registros en la tabla kardex para la anulación del ingreso en el almacén de destino
-                await conec.execute(connection, `INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0002',
-                    'MK0002',
-                    'ANULAR INGRESO POR TRASLADO',
-                    item.cantidad,
-                    producto[0].costo,
-                    traslado[0].idAlmacenDestino,
-                    currentTime(),
-                    currentDate(),
-                    req.query.idUsuario
-                ]);
+                        // Actualiza el inventario en el almacén de destino (reversa de operaciones)
+                        await conec.execute(connection, `
+                        UPDATE 
+                            inventario 
+                        SET 
+                            cantidad = cantidad - ?
+                        WHERE 
+                            idInventario = ?`, [
+                            kardex.cantidad,
+                            kardex.idInventario
+                        ]);
+
+                        // Inserta registros en la tabla kardex para la anulación del ingreso en el almacén de destino
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idTraslado,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            hora,
+                            fecha,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0002',
+                            'MK0002',
+                            req.query.idTraslado,
+                            'ANULAR INGRESO POR TRASLADO',
+                            kardex.cantidad,
+                            kardex.costo,
+                            kardex.idAlmacen,
+                            kardex.idInventario,
+                            currentTime(),
+                            currentDate(),
+                            req.query.idUsuario
+                        ]);
+                    } else {
+                        // Actualiza el inventario en el almacén de origen (reversa de operaciones)
+                        await conec.execute(connection, `
+                        UPDATE 
+                            inventario 
+                        SET 
+                            cantidad = cantidad + ?
+                        WHERE 
+                            idInventario = ?`, [
+                            kardex.cantidad,
+                            kardex.idInventario
+                        ]);
+
+                        // Inserta registros en la tabla kardex para la anulación de la salida del almacén de origen
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idTraslado,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            hora,
+                            fecha,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0001',
+                            'MK0002',
+                            req.query.idTraslado,
+                            'ANULAR SALIDA POR TRASLADO',
+                            kardex.cantidad,
+                            kardex.costo,
+                            kardex.idAlmacen,
+                            kardex.idInventario,
+                            currentTime(),
+                            currentDate(),
+                            req.query.idUsuario
+                        ]);
+                    }
+                }
             }
 
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito

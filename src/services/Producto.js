@@ -10,6 +10,7 @@ const {
     chmod,
     generateNumericCode,
 } = require('../tools/Tools');
+const logger = require('../tools/Logger');
 const conec = new Conexion();
 
 require('dotenv').config();
@@ -18,35 +19,9 @@ class Producto {
 
     async list(req) {
         try {
-            const lista = await conec.query(`SELECT 
-                p.idProducto,
-                t.nombre as tipo,
-                ttp.nombre as venta,
-                p.codigo,
-                p.nombre,
-                pc.valor as precio,
-                p.preferido,
-                p.imagen,
-                p.estado,
-                c.nombre AS categoria,
-                m.nombre AS medida
-                FROM producto AS p 
-                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
-                INNER JOIN medida AS m ON p.idMedida = m.idMedida       
-                INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
-                WHERE
-                ? = 0 
-                OR
-                ? = 1 AND p.nombre LIKE CONCAT(?,'%')       
-                ORDER BY p.fecha DESC, p.hora DESC
-                LIMIT ?,?`, [
-                parseInt(req.query.opcion),
-
+            const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
-
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
@@ -59,22 +34,9 @@ class Producto {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total
-                FROM producto AS p 
-                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria 
-                INNER JOIN medida AS m ON p.idMedida = m.idMedida 
-                INNER JOIN tipoProducto AS t ON t.idTipoProducto = p.idTipoProducto
-                INNER JOIN tipoTratamientoProducto AS ttp ON ttp.idTipoTratamientoProducto = p.idTipoTratamientoProducto
-                WHERE
-                ? = 0 
-                OR
-                ? = 1 AND p.nombre LIKE CONCAT(?,'%')`, [
+            const total = await conec.procedure(`CALL Listar_Productos_Count(?,?)`, [
                 parseInt(req.query.opcion),
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-
+                req.query.buscar
             ]);
             return { "result": resultLista, "total": total[0].Total }
         } catch (error) {
@@ -140,7 +102,8 @@ class Producto {
             const resultProducto = await conec.execute(connection, 'SELECT idProducto FROM producto');
             const idProducto = generateAlphanumericCode("PD0001", resultProducto, 'idProducto');
 
-            await conec.execute(connection, `INSERT INTO producto(
+            await conec.execute(connection, `
+            INSERT INTO producto(
                 idProducto,
                 idCategoria,
                 idConcepto,
@@ -189,7 +152,6 @@ class Producto {
             ])
 
             if (tipo === "TP0001") {
-
                 /**
                  * Generar id del inventario
                  */
@@ -216,7 +178,8 @@ class Producto {
                     const inventario = inventarios.find(inventario => almacen.idAlmacen === inventario.idAlmacen);
 
                     if (inventario) {
-                        await conec.execute(connection, `INSERT INTO inventario(
+                        await conec.execute(connection, `
+                        INSERT INTO inventario(
                             idInventario,
                             idProducto,
                             idAlmacen,
@@ -232,35 +195,61 @@ class Producto {
                             inventario.cantidadMinima,
                         ]);
 
-                        await conec.execute(connection, `INSERT INTO kardex(
+                        const resultInventarioInicial = await conec.execute(connection, 'SELECT idInventarioInicial FROM inventarioInicial');
+                        const idInventarioInicial = generateAlphanumericCode("IN0001", resultInventarioInicial, 'idInventarioInicial');
+
+                        await conec.execute(connection, `
+                        INSERT INTO inventarioInicial(
+                            idInventarioInicial,
+                            observacion,
+                            estado,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?)`, [
+                            idInventarioInicial,
+                            `El inventario inicial del producto ${nombre} se ha registrado correctamente con una cantidad de ${inventario.cantidad}.`,
+                            1,
+                            currentDate(),
+                            currentTime(),
+                            idUsuario
+                        ])
+
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
                             idKardex,
                             idProducto,
                             idTipoKardex,
                             idMotivoKardex,
+                            idInventarioInicial,
                             detalle,
                             cantidad,
                             costo,
                             idAlmacen,
-                            hora,
+                            idInventario,
                             fecha,
+                            hora,                            
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             idProducto,
-                            'TK0002',
-                            'MK0003',
+                            'TK0001',
+                            'MK0001',
+                            idInventarioInicial,
                             'INGRESO AL CREAR EL PRODUCTO',
                             inventario.cantidad,
                             costo,
                             inventario.idAlmacen,
-                            currentTime(),
+                            idInventario,
                             currentDate(),
+                            currentTime(),
                             idUsuario
                         ]);
 
                         idInventario++;
                     } else {
-                        await conec.execute(connection, `INSERT INTO inventario(
+                        await conec.execute(connection, `
+                        INSERT INTO inventario(
                             idInventario,
                             idProducto,
                             idAlmacen,
@@ -286,7 +275,8 @@ class Producto {
              */
             let idPrecio = 1;
 
-            await conec.execute(connection, `INSERT INTO precio(
+            await conec.execute(connection, `
+            INSERT INTO precio(
                 idPrecio,
                 idProducto,
                 nombre,
@@ -303,7 +293,8 @@ class Producto {
             for (const precio of precios) {
                 idPrecio++;
 
-                await conec.execute(connection, `INSERT INTO precio(
+                await conec.execute(connection, `
+                INSERT INTO precio(
                     idPrecio,
                     idProducto,
                     nombre,
@@ -321,6 +312,7 @@ class Producto {
             await conec.commit(connection);
             return "insert";
         } catch (error) {
+            logger.error(`Producto/add: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -330,7 +322,8 @@ class Producto {
 
     async id(req) {
         try {
-            const producto = await conec.query(`SELECT 
+            const producto = await conec.query(`
+            SELECT 
                 p.idProducto,
                 p.idCategoria,
                 p.idConcepto,
@@ -349,9 +342,12 @@ class Producto {
                 p.preferido,
                 p.imagen,
                 p.estado
-                FROM producto AS p
-                INNER JOIN precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
-                WHERE p.idProducto = ?`, [
+            FROM 
+                producto AS p
+            INNER JOIN 
+                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
+            WHERE 
+                p.idProducto = ?`, [
                 req.query.idProducto
             ]);
 
@@ -360,12 +356,15 @@ class Producto {
                 imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
             };
 
-            const precios = await conec.query(`SELECT
+            const precios = await conec.query(`
+            SELECT
                 ROW_NUMBER() OVER () AS id,
                 nombre,
                 valor AS precio
-                FROM precio 
-                WHERE idProducto = ? AND preferido <> 1`, [
+            FROM 
+                precio 
+            WHERE 
+                idProducto = ? AND preferido <> 1`, [
                 req.query.idProducto
             ]);
 
@@ -385,7 +384,13 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const validateCodigo = await conec.execute(connection, `SELECT 1 FROM producto WHERE codigo = ? AND idProducto <> ?`, [
+            const validateCodigo = await conec.execute(connection, `
+            SELECT 
+                1 
+            FROM 
+                producto 
+            WHERE 
+                codigo = ? AND idProducto <> ?`, [
                 req.body.codigo,
                 req.body.idProducto
             ]);
@@ -395,7 +400,13 @@ class Producto {
                 return "No se puede haber 2 producto con la misma clave.";
             }
 
-            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND idProducto <> ?`, [
+            const validateNombre = await conec.execute(connection, `
+            SELECT 
+                * 
+            FROM 
+                producto 
+            WHERE 
+                nombre = ? AND idProducto <> ?`, [
                 req.body.nombre,
                 req.body.idProducto
             ]);
@@ -413,13 +424,22 @@ class Producto {
                 await chmod(fileDirectory);
             }
 
-            const producto = await await conec.execute(connection, `SELECT imagen FROM producto WHERE idProducto = ?`, [
+            const producto = await await conec.execute(connection, `
+            SELECT 
+                imagen 
+            FROM 
+                producto 
+            WHERE 
+                idProducto = ?`, [
                 req.body.idProducto
             ])
 
             const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, producto[0].imagen);
 
-            await conec.execute(connection, `UPDATE producto SET
+            await conec.execute(connection, `
+            UPDATE 
+                producto 
+            SET
                 idCategoria = ?,
                 idMedida = ?,     
                 nombre = ?,
@@ -437,7 +457,8 @@ class Producto {
                 fupdate = ?,
                 hupdate = ?,
                 idUsuario = ?
-                WHERE idProducto = ?`, [
+            WHERE 
+                idProducto = ?`, [
                 req.body.idCategoria,
                 req.body.idMedida,
                 req.body.nombre,
@@ -468,7 +489,8 @@ class Producto {
              */
             let idPrecio = 1;
 
-            await conec.execute(connection, `INSERT INTO precio(
+            await conec.execute(connection, `
+            INSERT INTO precio(
                 idPrecio,
                 idProducto,
                 nombre,
@@ -485,7 +507,8 @@ class Producto {
             for (const precio of req.body.precios) {
                 idPrecio++;
 
-                await conec.execute(connection, `INSERT INTO precio(
+                await conec.execute(connection, `
+                INSERT INTO precio(
                     idPrecio,
                     idProducto,
                     nombre,
@@ -515,9 +538,7 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const {
-                idProducto
-            } = req.query;
+            const { idProducto } = req.query;
 
             const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto  = ?`, [
                 idProducto
@@ -570,7 +591,8 @@ class Producto {
 
     async detalle(req) {
         try {
-            const cabecera = await conec.query(`SELECT 
+            const cabecera = await conec.query(`
+            SELECT 
                 l.idProducto,
                 m.nombre as categoria,
                 l.descripcion as producto,
@@ -677,15 +699,19 @@ class Producto {
 
     async combo(req) {
         try {
-            const result = await conec.query(`SELECT 
-            p.idProducto,
-            p.idTipoProducto,
-            p.nombre,
-            p.costo,
-            m.nombre as medida 
-            FROM producto AS p
-            INNER JOIN medida as m ON m.idMedida = p.idMedida
-            WHERE p.idTipoProducto <> 'TP0003'`);
+            const result = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.idTipoProducto,
+                p.nombre,
+                p.costo,
+                m.nombre as medida 
+            FROM 
+                producto AS p
+            INNER JOIN 
+                medida as m ON m.idMedida = p.idMedida
+            WHERE 
+                p.idTipoProducto <> 'TP0003'`);
             return result
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
@@ -702,6 +728,7 @@ class Producto {
                 pc.valor AS precio,
                 c.nombre AS categoria,
                 tp.nombre as tipoProducto,
+                p.idTipoTratamientoProducto,
                 p.idMedida
             FROM 
                 producto AS p
@@ -712,9 +739,9 @@ class Producto {
             INNER JOIN 
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
-                p.codigo LIKE CONCAT(?,'%') 
+                (p.codigo LIKE CONCAT(?,'%')) 
                 OR 
-                p.nombre LIKE CONCAT(?,'%')`, [
+                (p.nombre LIKE CONCAT(?,'%'))`, [
                 req.query.filtrar,
                 req.query.filtrar,
             ])
@@ -726,23 +753,29 @@ class Producto {
 
     async filterAlmacen(req) {
         try {
-            const result = await conec.query(`SELECT 
-            p.idProducto,
-            p.nombre,
-            inv.cantidad,
-            p.costo,
-            c.nombre AS categoria,
-            tp.nombre as tipoProducto,
-            me.nombre AS unidad
-            FROM producto AS p
-            INNER JOIN categoria AS c ON c.idCategoria = p.idCategoria
-            INNER JOIN tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
-            INNER JOIN medida AS me ON me.idMedida = p.idMedida
-            INNER JOIN inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?          
+            const result = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.nombre,
+                inv.cantidad,
+                p.costo,
+                c.nombre AS categoria,
+                tp.nombre as tipoProducto,
+                me.nombre AS unidad
+            FROM 
+                producto AS p
+            INNER JOIN 
+                categoria AS c ON c.idCategoria = p.idCategoria
+            INNER JOIN 
+                tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+            INNER JOIN 
+                medida AS me ON me.idMedida = p.idMedida
+            INNER JOIN 
+                inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?          
             WHERE 
-            p.codigo LIKE CONCAT(?,'%')
-            OR 
-            p.nombre LIKE CONCAT(?,'%') `, [
+                (p.codigo LIKE CONCAT(?,'%'))
+                OR 
+                (p.nombre LIKE CONCAT(?,'%'))`, [
                 req.query.idAlmacen,
                 req.query.filtrar,
                 req.query.filtrar,
@@ -800,7 +833,13 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            await conec.execute(connection, "UPDATE producto SET preferido = ? WHERE idProducto = ? ", [
+            await conec.execute(connection, `
+            UPDATE 
+                producto 
+            SET 
+                preferido = ? 
+            WHERE 
+                idProducto = ?`, [
                 req.body.preferido,
                 req.body.idProducto
             ]);
@@ -817,7 +856,14 @@ class Producto {
 
     async obtenerListPrecio(req) {
         try {
-            const lista = await conec.query(`select nombre, valor from precio where idProducto = ?`, [
+            const lista = await conec.query(`
+            SELECT 
+                nombre, 
+                valor 
+            FROM 
+                precio 
+            WHERE 
+                idProducto = ?`, [
                 req.query.idProducto
             ]);
 

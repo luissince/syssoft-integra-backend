@@ -128,4 +128,13 @@ function sendNotFound(res, result) {
     return res.status(404).send(result);
 }
 
-module.exports = { sendSuccess, sendSave, sendError, sendClient, sendNoContent, sendExpired, sendNoAutorizado, sendNotFound };
+module.exports = {
+    sendSuccess,
+    sendSave,
+    sendError,
+    sendClient,
+    sendNoContent,
+    sendExpired,
+    sendNoAutorizado,
+    sendNotFound
+};

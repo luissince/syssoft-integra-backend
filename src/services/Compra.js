@@ -57,7 +57,11 @@ class Compra {
             } = req.body;
 
             // Genera un nuevo ID para la compra
-            const resultCompra = await conec.execute(connection, 'SELECT idCompra FROM compra');
+            const resultCompra = await conec.execute(connection, `
+            SELECT 
+                idCompra 
+            FROM 
+                compra`);
             const idCompra = generateAlphanumericCode("CP0001", resultCompra, 'idCompra');
 
             // Consulta datos del comprobante para generar la numeración
@@ -87,7 +91,8 @@ class Compra {
             const numeracion = generateNumericCode(comprobante[0].numeracion, compras, "numeracion");
 
             // Inserta la información principal de la compra en la base de datos
-            await conec.execute(connection, `INSERT INTO compra(
+            await conec.execute(connection, `
+            INSERT INTO compra(
                 idCompra,
                 idConcepto,
                 idProveedor,
@@ -124,11 +129,19 @@ class Compra {
             ]);
 
             // Genera un nuevo ID para los detalles de compra
-            const listaCompraDetalle = await conec.execute(connection, 'SELECT idCompraDetalle FROM compraDetalle');
+            const listaCompraDetalle = await conec.execute(connection, `
+            SELECT 
+                idCompraDetalle 
+            FROM 
+                compraDetalle`);
             let idCompraDetalle = generateNumericCode(1, listaCompraDetalle, 'idCompraDetalle');
 
             // Consulta el último ID de Kardex
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            const resultKardex = await conec.execute(connection, `
+            SELECT 
+                idKardex 
+            FROM 
+                kardex`);
             let idKardex = 0;
 
             if (resultKardex.length != 0) {
@@ -138,7 +151,8 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalle) {
-                await await conec.execute(connection, `INSERT INTO compraDetalle(
+                await await conec.execute(connection, `
+                INSERT INTO compraDetalle(
                     idCompraDetalle,
                     idCompra,
                     idProducto,
@@ -155,44 +169,56 @@ class Compra {
                 ]);
 
                 // Inserta información en el Kardex
-                await conec.execute(connection, `INSERT INTO kardex(
+                await conec.execute(connection, `
+                INSERT INTO kardex(
                     idKardex,
                     idProducto,
                     idTipoKardex,
                     idMotivoKardex,
+                    idCompra,
                     detalle,
                     cantidad,
                     costo,
                     idAlmacen,
+                    idInventario,
                     hora,
                     fecha,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     item.idProducto,
                     'TK0001',
                     'MK0002',
+                    idCompra,
                     'INGRESO POR COMPRA',
                     item.cantidad,
                     item.costo,
                     idAlmacen,
+                    inventario[0].idInventario,
                     currentTime(),
                     currentDate(),
                     idUsuario
                 ]);
 
                 // Actualiza el inventario
-                const inventario = await conec.execute(connection, `SELECT 
+                const inventario = await conec.execute(connection, `
+                SELECT 
                     idInventario 
-                    FROM inventario 
-                WHERE idProducto = ? AND idAlmacen = ?`, [
+                FROM 
+                    inventario 
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
                     item.idProducto,
                     idAlmacen,
                 ]);
 
-                await conec.execute(connection, `UPDATE inventario SET 
+                await conec.execute(connection, `
+                UPDATE 
+                    inventario 
+                SET 
                     cantidad = cantidad + ?
-                WHERE idInventario = ?`, [
+                WHERE 
+                    idInventario = ?`, [
                     item.cantidad,
                     inventario[0].idInventario
                 ]);
@@ -202,15 +228,24 @@ class Compra {
 
             // Si el tipo de compra es 1 (contado), realiza acciones adicionales
             if (idFormaCobro === 'FC0001') {
-                const listaSalidas = await conec.execute(connection, 'SELECT idSalida FROM salida');
+                const listaSalidas = await conec.execute(connection, `
+                SELECT 
+                    idSalida 
+                FROM 
+                    salida`);
                 let idSalida = generateNumericCode(1, listaSalidas, 'idSalida');
 
-                const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
+                const listaBancoDetalle = await conec.execute(connection, `
+                SELECT 
+                    idBancoDetalle 
+                FROM 
+                    bancoDetalle`);
                 let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
 
                 // Inserta información en la tabla de salidas
                 for (const item of metodoPago) {
-                    await conec.execute(connection, `INSERT INTO salida(
+                    await conec.execute(connection, `
+                    INSERT INTO salida(
                         idSalida,
                         idCompra,
                         idGasto,
@@ -234,7 +269,8 @@ class Compra {
                         idUsuario
                     ]);
 
-                    await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    await conec.execute(connection, `
+                    INSERT INTO bancoDetalle(
                         idBancoDetalle,
                         idBanco,
                         tipo,
@@ -259,30 +295,11 @@ class Compra {
                 }
             }
 
-            // Inserta información en la tabla de auditoría
-            const listaAuditoriaId = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            const idAuditoria = generateNumericCode(1, listaAuditoriaId, 'idAuditoria');
-
-            await conec.execute(connection, `INSERT INTO auditoria(
-                idAuditoria,
-                idProcedencia,
-                descripcion,
-                fecha,
-                hora,
-                idUsuario
-            ) VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                idCompra,
-                `REGSITRO DE COMPRA ${comprobante[0].serie}-${numeracion}`,
-                currentDate(),
-                currentTime(),
-                idUsuario
-            ]);
-
             // Confirma la transacción
             await conec.commit(connection);
             return "create";
         } catch (error) {
+            console.log(error)
             // En caso de error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
@@ -424,7 +441,8 @@ class Compra {
             connection = await conec.beginTransaction();
 
             // Consulta la información de la compra que se va a cancelar
-            const compra = await conec.execute(connection, `SELECT 
+            const compra = await conec.execute(connection, `
+            SELECT 
                 idAlmacen,
                 estado 
             FROM 
@@ -449,16 +467,20 @@ class Compra {
             }
 
             // Actualiza el estado de la compra a anulado
-            await conec.execute(connection, `UPDATE compra 
-                SET 
-                    estado = 3 
-                WHERE 
-                    idCompra = ?`, [
+            await conec.execute(connection, `
+            UPDATE 
+                compra 
+            SET 
+                estado = 3 
+            WHERE 
+                idCompra = ?`, [
                 req.query.idCompra
             ]);
 
             // Actualiza el estado de la salida asociada a la compra
-            await conec.execute(connection, `UPDATE salida 
+            await conec.execute(connection, `
+            UPDATE 
+                salida 
             SET 
                 estado = 0 
             WHERE 
@@ -466,12 +488,20 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            const salidas = await conec.execute(connection, `SELECT idBancoDetalle FROM salida WHERE idCompra = ?`, [
+            const salidas = await conec.execute(connection, `
+            SELECT 
+                idBancoDetalle 
+            FROM 
+                salida 
+            WHERE 
+                idCompra = ?`, [
                 req.query.idCompra
             ]);
 
             for (const item of salidas) {
-                await conec.execute(connection, `UPDATE bancoDetalle 
+                await conec.execute(connection, `
+                UPDATE 
+                    bancoDetalle 
                 SET 
                     estado = 0 
                 WHERE 
@@ -504,42 +534,52 @@ class Compra {
 
             // Itera sobre los detalles de la compra para realizar acciones en el kardex e inventario
             for (const item of detalleCompra) {
+                // Obtiene el kardex asociado
+                const kardex = await conec.execute(connection, `
+                SELECT 
+                    k.idProducto,
+                    k.cantidad,
+                    k.costo,
+                    k.idAlmacen,
+                    k.idInventario    
+                FROM 
+                    kardex AS k 
+                WHERE 
+                    k.idCompra = ? AND k.idProducto = ?`, [
+                    req.query.idCompra,
+                    item.idProducto,
+                ]);
+                
                 // Inserta un nuevo registro en el kardex
-                await conec.execute(connection, `INSERT INTO kardex(
+                await conec.execute(connection, `
+                INSERT INTO kardex(
                     idKardex,
                     idProducto,
                     idTipoKardex,
                     idMotivoKardex,
+                    idCompra,
                     detalle,
                     cantidad,
                     costo,
                     idAlmacen,
+                    idInventario,
                     hora,
                     fecha,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     item.idProducto,
                     'TK0002',
                     'MK0004',
+                    req.query.idCompra,
                     'ANULACIÓN DE LA COMPRA',
-                    item.cantidad,
-                    item.costo,
-                    compra[0].idAlmacen,
+                    kardex[0].cantidad,
+                    kardex[0].costo,
+                    kardex[0].idAlmacen,
+                    kardex[0].idInventario,
                     currentTime(),
                     currentDate(),
                     req.query.idUsuario
-                ]);
-
-                // Obtiene el inventario asociado al producto y almacén
-                const inventario = await conec.execute(connection, `
-                SELECT 
-                    idInventario 
-                    FROM inventario 
-                WHERE 
-                    idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    compra[0].idAlmacen,
                 ]);
 
                 // Actualiza la cantidad en el inventario
@@ -550,8 +590,8 @@ class Compra {
                     cantidad = cantidad - ?
                 WHERE 
                     idInventario = ?`, [
-                    item.cantidad,
-                    inventario[0].idInventario
+                    kardex[0].cantidad,
+                    kardex[0].idInventario
                 ]);
             }
 

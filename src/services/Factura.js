@@ -85,8 +85,6 @@ class Factura {
                 importeTotal
             } = req.body;
 
-            // console.log(req.body)
-
             /**
              * Validación de productos inventariables
              */
@@ -114,8 +112,8 @@ class Factura {
                         ]);
 
                         if (result[0].negativo === 0) {
-                            const cantidadActual = rounded(inventario.cantidad);
-                            const cantidadReal = rounded(result[0].cantidad);
+                            const cantidadActual = parseFloat(inventario.cantidad);
+                            const cantidadReal = parseFloat(result[0].cantidad);
 
                             if (cantidadActual > cantidadReal) {
                                 validarInventario++;
@@ -151,7 +149,8 @@ class Factura {
                     const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
                     const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-                    await conec.execute(connection, `INSERT INTO persona(
+                    await conec.execute(connection, `
+                    INSERT INTO persona(
                         idPersona,
                         idTipoCliente,
                         idTipoDocumento,
@@ -229,7 +228,8 @@ class Factura {
              * Proceso para ingresar una venta.
              */
 
-            await conec.execute(connection, `INSERT INTO venta(
+            await conec.execute(connection, `
+            INSERT INTO venta(
                 idVenta,
                 idConcepto,
                 idCliente,
@@ -304,34 +304,39 @@ class Factura {
                         let cantidad = 0;
 
                         if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
-                            cantidad = rounded(inventario.cantidad);
+                            cantidad = inventario.cantidad;
                         }
 
                         if (item.idTipoTratamientoProducto === 'TT0002') {
-                            cantidad = rounded(item.precio / producto[0].precio);
+                            cantidad = item.precio / producto[0].precio;
                         }
 
-                        await conec.execute(connection, `INSERT INTO kardex(
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
                             idKardex,
                             idProducto,
                             idTipoKardex,
                             idMotivoKardex,
+                            idVenta,
                             detalle,
                             cantidad,
                             costo,
                             idAlmacen,
+                            idInventario,
                             hora,
                             fecha,
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             item.idProducto,
                             'TK0002',
                             'MK0003',
+                            idVenta,
                             'SALIDA DEL PRODUCTO POR VENTA',
                             cantidad,
                             producto[0].costo,
                             inventario.idAlmacen,
+                            inventario.idInventario,
                             currentTime(),
                             currentDate(),
                             idUsuario
@@ -359,10 +364,11 @@ class Factura {
 
                     if (item.idTipoTratamientoProducto === 'TT0002') {
                         precio = producto[0].precio;
-                        cantidad = rounded(item.precio / producto[0].precio);
+                        cantidad = item.precio / producto[0].precio;
                     }
 
-                    await conec.execute(connection, `INSERT INTO ventaDetalle(
+                    await conec.execute(connection, `
+                    INSERT INTO ventaDetalle(
                         idVentaDetalle,
                         idVenta,
                         idProducto,
@@ -420,7 +426,8 @@ class Factura {
 
                 // Proceso de registro  
                 for (const item of bancosAgregados) {
-                    await conec.execute(connection, `INSERT INTO ingreso(
+                    await conec.execute(connection, `
+                    INSERT INTO ingreso(
                         idIngreso,
                         idVenta,
                         idCobro,
@@ -444,7 +451,8 @@ class Factura {
                         idUsuario
                     ]);
 
-                    await conec.execute(connection, `INSERT INTO bancoDetalle(
+                    await conec.execute(connection, `
+                    INSERT INTO bancoDetalle(
                         idBancoDetalle,
                         idBanco,
                         tipo,
@@ -498,7 +506,8 @@ class Factura {
                     i++;
                     cuota++;
 
-                    await conec.execute(connection, `INSERT INTO plazo(
+                    await conec.execute(connection, `
+                    INSERT INTO plazo(
                         idPlazo,
                         idVenta,
                         cuota,
@@ -528,31 +537,6 @@ class Factura {
             if (idFormaPago === "FP0004") {
 
             }
-
-            /**
-             * Proceso de registrar datos en la tabla auditoria para tener un control de los movimientos echos.
-             */
-
-            // Generar el Id único
-            const listAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            const idAuditoria = generateNumericCode(1, listAuditoria, 'idAuditoria');
-
-            // Proceso de registro            
-            await conec.execute(connection, `INSERT INTO auditoria(
-                idAuditoria,
-                idProcedencia,
-                descripcion,
-                fecha,
-                hora,
-                idUsuario
-            ) VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                idVenta,
-                `REGISTRO DEL COMPROBANTE ${comprobante[0].serie}-${numeracion}`,
-                currentDate(),
-                currentTime(),
-                idUsuario
-            ]);
 
             await conec.commit(connection);
             return sendSave(res, {
@@ -590,12 +574,18 @@ class Factura {
                 m.simbolo,
                 m.codiso,
                 m.nombre as moneda
-            FROM venta AS v 
-                INNER JOIN persona AS c ON v.idCliente = c.idPersona
-                INNER JOIN usuario AS us ON us.idUsuario = v.idUsuario 
-                INNER JOIN tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-                INNER JOIN comprobante AS com ON v.idComprobante = com.idComprobante
-                INNER JOIN moneda AS m ON m.idMoneda = v.idMoneda
+            FROM 
+                venta AS v 
+            INNER JOIN 
+                persona AS c ON v.idCliente = c.idPersona
+            INNER JOIN 
+                usuario AS us ON us.idUsuario = v.idUsuario 
+            INNER JOIN 
+                tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
+            INNER JOIN 
+                comprobante AS com ON v.idComprobante = com.idComprobante
+            INNER JOIN 
+                moneda AS m ON m.idMoneda = v.idMoneda
             WHERE 
                 v.idVenta = ?`, [
                 req.query.idVenta
@@ -612,11 +602,16 @@ class Factura {
                 vd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
-            FROM ventaDetalle AS vd 
-                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            FROM 
+                ventaDetalle AS vd 
+            INNER JOIN 
+                producto AS p ON vd.idProducto = p.idProducto 
+            INNER JOIN 
+                medida AS md ON md.idMedida = p.idMedida 
+            INNER JOIN 
+                categoria AS m ON p.idCategoria = m.idCategoria 
+            INNER JOIN 
+                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
                 vd.idVenta = ?`, [
                 req.query.idVenta
@@ -638,7 +633,8 @@ class Factura {
                 banco as mp on mp.idBanco = bd.idBanco              
             WHERE 
                 i.idVenta = ? AND i.estado = 1
-            ORDER BY fecha DESC, i.hora DESC`, [
+            ORDER BY 
+                fecha DESC, i.hora DESC`, [
                 req.query.idVenta
             ]);
 
@@ -657,7 +653,8 @@ class Factura {
             connection = await conec.beginTransaction();
 
             // Obtener información de la venta para el id proporcionado
-            const venta = await conec.execute(connection, `SELECT 
+            const venta = await conec.execute(connection, `
+            SELECT 
                 serie, 
                 numeracion, 
                 estado 
@@ -681,7 +678,9 @@ class Factura {
             }
 
             // Actualizar el estado de la venta a anulado
-            await conec.execute(connection, `UPDATE venta 
+            await conec.execute(connection, `
+            UPDATE 
+                venta 
             SET 
                 estado = 3 
             WHERE 
@@ -690,7 +689,13 @@ class Factura {
             ]);
 
             // Actualizar el estado de los ingresos y banco detalle
-            const ingresos = await conec.execute(connection, `SELECT idBancoDetalle FROM ingreso WHERE idVenta = ?`, [
+            const ingresos = await conec.execute(connection, `
+            SELECT 
+                idBancoDetalle 
+            FROM 
+                ingreso 
+            WHERE 
+                idVenta = ?`, [
                 req.query.idVenta
             ])
 
@@ -703,7 +708,9 @@ class Factura {
             ]);
 
             for (const item of ingresos) {
-                await conec.execute(connection, `UPDATE bancoDetalle 
+                await conec.execute(connection, `
+                UPDATE 
+                    bancoDetalle 
                 SET 
                     estado = 0 
                 WHERE 
@@ -713,9 +720,9 @@ class Factura {
             }
 
             // Obtener detalles de la venta
-            const detalleVenta = await conec.execute(connection, `SELECT 
+            const detalleVenta = await conec.execute(connection, `
+            SELECT 
                 idProducto, 
-                idInventario, 
                 precio, 
                 cantidad 
             FROM 
@@ -726,7 +733,11 @@ class Factura {
             ]);
 
             // Obtener el máximo idKardex existente
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            const resultKardex = await conec.execute(connection, `
+            SELECT 
+                idKardex 
+            FROM 
+                kardex`);
             let idKardex = 0;
 
             if (resultKardex.length !== 0) {
@@ -734,87 +745,68 @@ class Factura {
                 idKardex = Math.max(...quitarValor);
             }
 
-            // Iterar sobre los detalles de la venta y realizar operaciones de anulación
-            for (const item of detalleVenta) {
-                // Obtener el costo del producto
-                const producto = await conec.execute(connection, `
+            for (const detalle of detalleVenta) {
+                const kardex = await conec.execute(connection, `
                 SELECT 
-                    costo 
-                FROM producto 
-                WHERE 
-                    idProducto = ?`, [
-                    item.idProducto
-                ]);
-
-                // Obtener el idAlmacen del inventario
-                const inventario = await conec.execute(connection, `
-                SELECT
-                    idAlmacen 
+                    k.idProducto,
+                    k.cantidad,
+                    k.costo,
+                    k.idAlmacen,
+                    k.idInventario    
                 FROM 
-                    inventario 
+                    kardex AS k 
                 WHERE 
-                    idInventario = ?`, [
-                    item.idInventario
+                    k.idVenta = ? AND k.idProducto = ?`, [
+                    req.query.idVenta,
+                    detalle.idProducto
                 ]);
 
-                // Insertar registro en la tabla kardex para anulación
-                await conec.execute(connection, `INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0001',
-                    'MK0004',
-                    'ANULACIÓN DE LA VENTA',
-                    item.cantidad,
-                    producto[0].costo,
-                    inventario[0].idAlmacen,
-                    currentTime(),
-                    currentDate(),
-                    req.query.idUsuario
-                ]);
+                for (const item of kardex) {
+                    // Insertar registro en la tabla kardex para anulación
+                    await conec.execute(connection, `
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idVenta,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        idInventario,
+                        hora,
+                        fecha,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        item.idProducto,
+                        'TK0001',
+                        'MK0004',
+                        req.query.idVenta,
+                        'ANULACIÓN DE LA VENTA',
+                        item.cantidad,
+                        item.costo,
+                        item.idAlmacen,
+                        item.idInventario,
+                        currentTime(),
+                        currentDate(),
+                        req.query.idUsuario
+                    ]);
 
-                // Actualizar la cantidad en el inventario
-                await conec.execute(connection, `UPDATE inventario 
-                SET 
-                    cantidad = cantidad + ?
-                WHERE 
-                    idInventario = ?`, [
-                    item.cantidad,
-                    item.idInventario
-                ]);
+                    // Actualizar la cantidad en el inventario
+                    await conec.execute(connection, `
+                    UPDATE 
+                        inventario 
+                    SET 
+                        cantidad = cantidad + ?
+                    WHERE 
+                        idInventario = ?`, [
+                        item.cantidad,
+                        item.idInventario,
+                    ]);
+                }
             }
-
-            // Obtener el máximo idAuditoria existente
-            const listAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            const idAuditoria = generateNumericCode(1, listAuditoria, 'idAuditoria');
-
-            // Insertar registro en la tabla auditoria para anulación de la venta
-            await conec.execute(connection, `INSERT INTO auditoria(
-                idAuditoria,
-                idProcedencia,
-                descripcion,
-                fecha,
-                hora,
-                idUsuario
-            ) VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                req.query.idVenta,
-                `ANULACIÓN DEL COMPROBANTE ${venta[0].serie}-${venta[0].numeracion}`,
-                currentDate(),
-                currentTime(),
-                req.query.idUsuario
-            ]);
 
             // Confirmar la transacción
             await conec.commit(connection);
@@ -822,6 +814,7 @@ class Factura {
             // Enviar respuesta exitosa
             return sendSave(res, "Se anuló correctamente la venta.");
         } catch (error) {
+            console.log(error)
             // Manejar errores y realizar rollback en caso de problemas
             if (connection != null) {
                 await conec.rollback(connection);
@@ -857,12 +850,18 @@ class Factura {
                 vd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
-            FROM ventaDetalle AS vd 
-                INNER JOIN producto AS p ON vd.idProducto = p.idProducto 
-                INNER JOIN medida AS md ON md.idMedida = p.idMedida 
-                INNER JOIN categoria AS m ON p.idCategoria = m.idCategoria 
-                INNER JOIN impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
-            WHERE vd.idVenta = ?`, [
+            FROM 
+                ventaDetalle AS vd 
+            INNER JOIN 
+                producto AS p ON vd.idProducto = p.idProducto 
+            INNER JOIN 
+                medida AS md ON md.idMedida = p.idMedida 
+            INNER JOIN 
+                categoria AS m ON p.idCategoria = m.idCategoria 
+            INNER JOIN 
+                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+            WHERE 
+                vd.idVenta = ?`, [
                 req.query.idVenta
             ]);
 
@@ -946,7 +945,9 @@ class Factura {
             const enviado = bancosAgregados.reduce((accumulator, item) => accumulator + parseFloat(item.monto), 0);
 
             if (actual + enviado >= monto) {
-                await conec.execute(connection, `UPDATE plazo
+                await conec.execute(connection, `
+                UPDATE 
+                    plazo
                 SET 
                     estado = 1
                 WHERE 
@@ -966,7 +967,8 @@ class Factura {
                 SUM(cd.cantidad * cd.precio) AS total
             FROM 
                 venta AS c 
-                INNER JOIN ventaDetalle AS cd ON cd.idVenta = c.idVenta
+            INNER JOIN 
+                ventaDetalle AS cd ON cd.idVenta = c.idVenta
             WHERE 
                 c.idVenta = ?`, [
                 idVenta
@@ -974,7 +976,9 @@ class Factura {
 
 
             if (sumaIngresos + enviado >= venta[0].total) {
-                await conec.execute(connection, `UPDATE venta
+                await conec.execute(connection, `
+                UPDATE 
+                    venta
                 SET 
                     estado = 1
                 WHERE 
@@ -994,7 +998,8 @@ class Factura {
 
             // Proceso de registro  
             for (const item of bancosAgregados) {
-                await conec.execute(connection, `INSERT INTO ingreso(
+                await conec.execute(connection, `
+                INSERT INTO ingreso(
                     idIngreso,
                     idVenta,
                     idCobro,
@@ -1018,7 +1023,8 @@ class Factura {
                     idUsuario
                 ]);
 
-                await conec.execute(connection, `INSERT INTO bancoDetalle(
+                await conec.execute(connection, `
+                INSERT INTO bancoDetalle(
                     idBancoDetalle,
                     idBanco,
                     tipo,
@@ -1038,7 +1044,8 @@ class Factura {
                     idUsuario
                 ]);
 
-                await conec.execute(connection, `INSERT INTO plazoIngreso(
+                await conec.execute(connection, `
+                INSERT INTO plazoIngreso(
                     idPlazoIngreso,
                     idPlazo,
                     idIngreso
@@ -1140,7 +1147,8 @@ class Factura {
                 ) AS cobrado
             FROM 
                 venta AS c 
-                INNER JOIN ventaDetalle AS cd ON cd.idVenta = c.idVenta
+            INNER JOIN 
+                ventaDetalle AS cd ON cd.idVenta = c.idVenta
             WHERE 
                 c.idVenta = ?`, [
                 req.query.idVenta

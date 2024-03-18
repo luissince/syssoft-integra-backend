@@ -11,12 +11,13 @@ const {
     mkdir,
     chmod,
     processImage,
-    generateAlphanumericCode
+    generateAlphanumericCode,
+    processFilePem
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
+const logger = require('../tools/Logger');
 const conec = new Conexion();
-
 require('dotenv').config();
 
 class Empresa {
@@ -24,7 +25,8 @@ class Empresa {
     async infoEmpresaReporte(req) {
         try {
 
-            let empresa = await conec.query(`SELECT 
+            const empresa = await conec.query(`
+            SELECT 
                 e.idEmpresa,
                 e.nombreEmpresa,
                 e.documento as ruc,
@@ -35,19 +37,25 @@ class Empresa {
                 e.rutaImage,
                 e.usuarioEmail,
                 e.claveEmail
-                FROM empresa AS e
-                LEFT JOIN ubigeo AS u ON e.idUbigeo  = u.idUbigeo 
-                LIMIT 1`);
+            FROM 
+                empresa AS e
+            LEFT JOIN 
+                ubigeo AS u ON e.idUbigeo  = u.idUbigeo 
+            LIMIT 
+                1`);
 
-            let sucursal = await conec.query(`SELECT 
+            const sucursal = await conec.query(`
+            SELECT 
                 idSucursal,
                 nombre AS nombreSucursal
-                FROM sucursal
-                WHERE idSucursal = ?`, [
+            FROM 
+                sucursal
+            WHERE 
+                idSucursal = ?`, [
                 req.query.idSucursal,
             ]);
 
-            let result = [...empresa, ...sucursal];
+            const result = [...empresa, ...sucursal];
 
             if (result.length >= 1) {
                 return {
@@ -76,7 +84,8 @@ class Empresa {
                     claveSolSunat
                 FROM 
                     empresa 
-                LIMIT 1`);
+                LIMIT 
+                    1`);
 
             if (!primeraEmpresa) {
                 throw new Error('No se encontraron datos de empresa.');
@@ -96,7 +105,8 @@ class Empresa {
 
     async id(req, res) {
         try {
-            const [primeraEmpresa] = await conec.query(`SELECT  
+            const [primeraEmpresa] = await conec.query(`
+            SELECT  
                 idEmpresa,
                 documento,
                 razonSocial,
@@ -107,6 +117,8 @@ class Empresa {
                 claveEmail,
                 usuarioSolSunat,
                 claveSolSunat,
+                certificadoSunat,
+                claveCertificadoSunat,
                 idApiSunat,
                 claveApiSunat
             FROM 
@@ -133,18 +145,27 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            const fileDirectory = path.join(__dirname, '..', 'path', 'company');
-            const exists = await isDirectory(fileDirectory);
+            // const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
+            // const existsCertificates = await isDirectory(fileCertificates);
 
-            if (!exists) {
-                await mkdir(fileDirectory);
-                await chmod(fileDirectory);
+            // if (!existsCertificates) {
+            //     await mkdir(fileCertificates);
+            //     await chmod(fileCertificates);
+            // }
+
+            const fileCompany = path.join(__dirname, '..', 'path', 'company');
+            const existsCompany = await isDirectory(fileCompany);
+
+            if (!existsCompany) {
+                await mkdir(fileCompany);
+                await chmod(fileCompany);
             }
 
             const empresa = await conec.execute(connection, `
             SELECT
                 rutaLogo,
-                rutaImage
+                rutaImage,
+                certificadoSunat
             FROM 
                 empresa
             WHERE 
@@ -152,29 +173,53 @@ class Empresa {
                 req.body.idEmpresa
             ]);
 
-            const rutaLogo = await processImage(fileDirectory, req.body.logo, req.body.extlogo, empresa[0].rutaLogo);
-            const rutaImage = await processImage(fileDirectory, req.body.image, req.body.extimage, empresa[0].rutaImage);
+            // const rutaCertificado = await processFilePem(
+            //     fileCertificates,
+            //     req.body.certificado,
+            //     req.body.documento,
+            //     req.body.extCertificado,
+            //     req.body.claveCertificado,
+            //     empresa[0].certificadoSunat
+            // );
 
-            await conec.execute(connection, `UPDATE empresa SET 
-            documento = ?,
-            razonSocial = ?,
-            nombreEmpresa = ?,
+            const rutaLogo = await processImage(
+                fileCompany,
+                req.body.logo,
+                req.body.extlogo,
+                empresa[0].rutaLogo
+            );
+            const rutaImage = await processImage(
+                fileCompany,
+                req.body.image,
+                req.body.extimage,
+                empresa[0].rutaImage
+            );
 
-            rutaLogo=?,
-            rutaImage=?,
+            await conec.execute(connection, `
+            UPDATE 
+                empresa 
+            SET 
+                documento = ?,
+                razonSocial = ?,
+                nombreEmpresa = ?,
 
-            usuarioEmail=?,
-            claveEmail=?,
+                rutaLogo=?,
+                rutaImage=?,
 
-            usuarioSolSunat=?,
-            claveSolSunat=?,
-            idApiSunat=?,
-            claveApiSunat=?,
+                usuarioEmail=?,
+                claveEmail=?,
 
-            fupdate= ?,
-            hupdate=?,
-            idUsuario=?
-            WHERE idEmpresa =?`, [
+                usuarioSolSunat=?,
+                claveSolSunat=?,
+
+                idApiSunat=?,
+                claveApiSunat=?,
+
+                fupdate= ?,
+                hupdate=?,
+                idUsuario=?
+            WHERE 
+                idEmpresa =?`, [
                 req.body.documento,
                 req.body.razonSocial,
                 req.body.nombreEmpresa,
@@ -187,6 +232,7 @@ class Empresa {
 
                 req.body.usuarioSolSunat,
                 req.body.claveSolSunat,
+
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
 
@@ -196,27 +242,84 @@ class Empresa {
                 req.body.idEmpresa
             ]);
 
+            // await conec.execute(connection, `
+            // UPDATE 
+            //     empresa 
+            // SET 
+            //     documento = ?,
+            //     razonSocial = ?,
+            //     nombreEmpresa = ?,
+
+            //     rutaLogo=?,
+            //     rutaImage=?,
+
+            //     usuarioEmail=?,
+            //     claveEmail=?,
+
+            //     usuarioSolSunat=?,
+            //     claveSolSunat=?,
+
+            //     certificadoSunat=?,
+            //     claveCertificadoSunat=?,
+
+            //     idApiSunat=?,
+            //     claveApiSunat=?,
+
+            //     fupdate= ?,
+            //     hupdate=?,
+            //     idUsuario=?
+            // WHERE 
+            //     idEmpresa =?`, [
+            //     req.body.documento,
+            //     req.body.razonSocial,
+            //     req.body.nombreEmpresa,
+
+            //     rutaLogo,
+            //     rutaImage,
+
+            //     req.body.usuarioEmail,
+            //     req.body.claveEmail,
+
+            //     req.body.usuarioSolSunat,
+            //     req.body.claveSolSunat,
+
+            //     rutaCertificado,
+            //     req.body.claveCertificado,
+
+            //     req.body.idApiSunat,
+            //     req.body.claveApiSunat,
+
+            //     currentDate(),
+            //     currentTime(),
+            //     req.body.idUsuario,
+            //     req.body.idEmpresa
+            // ]);
+
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente los datos de la empresa.");
         } catch (error) {
-
+            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Ocurrió un problema inesperado y no pudimos completar la solicitud en este momento. Por favor, revise los registros para obtener más información");
         }
     }
 
     async config(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idEmpresa,
-            documento,
-            razonSocial,
-            nombreEmpresa,
-            rutaLogo,
-            rutaImage
-            FROM empresa LIMIT 1`);
+            const result = await conec.query(`
+            SELECT 
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage
+            FROM 
+                empresa 
+            LIMIT 
+                1`);
             if (result.length > 0) {
                 return sendSuccess(res, result[0]);
             } else {
@@ -264,7 +367,8 @@ class Empresa {
                 fileImage = nameImage;
             }
 
-            await conec.execute(connection, `INSERT INTO empresa(
+            await conec.execute(connection, `
+            INSERT INTO empresa(
                 idEmpresa,
                 idTipoDocumento,
                 documento,
@@ -322,15 +426,17 @@ class Empresa {
 
     async combo(req, res) {
         try {
-            const result = await conec.query('SELECT idEmpresa, nombreEmpresa FROM empresa');
+            const result = await conec.query(`
+            SELECT
+                idEmpresa,
+                nombreEmpresa 
+            FROM 
+                empresa`);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
-
-    
-
 }
 
 module.exports = new Empresa();

@@ -200,31 +200,6 @@ class Cobro {
                 idBancoDetalle++;
             }
 
-            /**
-             * Proceso de registrar datos en la tabla auditoria para tener un control de los movimientos echos.
-             */
-
-            // Generar el Id único
-            const listaAuditoriaId = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            const idAuditoria = generateNumericCode(1, listaAuditoriaId, 'idAuditoria');
-
-            // Proceso de registro            
-            await conec.execute(connection, `INSERT INTO auditoria(
-                idAuditoria,
-                idProcedencia,
-                descripcion,
-                fecha,
-                hora,
-                idUsuario) 
-                VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                idCobro,
-                `REGSITRO DE COBRO ${comprobante[0].serie}-${numeracion}`,
-                currentDate(),
-                currentTime(),
-                idUsuario
-            ]);
-
             await conec.commit(connection);
             return 'create';
         } catch (error) {

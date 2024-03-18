@@ -654,47 +654,6 @@ class NotaCredito {
                 await conec.execute(connection, `DELETE FROM bancoDetalle WHERE idProcedencia  = ?`, [
                     req.body.idCobro
                 ]);
-
-                /**
-                 * Registro de la tabla auditoria para saber quien realizo tal proceso
-                 */
-
-                /**
-                 * Creación de llave primaria que es autoincremental
-                 */
-                let resultAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-                let idAuditoria = 0;
-                if (resultAuditoria.length != 0) {
-                    let quitarValor = resultAuditoria.map(function (item) {
-                        return parseInt(item.idAuditoria);
-                    });
-
-                    let valorActual = Math.max(...quitarValor);
-                    let incremental = valorActual + 1;
-
-                    idAuditoria = incremental;
-                } else {
-                    idAuditoria = 1;
-                }
-
-                /**
-                 * Registrar los datos en la tabla auditoria
-                 */
-                await conec.execute(connection, `INSERT INTO auditoria(
-                     idAuditoria,
-                     idProcedencia,
-                     descripcion,
-                     fecha,
-                     hora,
-                     idUsuario) 
-                     VALUES(?,?,?,?,?,?)`, [
-                    idAuditoria,
-                    cobro[0].idCobro,
-                    `ANULACIÓN CON NOTA DE CRÉDITO ${cobro[0].serie}-${cobro[0].numeracion}`,
-                    currentDate(),
-                    currentTime(),
-                    req.body.idUsuario,
-                ]);
             }
 
 
@@ -753,47 +712,6 @@ class NotaCredito {
              */
             await conec.execute(connection, `UPDATE notaCredito SET estado = 0 WHERE idNotaCredito = ?`, [
                 req.query.idNotaCredito
-            ]);
-
-            /**
-             * Registro de la tabla auditoria para saber quien realizo tal proceso
-             */
-
-            /**
-             * Creación de llave primaria que es autoincremental
-             */
-            const resultAuditoria = await conec.execute(connection, 'SELECT idAuditoria FROM auditoria');
-            let idAuditoria = 0;
-            if (resultAuditoria.length != 0) {
-                let quitarValor = resultAuditoria.map(function (item) {
-                    return parseInt(item.idAuditoria);
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-
-                idAuditoria = incremental;
-            } else {
-                idAuditoria = 1;
-            }
-
-            /**
-             * Registrar los datos en la tabla auditoria
-             */
-            await conec.execute(connection, `INSERT INTO auditoria(
-                        idAuditoria,
-                        idProcedencia,
-                        descripcion,
-                        fecha,
-                        hora,
-                        idUsuario) 
-                        VALUES(?,?,?,?,?,?)`, [
-                idAuditoria,
-                req.query.idNotaCredito,
-                `ANULACIÓN DE LA NOTA DE CRÉDITO ${validate[0].serie}-${validate[0].numeracion}`,
-                currentDate(),
-                currentTime(),
-                req.query.idUsuario,
             ]);
 
             /**

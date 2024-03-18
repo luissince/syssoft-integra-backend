@@ -2,10 +2,12 @@ const { promisify } = require('util');
 const fs = require("fs");
 const path = require("path");
 const lstatAsync = promisify(fs.lstat);
-const unlinkAsync = promisify(fs.unlink);
+const unlinkFileAsync = promisify(fs.unlink);
+const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
+const forge = require('node-forge');
 
 function isNumber(value) {
     return typeof value === 'number';
@@ -34,11 +36,8 @@ async function isFile(file) {
 }
 
 async function removeFile(file) {
-    try {
-        await unlinkAsync(file);
-        return true;
-    } catch (error) {
-        return false;
+    if (fs.existsSync(file)) {
+        await unlinkFileAsync(file);
     }
 }
 
@@ -95,21 +94,72 @@ function dateFormat(value) {
 }
 
 async function processImage(fileDirectory, image, ext, existingImage) {
-    if (image !== '') {
-        if (existingImage) {
-            await removeFile(path.join(fileDirectory, existingImage));
-        }
-
-        const timestamp = Date.now();
-        const uniqueId = Math.random().toString(36).substring(2, 9);
-        const nameImage = `${timestamp}_${uniqueId}.${ext}`;
-
-        await writeFile(path.join(fileDirectory, nameImage), image);
-
-        return nameImage;
+    if (image === '') {
+        return existingImage;
     }
 
-    return existingImage;
+    if (existingImage) {
+        await removeFile(path.join(fileDirectory, existingImage));
+    }
+
+    const timestamp = Date.now();
+    const uniqueId = Math.random().toString(36).substring(2, 9);
+    const name = `${timestamp}_${uniqueId}.${ext}`;
+
+    await writeFile(path.join(fileDirectory, name), image);
+
+    return name;
+}
+
+async function processFilePem(fileDirectory, file, name, ext, password, existingFile) {
+    // Verificar si hay un archivo para procesar
+    if (file === '') {
+        // Si no hay archivo, devolver el nombre del archivo existente
+        return existingFile;
+    }
+
+    // Crear el nombre del nuevo archivo
+    const nameFile = `${name}.${ext}`;
+
+    try {
+        // Si hay un archivo existente, eliminarlo
+        if (existingFile) {
+            await removeFile(path.join(fileDirectory, existingFile));
+        }
+
+        // Escribir el archivo en el directorio especificado
+        await writeFileAsync(path.join(fileDirectory, nameFile), file, 'base64');
+
+        // Leer el archivo recién creado y procesarlo
+        const data = await readFileAsync(path.join(fileDirectory, nameFile));
+        const p12Asn1 = forge.asn1.fromDer(data.toString('binary'));
+        const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+
+        // Extraer la clave privada y el certificado del archivo P12
+        const bags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+        if (!bags || bags.length === 0) {
+            throw new Error("No se encontró ninguna clave privada en el archivo.");
+        }
+
+        const privateKeyBag = bags[forge.pki.oids.pkcs8ShroudedKeyBag][0];
+        const privateKey = privateKeyBag.key;
+
+        const certBag = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag][0];
+        const cert = certBag.cert;
+
+        // Convertir la clave privada y el certificado en formato PEM
+        const privateKeyPem = forge.pki.privateKeyInfoToPem(forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(privateKey)));
+        const certPem = forge.pki.certificateToPem(cert);
+
+        // Escribir la clave privada y el certificado en archivos separados
+        await writeFileAsync(path.join(fileDirectory, "privateKey.pem"), privateKeyPem);
+        await writeFileAsync(path.join(fileDirectory, "certificate.pem"), certPem);
+
+        // Devolver el nombre del archivo procesado
+        return nameFile;
+    } catch (error) {
+        throw new Error(error.message);
+    }
 }
 
 function formatMoney(amount, decimalCount = 2, decimal = ".", thousands = "") {
@@ -272,5 +322,6 @@ module.exports = {
     generateAlphanumericCode,
     generateNumericCode,
     processImage,
+    processFilePem,
     rounded
 };
