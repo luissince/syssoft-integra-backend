@@ -22,6 +22,9 @@ WORKDIR /app
 # Copiar los archivos desde la etapa de construcción (builder) al directorio de trabajo
 COPY --chown=node:node --from=builder /app .
 
+# Crear el directorio de logs y dar permisos
+RUN mkdir logs && chown -R node:node logs
+
 # Cambiar al usuario no privilegiado (node) por razones de seguridad
 USER node
 
