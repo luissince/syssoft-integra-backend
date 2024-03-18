@@ -1,7 +1,7 @@
 # Nombre del flujo de trabajo: Docker Image CI - SySoftIntegra BackEnd
 name: Docker Staging CI - SySoftIntegra BackEnd
 
-# Desencadenadores de eventos: se activará en el push a las ramas 'master' y 'test'
+# Desencadenadores de eventos: se activará en el push a las ramas 'staging'
 on:
   push:
     branches: 
@@ -11,7 +11,7 @@ on:
 jobs:
   # Job para construir y desplegar la aplicación en el entorno de prueba
   build-and-deploy-app-unnagro:
-    # Condición para ejecutar este job: cuando se hace un push a la rama 'test'
+    # Condición para ejecutar este job: cuando se hace un push a la rama 'staging'
     runs-on: self-hosted
     environment: unnagro
 
