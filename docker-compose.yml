@@ -159,6 +159,26 @@ services:
     volumes:
       - unnagro-backend-volumen:/app/src/path
 
+  leatsac-services:
+    # Configuración para construir la imagen del contenedor desde el contexto actual
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Nombre de la imagen de la imagen generada
+    image: leatsac-backend-image
+    # Nombre del contenedor
+    container_name: leatsac-backend
+    # Configuración para reiniciar siempre el contenedor
+    restart: always
+    # Configuración de redes
+    networks:
+      - luis
+    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
+    ports:
+      - 6031:80
+    volumes:
+      - leatsac-backend-volumen:/app/src/path
+
 # Definición de redes
 networks:
   # Red llamada 'luis'
@@ -173,3 +193,4 @@ volumes:
   felicitygirls-tiquepos-backend-volumen:
   bodega-modelo-backend-volumen:
   unnagro-backend-volumen:
+  leatsac-backend-volumen:
