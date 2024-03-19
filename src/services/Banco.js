@@ -1,5 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const logger = require('../tools/Logger');
 const conec = new Conexion();
 
 class Banco {
@@ -80,6 +81,7 @@ class Banco {
             await conec.commit(connection);
             return "insert";
         } catch (error) {
+            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }

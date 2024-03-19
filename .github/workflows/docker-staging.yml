@@ -9,15 +9,13 @@ on:
 
 # Definición de los trabajos
 jobs:
-  # Job para construir y desplegar la aplicación en el entorno de inicio
-  build-and-deploy-app-leatsac:
-    # Condición para ejecutar este job: cuando se hace un push a la rama 'staging'
+  # Job para construir y desplegar la aplicación en el entorno de producción - Felicitygirls Tiquepos
+  build-and-deploy-app-felicitygirls-tiquepos:
     runs-on: self-hosted
-    environment: leatsac
-
+    environment: felicitygirls-tiquepos
+    
     # Variables de entorno específicas para este job
     env:  
-      # Paso: Checkout del código fuente
       PORT: ${{ secrets.PORT }}
       APP_URL: ${{secrets.APP_URL}}
       DB_HOST: ${{ secrets.DB_HOST }}
@@ -27,7 +25,7 @@ jobs:
       DB_PORT: ${{ secrets.DB_PORT }}
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-
+    
     steps:
       # Paso: Checkout del código fuente
       - name: Checkout código
@@ -47,7 +45,7 @@ jobs:
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
           EOL
-
+    
       # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build leatsac-services -d
+        run: docker compose -f docker-compose.yml up --build felicitygirls-tiquepos-services -d
