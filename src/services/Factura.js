@@ -284,8 +284,6 @@ class Factura {
 
             // Proceso de registro  
             for (const item of detalleVenta) {
-                // console.log(item)
-
                 if (item.tipo === "PRODUCTO") {
                     const producto = await conec.execute(connection, `
                     SELECT 
@@ -358,7 +356,7 @@ class Factura {
                     let precio = 0;
 
                     if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
-                        precio = rounded(item.precio);
+                        precio = item.precio;
                         cantidad = item.inventarios.reduce((acc, current) => acc + current.cantidad, 0);
                     }
 
@@ -404,7 +402,7 @@ class Factura {
                         item.idProducto,
                         item.nombreProducto,
                         item.precio,
-                        rounded(item.cantidad),
+                        item.cantidad,
                         item.idImpuesto
                     ])
 
@@ -443,7 +441,7 @@ class Factura {
                         idVenta,
                         null,
                         idBancoDetalle,
-                        rounded(item.monto),
+                        item.monto,
                         item.descripcion,
                         1,
                         currentDate(),
@@ -465,7 +463,7 @@ class Factura {
                         idBancoDetalle,
                         item.idBanco,
                         1,
-                        rounded(item.monto),
+                        item.monto,
                         1,
                         currentDate(),
                         currentTime(),
@@ -487,10 +485,8 @@ class Factura {
                 let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
 
                 let current = new Date();
-                // current.setMonth(current.getMonth() + 1);
-                // current.setDate(1);
 
-                let monto = rounded(importeTotal / parseFloat(numCuotas));
+                let monto = importeTotal / parseFloat(numCuotas);
 
                 let i = 0;
                 let cuota = 0;
@@ -1196,7 +1192,6 @@ class Factura {
 
             return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
