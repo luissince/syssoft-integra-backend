@@ -486,21 +486,21 @@ class Factura {
                 const listPlazos = await conec.execute(connection, 'SELECT idPlazo FROM plazo');
                 let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
 
-                const current = new Date();
-                current.setMonth(current.getMonth() + 1);
-                current.setDate(1);
+                let current = new Date();
+                // current.setMonth(current.getMonth() + 1);
+                // current.setDate(1);
 
                 let monto = rounded(importeTotal / parseFloat(numCuotas));
 
                 let i = 0;
                 let cuota = 0;
                 while (i < numCuotas) {
-                    let now = new Date();
+                    let now = new Date(current);
 
                     if (parseInt(frecuenciaPagoCredito) > 15) {
-                        now = new Date(current.getFullYear(), current.getMonth() + 1, 0);
+                        now.setDate(now.getDate() + 30);
                     } else {
-                        now = new Date(current.getFullYear(), current.getMonth(), 15);
+                        now.setDate(now.getDate() + 15);
                     }
 
                     i++;
@@ -526,7 +526,7 @@ class Factura {
                     ]);
 
                     idPlazo++;
-                    current.setMonth(current.getMonth() + 1);
+                    current = now;
                 }
             }
 

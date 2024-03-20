@@ -175,10 +175,15 @@ class Almacen {
             connection = await conec.beginTransaction();
 
             if (req.body.predefinido) {
-                await conec.execute(connection, `UPDATE almacen SET predefinido = 0`);
+                console.log(req.body.idSucursal)
+                await conec.execute(connection, `UPDATE almacen SET predefinido = 0 WHERE idSucursal = ?`, [
+                    req.body.idSucursal
+                ]);
             }
 
-            await conec.execute(connection, `UPDATE almacen                  
+            await conec.execute(connection, `
+            UPDATE 
+                almacen                  
             SET 
                 nombre = ?,
                 direccion = ?,
@@ -258,10 +263,30 @@ class Almacen {
     async combo(req) {
         try {
             if (!req.query.idSucursal) {
-                const lista = await conec.query(`SELECT idAlmacen, nombre, predefinido FROM almacen`);
+                const lista = await conec.query(`
+                SELECT 
+                    a.idAlmacen, 
+                    a.nombre, 
+                    a.predefinido, 
+                    s.nombre as sucursal 
+                FROM 
+                    almacen AS a
+                INNER JOIN 
+                    sucursal AS s ON s.idSucursal = a.idSucursal`);
                 return lista;
             } else {
-                const lista = await conec.query(`SELECT idAlmacen, nombre, predefinido FROM almacen WHERE idSucursal = ?`, [
+                const lista = await conec.query(`
+                SELECT 
+                    a.idAlmacen, 
+                    a.nombre, 
+                    a.predefinido, 
+                    s.nombre as sucursal 
+                FROM 
+                    almacen AS a
+                INNER JOIN 
+                    sucursal AS s ON s.idSucursal = a.idSucursal
+                WHERE 
+                    a.idSucursal = ?`, [
                     req.query.idSucursal
                 ]);
                 return lista;
