@@ -1,4 +1,4 @@
-const { currentDate, currentTime, frecuenciaPago, generateAlphanumericCode, generateNumericCode, rounded } = require('../tools/Tools');
+const { currentDate, currentTime, frecuenciaPago, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
