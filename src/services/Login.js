@@ -8,7 +8,7 @@ class Login {
 
     async createsession(req, res) {
         try {
-            let validate = await conec.query(`SELECT idUsuario, clave FROM usuario 
+            const validate = await conec.query(`SELECT idUsuario, clave FROM usuario 
             WHERE usuario = ?`, [
                 req.query.usuario,
             ]);
@@ -103,7 +103,7 @@ class Login {
         }
     }
 
-    async validtoken(req, res) {
+    async validtoken(_, res) {
         return sendSuccess(res, "Ok");
     }
 }

@@ -1,11 +1,12 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
 const logger = require('../tools/Logger');
+const { sendClient, sendSave, sendError, sendSuccess } = require('../tools/Message');
 const conec = new Conexion();
 
 class Banco {
 
-    async list(req) {
+    async list(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Bancos(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -28,13 +29,14 @@ class Banco {
                 req.query.idSucursal,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+
         }
     }
 
-    async add(req) {
+    async add(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -42,7 +44,8 @@ class Banco {
             const result = await conec.execute(connection, 'SELECT idBanco FROM banco');
             const idBanco = generateAlphanumericCode("BC0001", result, 'idBanco');
 
-            await conec.execute(connection, `INSERT INTO banco(
+            await conec.execute(connection, `
+            INSERT INTO banco(
                 idBanco,
                 nombre,
                 tipoCuenta,
@@ -79,37 +82,45 @@ class Banco {
             ]);
 
             await conec.commit(connection);
-            return "insert";
+            return sendSave(res, "Se registró correctamente el banco.");
         } catch (error) {
             logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async id(req) {
+    async id(req, res) {
         try {
-            let result = await conec.query('SELECT * FROM banco WHERE idBanco = ?', [
+            const result = await conec.query(`
+            SELECT 
+                * 
+            FROM 
+                banco 
+            WHERE 
+                idBanco = ?`, [
                 req.query.idBanco,
             ]);
 
-            if (result.length > 0) {
-                return result[0];
-            } else {
-                return "Datos no encontrados";
+            if (result.length === 0) {
+                return sendClient(res, "Información no encontrada.")
             }
+
+            return sendSuccess(res, result[0]);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async update(req) {
+    async update(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            await conec.execute(connection, `UPDATE banco 
+            await conec.execute(connection, `
+            UPDATE 
+                banco 
             SET 
                 nombre=?, 
                 tipoCuenta=?, 
@@ -141,29 +152,34 @@ class Banco {
             ]);
 
             await conec.commit(connection);
-            return "update";
+
+            return sendSave(res, "Se actualizó correctamente el banco.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
 
-    async detail(req) {
+    async detail(req, res) {
         try {
-            const banco = await conec.query(`SELECT 
-            ba.nombre,
-            ba.tipoCuenta,
-            ba.numCuenta,
-            ba.cci,
-            ba.estado,
-            mo.nombre as moneda,
-            mo.codiso
-            from banco as ba
-            INNER JOIN moneda as mo ON ba.idMoneda = mo.idMoneda
-            WHERE ba.idBanco = ?`, [
+            const banco = await conec.query(`
+            SELECT 
+                ba.nombre,
+                ba.tipoCuenta,
+                ba.numCuenta,
+                ba.cci,
+                ba.estado,
+                mo.nombre as moneda,
+                mo.codiso
+            FROM 
+                banco as ba
+            INNER JOIN 
+                moneda as mo ON ba.idMoneda = mo.idMoneda
+            WHERE 
+                ba.idBanco = ?`, [
                 req.query.idBanco,
             ])
 
@@ -173,41 +189,39 @@ class Banco {
                 WHEN tipo = 1 THEN monto
                 ELSE  -monto
             END),0) AS monto 
-            FROM bancoDetalle
-            WHERE idBanco = ? AND estado = 1`, [
+            FROM 
+                bancoDetalle
+            WHERE 
+                idBanco = ? AND estado = 1`, [
                 req.query.idBanco,
             ])
 
-            return {
+            return sendSave(res, {
                 "banco": banco[0],
                 "monto": total[0].monto
-            }
+            });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async delete(req) {
+    async delete(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
-            const cobro = await conec.execute(connection, `SELECT * FROM cobro WHERE idBanco = ?`, [
+            const detalles = await conec.execute(connection, `
+            SELECT 
+                idBanco
+            FROM 
+                bancoDetalle 
+            WHERE 
+                idBanco = ?`, [
                 req.query.idBanco
             ]);
 
-            if (cobro.length > 0) {
-                await conec.rollback(connection);
-                return 'No se puede eliminar el banco ya que esta ligada a un cobro.';
-            }
-
-            const gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idBanco = ?`, [
-                req.query.idBanco
-            ]);
-
-            if (gasto.length > 0) {
-                await conec.rollback(connection);
-                return 'No se puede eliminar el banco ya que esta ligada a un gasto.';
+            if (detalles.length !== 0) {
+                return sendClient(res, "No se puedo borrar el banco porque, tiene ligado una lista de ingresos.")
             }
 
             await conec.execute(connection, `DELETE FROM banco WHERE idBanco = ?`, [
@@ -215,16 +229,17 @@ class Banco {
             ]);
 
             await conec.commit(connection);
-            return "delete";
+            return sendSave(res, "Se eliminó correctamente el banco.");
         } catch (error) {
+            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async combo() {
+    async combo(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -236,14 +251,14 @@ class Banco {
                 banco   
             WHERE 
                 estado = 1`);
-            return result;
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 
-    async detailList(req) {
-        try {         
+    async detailList(req, res) {
+        try {
             const lista = await conec.query(`
             SELECT 
                 DATE_FORMAT(bd.fecha, '%d/%m/%Y') AS fecha, 
@@ -364,9 +379,9 @@ class Banco {
                 req.query.idBanco
             ])
 
-            return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {         
-            return 'Error interno de conexión, intente nuevamente.'
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
 

@@ -94,7 +94,6 @@ class Compra {
             await conec.execute(connection, `
             INSERT INTO compra(
                 idCompra,
-                idConcepto,
                 idProveedor,
                 idUsuario,
                 idComprobante,
@@ -109,9 +108,8 @@ class Compra {
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idCompra,
-                "CP0002",
                 idProveedor,
                 idUsuario,
                 idComprobante,

@@ -1,10 +1,13 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const { sendSuccess, sendPdf, sendError } = require('../tools/Message');
+require('dotenv').config();
+const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
 class Compra {
 
-    async list(req) {
+    async list(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -28,13 +31,13 @@ class Compra {
                 req.query.idSucursal
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
-    async id(req) {
+    async id(req, res) {
         try {
             const ajuste = await conec.query(`SELECT 
             a.idAjuste,
@@ -67,15 +70,13 @@ class Compra {
             WHERE aj.idAjuste = ?`, [
                 req.query.idAjuste,
             ])
-
-            return { cabecera: ajuste[0], detalle };
+            sendSuccess(res, { cabecera: ajuste[0], detalle });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
-
-    async detail(req) {
+    async detail(req, res) {
         try {
             // Consulta la información principal de la compra
             const cotizacion = await conec.query(`
@@ -138,14 +139,14 @@ class Compra {
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return { cabecera: cotizacion[0], detalle };
+            sendSuccess(res, { cabecera: cotizacion[0], detalle });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return "Se produjo un error de servidor, intente nuevamente.";
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
-    async create(req) {
+    async create(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -214,7 +215,6 @@ class Compra {
             const listaCotizacionDetalle = await conec.execute(connection, 'SELECT idCotizacionDetalle FROM cotizacionDetalle');
             let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
 
-
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalle) {
                 await await conec.execute(connection, `INSERT INTO cotizacionDetalle(
@@ -239,16 +239,16 @@ class Compra {
             }
 
             await conec.commit(connection);
-            return "create";
+            sendSave(res, "Se registró correctamente la cotización.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
-    async cancel(req) {
+    async cancel(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -274,7 +274,9 @@ class Compra {
                 return "La cotización ya se encuentra anulado.";
             }
 
-            await conec.execute(connection, `UPDATE cotizacion
+            await conec.execute(connection, `
+            UPDATE 
+                cotizacion
             SET 
                 estado = 0
             WHERE
@@ -284,12 +286,86 @@ class Compra {
             ]);
 
             await conec.commit(connection);
-            return "cancel";
+            sendSave(res, "Se anuló correctamente la cotización.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+        }
+    }
+
+    async report(req, res) {
+        try {
+
+            console.log(req.params.idCotizacion)
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    serie: 'CT01',
+                    numeracion: 1,
+                    fecha: '2024-03-21',
+                    hora: '17:20:22',
+                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
+                    persona: {
+                        documento: '00000000',
+                        informacion: 'publica general',
+                        direccion: 'av. las perras del solar'
+                    },
+                    comprobante: { nombre: 'COTIZACION' },
+                    empresa: {
+                        documento: '20547848307',
+                        razonSocial: 'EMPRESA DE PRUEBA',
+                        nombreEmpresa: 'syssoft',
+                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
+                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
+                        tipoEnvio: true
+                    },
+                    sucursal: {
+                        telefono: '064 78809',
+                        celular: '99999992',
+                        email: 'somoperu@gmail.com',
+                        paginaWeb: 'www.mipagina.com',
+                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
+                        departamento: 'LIMA',
+                        provincia: 'LIMA',
+                        distrito: 'LINCE'
+                    },
+                    cotizacionDetalle: [
+                        {
+                            precio: 10,
+                            cantidad: 2,
+                            idImpuesto: 'IM0002',
+                            producto: { nombre: 'producto a' },
+                            medida: { nombre: 'UNIDAD' },
+                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
+                        },
+                        {
+                            precio: 10,
+                            cantidad: 1,
+                            idImpuesto: 'IM0002',
+                            producto: { nombre: 'producto a' },
+                            medida: { nombre: 'UNIDAD' },
+                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
+                        }
+                    ],
+                    bancos: [
+                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
+                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
+                    ]
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            sendError(res, "Error al obtener el PDF")
         }
     }
 }

@@ -1,54 +1,21 @@
 const express = require('express');
 const router = express.Router();
-
 const Cotizacion = require('../services/Cotizacion');
 
 const cotizacion = new Cotizacion();
 
-router.get('/list', async function (req, res) {
-    const result = await cotizacion.list(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/list', async (req, res) => await cotizacion.list(req, res));
 
-router.get('/id', async function (req, res) {
-    const result = await cotizacion.id(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/id', async (req, res) => await cotizacion.id(req, res));
 
-router.get('/detail', async function (req, res) {
-    const result = await cotizacion.detail(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/detail', async (req, res) => await cotizacion.detail(req, res));
 
-router.post('/create', async function (req, res) {
-    const result = await cotizacion.create(req)
-    if (result === 'create') {
-        res.status(200).send("Se registró correctamente la cotización.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.post('/create', async (req, res) => await cotizacion.create(req, res));
 
-router.delete('/cancel', async function (req, res) {
-    const result = await cotizacion.cancel(req)
-    if (result === 'cancel') {
-        res.status(200).send("Se anuló correctamente la cotización.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.delete('/cancel', async (req, res) => await cotizacion.cancel(req, res));
 
+router.get('/create/report/a4/:idCotizacion', async (req, res) => await cotizacion.report(req, res));
+
+router.get('/create/report/ticket/:idCotizacion', async (req, res) => await cotizacion.report(req, res));
 
 module.exports = router;

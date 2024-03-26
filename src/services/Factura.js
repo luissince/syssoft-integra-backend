@@ -231,7 +231,6 @@ class Factura {
             await conec.execute(connection, `
             INSERT INTO venta(
                 idVenta,
-                idConcepto,
                 idCliente,
                 idUsuario,
                 idComprobante,
@@ -246,9 +245,8 @@ class Factura {
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
-                "CP0001",
                 nuevoIdCliente,
                 idUsuario,
                 idComprobante,
@@ -913,8 +911,8 @@ class Factura {
                 idUsuario,
                 estado,
                 bancosAgregados,
+                observacion
             } = req.body;
-
 
             const plazo = await conec.execute(connection, `SELECT monto FROM plazo WHERE idPlazo = ?`, [
                 idPlazo
@@ -969,7 +967,6 @@ class Factura {
                 c.idVenta = ?`, [
                 idVenta
             ]);
-
 
             if (sumaIngresos + enviado >= venta[0].total) {
                 await conec.execute(connection, `
@@ -1190,7 +1187,7 @@ class Factura {
                 plazo.ingresos = ingresos;
             }
 
-            return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
+            return sendSuccess(res, { "cabecera": result[0], detalles, resumen: resumen, plazos: plazos });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }

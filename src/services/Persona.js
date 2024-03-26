@@ -1,4 +1,5 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
+const logger = require('../tools/Logger');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
@@ -349,7 +350,7 @@ class Persona {
                 return 'No se puede eliminar el cliente ya que esta ligada a un gasto.';
             }
 
-            const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idPersona = ?`, [
+            const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idCliente = ?`, [
                 req.query.idPersona
             ]);
 
@@ -365,6 +366,7 @@ class Persona {
             await conec.commit(connection);
             return "delete";
         } catch (error) {
+            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }

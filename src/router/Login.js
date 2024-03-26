@@ -76,9 +76,7 @@ const { token, verify } = require('../tools/Jwt');
  *                      schema:
  *                          type: string
  */
-router.get('/createsession', async function (req, res) {
-    return await login.createsession(req, res);
-});
+router.get('/createsession', async (req, res) => await login.createsession(req, res));
 
 /**
  * @swagger
@@ -108,8 +106,6 @@ router.get('/createsession', async function (req, res) {
  *                      schema:
  *                          type: string
  */
-router.get('/validtoken', token, verify,async function (req, res) {
-    return await login.validtoken(req, res);
-});
+router.get('/validtoken', token, verify, async (req, res) => await login.validtoken(req, res));
 
 module.exports = router;

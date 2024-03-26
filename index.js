@@ -130,6 +130,8 @@ app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 app.use('/api/salida', require('./src/router/Salida'));
 app.use('/api/ingreso', require('./src/router/Ingreso'));
 
+app.use('/api/reporte', require('./src/router/Reporte'));
+
 // Iniciar el servidor
 app.listen(app.get("port"), () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);

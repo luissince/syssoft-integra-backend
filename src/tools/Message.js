@@ -16,6 +16,22 @@ function sendSuccess(res, result) {
 }
 
 /**
+ * Esta función se encarga de enviar un archivo PDF como respuesta a una solicitud HTTP.
+ * @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+ *
+ * @param {object} res El objeto de respuesta del request
+ * @param {Buffer} data Los datos del PDF que se van a enviar como respuesta
+ * @returns {object} Retorna el objeto de respuesta `res` con el PDF adjunto
+ * @example
+ * // Envía los datos del PDF como respuesta
+ * sendPdf(res, data);
+ */
+function sendPdf(res, data) {
+    res.setHeader('Content-Type', 'application/pdf');
+    return res.send(data);
+}
+
+/**
 *Esta función se encarga de resporder las peticiones registradas con estado 201 http. 
 *@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
@@ -130,6 +146,7 @@ function sendNotFound(res, result) {
 
 module.exports = {
     sendSuccess,
+    sendPdf,
     sendSave,
     sendError,
     sendClient,

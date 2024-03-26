@@ -36,99 +36,99 @@ router.delete('/', async function (req, res) {
 });
 
 router.get('/email', async function (req, res) {
-    try {
-        const empresaInfo = await empresa.infoEmpresaReporte(req)
+    // try {
+    //     const empresaInfo = await empresa.infoEmpresaReporte(req)
 
-        if (typeof empresaInfo !== 'object') {
-            return sendError(res, empresaInfo);
-        }
+    //     if (typeof empresaInfo !== 'object') {
+    //         return sendError(res, empresaInfo);
+    //     }
 
-        const detalle = await notaCredito.idReport(req)
+    //     const detalle = await notaCredito.idReport(req)
 
-        if (typeof detalle === 'object') {
+    //     if (typeof detalle === 'object') {
 
-            let pdf = await repNotaCredito.repComprobante(req, empresaInfo, detalle);
+    //         let pdf = await repNotaCredito.repComprobante(req, empresaInfo, detalle);
 
-            if (typeof pdf === 'string') {
-                return sendError(res, pdf);
-            } else {
+    //         if (typeof pdf === 'string') {
+    //             return sendError(res, pdf);
+    //         } else {
 
-                const xml = await notaCredito.xmlGenerate(req);
+    //             const xml = await notaCredito.xmlGenerate(req);
 
-                if (typeof xml === 'string') {
-                    return sendError(res, xml);
-                } else {
-                    if (!isEmail(empresaInfo.usuarioEmail) && empresaInfo.claveEmail == "") {
-                        return sendClient(res, "Las credenciales del correo para el envío no pueden ser vacios.");
-                    } else {
-                        if (!isEmail(detalle.cabecera.email)) {
-                            return sendClient(res, "El correo del cliente no es valido.")
-                        } else {
-                            // create reusable transporter object using the default SMTP transport
-                            let transporter = nodemailer.createTransport(smtpTransport({
-                                // host: "smtp-mail.outlook.com.",
-                                // port: 587,
-                                service: 'gmail',
-                                auth: {
-                                    user: empresaInfo.usuarioEmail, // generated ethereal user
-                                    pass: empresaInfo.claveEmail, // generated ethereal password
-                                }
-                            }));
-                            // send mail with defined transport object
-                            // Message object
-                            let message = {
-                                from: `"${empresaInfo.nombreEmpresa} 👻" ${empresaInfo.usuarioEmail}`,
+    //             if (typeof xml === 'string') {
+    //                 return sendError(res, xml);
+    //             } else {
+    //                 if (!isEmail(empresaInfo.usuarioEmail) && empresaInfo.claveEmail == "") {
+    //                     return sendClient(res, "Las credenciales del correo para el envío no pueden ser vacios.");
+    //                 } else {
+    //                     if (!isEmail(detalle.cabecera.email)) {
+    //                         return sendClient(res, "El correo del cliente no es valido.")
+    //                     } else {
+    //                         // create reusable transporter object using the default SMTP transport
+    //                         let transporter = nodemailer.createTransport(smtpTransport({
+    //                             // host: "smtp-mail.outlook.com.",
+    //                             // port: 587,
+    //                             service: 'gmail',
+    //                             auth: {
+    //                                 user: empresaInfo.usuarioEmail, // generated ethereal user
+    //                                 pass: empresaInfo.claveEmail, // generated ethereal password
+    //                             }
+    //                         }));
+    //                         // send mail with defined transport object
+    //                         // Message object
+    //                         let message = {
+    //                             from: `"${empresaInfo.nombreEmpresa} 👻" ${empresaInfo.usuarioEmail}`,
 
-                                // Comma separated list of recipients
-                                to: detalle.cabecera.email,
-                                // bcc: 'andris@ethereal.email',
+    //                             // Comma separated list of recipients
+    //                             to: detalle.cabecera.email,
+    //                             // bcc: 'andris@ethereal.email',
 
-                                // Subject of the message
-                                subject: 'Comprobante Electrónico ✔',
+    //                             // Subject of the message
+    //                             subject: 'Comprobante Electrónico ✔',
 
-                                // plaintext body
-                                text: empresaInfo.ruc,
+    //                             // plaintext body
+    //                             text: empresaInfo.ruc,
 
-                                // HTML body
-                                html:
-                                    `<p>Estimado Cliente <b>${detalle.cabecera.informacion}</b>.</p>
-                                    <p>Le envíamos la información de su comprobante electrónico.</p>
-                                    <span>Tipo de Documento: <b>${detalle.cabecera.comprobante}</b></span><br/>
-                                    <span>Número de Serie: <b>${detalle.cabecera.serie}</b></span><br/>
-                                    <span>Número de Documento: <b>${detalle.cabecera.numeracion}</b></span><br/>
-                                    <span>N° RUC del Emisor: <b>${empresaInfo.ruc}</b></span><br/>
-                                    <span>N° RUC/DNI del Cliente: <b>${detalle.cabecera.documento}</b></span><br/>
-                                    <span>Fecha de Emisión: <b>${detalle.cabecera.fecha}</b></span><br/>
-                                    <p>Atentamente ,</p>`,
+    //                             // HTML body
+    //                             html:
+    //                                 `<p>Estimado Cliente <b>${detalle.cabecera.informacion}</b>.</p>
+    //                                 <p>Le envíamos la información de su comprobante electrónico.</p>
+    //                                 <span>Tipo de Documento: <b>${detalle.cabecera.comprobante}</b></span><br/>
+    //                                 <span>Número de Serie: <b>${detalle.cabecera.serie}</b></span><br/>
+    //                                 <span>Número de Documento: <b>${detalle.cabecera.numeracion}</b></span><br/>
+    //                                 <span>N° RUC del Emisor: <b>${empresaInfo.ruc}</b></span><br/>
+    //                                 <span>N° RUC/DNI del Cliente: <b>${detalle.cabecera.documento}</b></span><br/>
+    //                                 <span>Fecha de Emisión: <b>${detalle.cabecera.fecha}</b></span><br/>
+    //                                 <p>Atentamente ,</p>`,
 
-                                // An array of attachments
-                                attachments: [
-                                    {
-                                        filename: `${empresaInfo.nombreEmpresa} ${detalle.cabecera.comprobante} ${detalle.cabecera.serie}-${detalle.cabecera.numeracion}.xml`,
-                                        content: xml.xmlGenerado,
-                                        contentType: 'text/plain'
-                                    },
+    //                             // An array of attachments
+    //                             attachments: [
+    //                                 {
+    //                                     filename: `${empresaInfo.nombreEmpresa} ${detalle.cabecera.comprobante} ${detalle.cabecera.serie}-${detalle.cabecera.numeracion}.xml`,
+    //                                     content: xml.xmlGenerado,
+    //                                     contentType: 'text/plain'
+    //                                 },
 
-                                    {
-                                        filename: `${empresaInfo.nombreEmpresa} ${detalle.cabecera.comprobante} ${detalle.cabecera.serie}-${detalle.cabecera.numeracion}.pdf`,
-                                        content: pdf,
-                                        contentType: 'application/pdf'
-                                    },
-                                ]
-                            };
+    //                                 {
+    //                                     filename: `${empresaInfo.nombreEmpresa} ${detalle.cabecera.comprobante} ${detalle.cabecera.serie}-${detalle.cabecera.numeracion}.pdf`,
+    //                                     content: pdf,
+    //                                     contentType: 'application/pdf'
+    //                                 },
+    //                             ]
+    //                         };
 
-                            await transporter.sendMail(message);
-                            return sendSuccess(res, "Se envío correctamente el correo a " + detalle.cabecera.email);
-                        }
-                    }
-                }
-            }
-        } else {
-            return sendError(res, detalle);
-        }
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
-    }
+    //                         await transporter.sendMail(message);
+    //                         return sendSuccess(res, "Se envío correctamente el correo a " + detalle.cabecera.email);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     } else {
+    //         return sendError(res, detalle);
+    //     }
+    // } catch (error) {
+    //     return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+    // }
 });
 
 router.get('/repcomprobante', async function (req, res) {

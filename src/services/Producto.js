@@ -106,7 +106,6 @@ class Producto {
             INSERT INTO producto(
                 idProducto,
                 idCategoria,
-                idConcepto,
                 idMedida,
                 nombre,
                 codigo,
@@ -126,10 +125,9 @@ class Producto {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
-                'CP0001',
                 idMedida,
                 nombre,
                 codigo,
@@ -326,7 +324,6 @@ class Producto {
             SELECT 
                 p.idProducto,
                 p.idCategoria,
-                p.idConcepto,
                 p.idMedida,
                 p.nombre,
                 p.codigo,
@@ -590,111 +587,7 @@ class Producto {
     }
 
     async detalle(req) {
-        try {
-            const cabecera = await conec.query(`
-            SELECT 
-                l.idProducto,
-                m.nombre as categoria,
-                l.descripcion as producto,
-                l.costo,
-                l.precio,
-                CASE
-                WHEN l.estado = 1 THEN 'Disponible'
-                WHEN l.estado = 2 THEN 'Reservado'
-                WHEN l.estado = 3 THEN 'Vendido'
-                ELSE 'Inactivo' END AS productostado,
 
-                l.medidaFrontal,
-                l.costadoDerecho,
-                l.costadoIzquierdo,
-                l.medidaFondo,
-                l.areaProducto,
-                l.numeroPartida,
-
-                IFNULL(l.limiteFrontal,'') AS limiteFrontal,
-                IFNULL(l.limiteDerecho,'') AS limiteDerecho,
-                IFNULL(l.limiteIzquierdo,'') AS limiteIzquierdo,
-                IFNULL(l.limitePosterior,'') AS limitePosterior,
-                IFNULL(l.ubicacionProducto,'') AS ubicacionProducto
-
-                FROM producto AS l
-                INNER JOIN categoria AS m  ON l.idCategoria = m.idCategoria
-                WHERE l.idProducto = ?`, [
-                req.query.idProducto,
-            ]);
-
-            const venta = await conec.query(`SELECT 
-            v.idVenta,
-            v.idPersona
-            FROM venta AS v 
-            INNER JOIN ventaDetalle AS vd ON v.idVenta = vd.idVenta
-            WHERE vd.idProducto = ? AND v.estado IN (1,2)`, [
-                req.query.idProducto,
-            ])
-
-            if (venta.length > 0) {
-                const socios = await conec.query(`SELECT 
-                    c.idPersona ,
-                    c.documento,
-                    c.informacion,
-                    a.estado
-                    FROM asociado AS a
-                    INNER JOIN persona AS c ON a.idPersona = c.idPersona
-                    WHERE a.idVenta = ?`, [
-                    venta[0].idVenta
-                ]);
-
-                const detalle = await conec.query(`SELECT 
-                    c.idCobro,
-                    co.nombre as comprobante,
-                    c.serie,
-                    c.numeracion,
-                    cl.documento,
-                    cl.informacion,
-                    CASE 
-                    WHEN cn.idConcepto IS NOT NULL THEN cn.nombre
-                    ELSE CASE WHEN cv.idPlazo = 0 THEN 'CUOTA INICIAL' ELSE 'CUOTA' END END AS detalle,
-                    IFNULL(CONCAT(cp.nombre,' ',v.serie,'-',v.numeracion),'') AS comprobanteRef,
-                    m.simbolo,
-                    m.codiso,
-                    b.nombre as banco,  
-                    c.observacion, 
-                    DATE_FORMAT(c.fecha,'%d/%m/%Y') as fecha, 
-                    c.hora,
-                    IFNULL(SUM(cd.precio*cd.cantidad),SUM(cv.precio)) AS monto
-                    FROM cobro AS c
-                    INNER JOIN persona AS cl ON c.idPersona = cl.idPersona
-                    INNER JOIN banco AS b ON c.idBanco = b.idBanco
-                    INNER JOIN moneda AS m ON c.idMoneda = m.idMoneda 
-                    INNER JOIN comprobante AS co ON co.idComprobante = c.idComprobante
-                    LEFT JOIN cobroDetalle AS cd ON c.idCobro = cd.idCobro
-                    LEFT JOIN concepto AS cn ON cd.idConcepto = cn.idConcepto 
-                    LEFT JOIN cobroVenta AS cv ON cv.idCobro = c.idCobro 
-                    LEFT JOIN venta AS v ON cv.idVenta = v.idVenta 
-                    LEFT JOIN comprobante AS cp ON v.idComprobante = cp.idComprobante
-                    LEFT JOIN notaCredito AS nc ON c.idCobro = nc.idCobro AND nc.estado = 1
-
-                    WHERE 
-                    c.idProcedencia = ? AND c.estado = 1 AND nc.idNotaCredito IS NULL
-                    OR 
-                    c.idProcedencia = ? AND c.estado = 1 AND nc.idNotaCredito IS NULL
-                    GROUP BY c.idCobro`, [
-                    venta[0].idVenta,
-                    req.query.idProducto,
-                ]);
-
-                return {
-                    "producto": cabecera[0],
-                    "venta": venta[0],
-                    "socios": socios,
-                    "detalle": detalle
-                }
-            } else {
-                return "No hay información para mostrar.";
-            }
-        } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
     }
 
     async combo(req) {
