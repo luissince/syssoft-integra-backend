@@ -131,6 +131,7 @@ app.use('/api/salida', require('./src/router/Salida'));
 app.use('/api/ingreso', require('./src/router/Ingreso'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
+app.use('/api/sunat', require('./src/router/Sunat'));
 
 // Iniciar el servidor
 app.listen(app.get("port"), () => {

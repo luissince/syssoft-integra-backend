@@ -145,13 +145,13 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            // const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
-            // const existsCertificates = await isDirectory(fileCertificates);
+            const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
+            const existsCertificates = await isDirectory(fileCertificates);
 
-            // if (!existsCertificates) {
-            //     await mkdir(fileCertificates);
-            //     await chmod(fileCertificates);
-            // }
+            if (!existsCertificates) {
+                await mkdir(fileCertificates);
+                await chmod(fileCertificates);
+            }
 
             const fileCompany = path.join(__dirname, '..', 'path', 'company');
             const existsCompany = await isDirectory(fileCompany);
@@ -173,14 +173,14 @@ class Empresa {
                 req.body.idEmpresa
             ]);
 
-            // const rutaCertificado = await processFilePem(
-            //     fileCertificates,
-            //     req.body.certificado,
-            //     req.body.documento,
-            //     req.body.extCertificado,
-            //     req.body.claveCertificado,
-            //     empresa[0].certificadoSunat
-            // );
+            const rutaCertificado = await processFilePem(
+                fileCertificates,
+                req.body.certificado,
+                req.body.documento,
+                req.body.extCertificado,
+                req.body.claveCertificado,
+                empresa[0].certificadoSunat
+            );
 
             const rutaLogo = await processImage(
                 fileCompany,
@@ -212,6 +212,11 @@ class Empresa {
                 usuarioSolSunat=?,
                 claveSolSunat=?,
 
+                certificadoSunat=?,
+                claveCertificadoSunat=?,
+                certificadoPem=?,
+                privatePem=?,
+
                 idApiSunat=?,
                 claveApiSunat=?,
 
@@ -233,6 +238,11 @@ class Empresa {
                 req.body.usuarioSolSunat,
                 req.body.claveSolSunat,
 
+                rutaCertificado.nombre,
+                req.body.claveCertificado,
+                rutaCertificado.certificate,
+                rutaCertificado.private,
+
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
 
@@ -241,59 +251,6 @@ class Empresa {
                 req.body.idUsuario,
                 req.body.idEmpresa
             ]);
-
-            // await conec.execute(connection, `
-            // UPDATE 
-            //     empresa 
-            // SET 
-            //     documento = ?,
-            //     razonSocial = ?,
-            //     nombreEmpresa = ?,
-
-            //     rutaLogo=?,
-            //     rutaImage=?,
-
-            //     usuarioEmail=?,
-            //     claveEmail=?,
-
-            //     usuarioSolSunat=?,
-            //     claveSolSunat=?,
-
-            //     certificadoSunat=?,
-            //     claveCertificadoSunat=?,
-
-            //     idApiSunat=?,
-            //     claveApiSunat=?,
-
-            //     fupdate= ?,
-            //     hupdate=?,
-            //     idUsuario=?
-            // WHERE 
-            //     idEmpresa =?`, [
-            //     req.body.documento,
-            //     req.body.razonSocial,
-            //     req.body.nombreEmpresa,
-
-            //     rutaLogo,
-            //     rutaImage,
-
-            //     req.body.usuarioEmail,
-            //     req.body.claveEmail,
-
-            //     req.body.usuarioSolSunat,
-            //     req.body.claveSolSunat,
-
-            //     rutaCertificado,
-            //     req.body.claveCertificado,
-
-            //     req.body.idApiSunat,
-            //     req.body.claveApiSunat,
-
-            //     currentDate(),
-            //     currentTime(),
-            //     req.body.idUsuario,
-            //     req.body.idEmpresa
-            // ]);
 
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente los datos de la empresa.");
