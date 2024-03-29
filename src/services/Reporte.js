@@ -175,8 +175,6 @@ class Reporte {
             console.log(req.params.fechaInicio)
             console.log(req.params.fechaFinal)
 
-            
-
             const conceptos = await conec.query(`
             SELECT 
                 -- 
@@ -426,6 +424,7 @@ class Reporte {
                 DATE_FORMAT(v.fecha,'%Y-%m-%d') as fecha,
                 DATE_FORMAT(v.fecha,'%Y-%m-%d') as fechaQR,
                 v.hora, 
+                v.idFormaPago,
                 v.numeroCuota,
                 v.frecuenciaPago,
                 v.estado, 

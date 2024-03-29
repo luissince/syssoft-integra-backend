@@ -111,11 +111,15 @@ async function processImage(fileDirectory, image, ext, existingImage) {
     return name;
 }
 
-async function processFilePem(fileDirectory, file, name, ext, password, existingFile) {
+async function processFilePem(fileDirectory, file, name, ext, password, existingFile, certificate, private) {
     // Verificar si hay un archivo para procesar
     if (file === '') {
         // Si no hay archivo, devolver el nombre del archivo existente
-        return existingFile;
+        return {
+            "nombre": existingFile,
+            "certificate": certificate,
+            "private": private
+        }
     }
 
     // Crear el nombre del nuevo archivo

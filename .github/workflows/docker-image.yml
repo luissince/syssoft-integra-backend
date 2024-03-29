@@ -52,7 +52,7 @@ jobs:
 
       # Paso: Crear y ejecutar el contenedor Docker
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build test-services -d
+        run: docker compose -f docker-compose.yml up --build sysintegra-services -d
 
   # Job para construir y desplegar la aplicación en el entorno de producción - Legrand Tiquepos
   build-and-deploy-app-legrand-tiquepos:

@@ -165,7 +165,9 @@ class Empresa {
             SELECT
                 rutaLogo,
                 rutaImage,
-                certificadoSunat
+                certificadoSunat,
+                certificadoPem,
+                privatePem
             FROM 
                 empresa
             WHERE 
@@ -179,7 +181,9 @@ class Empresa {
                 req.body.documento,
                 req.body.extCertificado,
                 req.body.claveCertificado,
-                empresa[0].certificadoSunat
+                empresa[0].certificadoSunat,
+                empresa[0].certificadoPem,
+                empresa[0].privatePem
             );
 
             const rutaLogo = await processImage(
