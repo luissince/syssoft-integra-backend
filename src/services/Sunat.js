@@ -1,10 +1,7 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
-const { sendSuccess, sendPdf, sendError } = require('../tools/Message');
+const { sendSuccess, sendError } = require('../tools/Message');
 
 const { promisify } = require('util');
-const fs = require("fs");
-const path = require("path");
-const readFileAsync = promisify(fs.readFile);
+const logger = require('../tools/Logger');
 
 require('dotenv').config();
 const axios = require('axios').default;
@@ -15,23 +12,6 @@ class Sunat {
 
     async facturar(req, res) {
         try {
-            console.log(req.params.idVenta)
-
-
-            // const certificateData = await readFileAsync(path.join(certificate, "certificate.pem"), 'utf8');
-
-            // const certificateData = ``;
-
-
-            // // console.log(certificateData)
-            // let certificateDataJoin = certificateData.replace(/\n/g, '\\n');
-
-            // if (!/\n$/.test(certificateData)) {
-            //     certificateDataJoin += '\\n';
-            // }
-
-            // console.log(certificateDataJoin)
-
             const venta = await conec.query(`
             SELECT
                 v.idVenta, 
@@ -184,304 +164,29 @@ class Sunat {
 
             delete response.data.update;
 
-            sendPdf(res, response.data);
+            sendSuccess(res, response.data);
         } catch (error) {
+            logger.error(`Empresa/update: ${error.message ?? error}`)
             sendError(res, "Error en declarar el comprobante.")
         }
     }
 
     async anularBoleta(req, res) {
-        try {
-            console.log(req.params.idCotizacion)
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    serie: 'CT01',
-                    numeracion: 1,
-                    fecha: '2024-03-21',
-                    hora: '17:20:22',
-                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
-                    persona: {
-                        documento: '00000000',
-                        informacion: 'publica general',
-                        direccion: 'av. las perras del solar'
-                    },
-                    comprobante: { nombre: 'COTIZACION' },
-                    empresa: {
-                        documento: '20547848307',
-                        razonSocial: 'EMPRESA DE PRUEBA',
-                        nombreEmpresa: 'syssoft',
-                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
-                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
-                        tipoEnvio: true
-                    },
-                    sucursal: {
-                        telefono: '064 78809',
-                        celular: '99999992',
-                        email: 'somoperu@gmail.com',
-                        paginaWeb: 'www.mipagina.com',
-                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
-                        departamento: 'LIMA',
-                        provincia: 'LIMA',
-                        distrito: 'LINCE'
-                    },
-                    cotizacionDetalle: [
-                        {
-                            precio: 10,
-                            cantidad: 2,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        },
-                        {
-                            precio: 10,
-                            cantidad: 1,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        }
-                    ],
-                    bancos: [
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
-                    ]
-                },
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            sendPdf(res, response.data);
-        } catch (error) {
-            sendError(res, "Error al obtener el PDF")
-        }
+        sendSuccess(res, "dd");
     }
 
     async anularFactura(req, res) {
-        try {
-            console.log(req.params.idCotizacion)
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    serie: 'CT01',
-                    numeracion: 1,
-                    fecha: '2024-03-21',
-                    hora: '17:20:22',
-                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
-                    persona: {
-                        documento: '00000000',
-                        informacion: 'publica general',
-                        direccion: 'av. las perras del solar'
-                    },
-                    comprobante: { nombre: 'COTIZACION' },
-                    empresa: {
-                        documento: '20547848307',
-                        razonSocial: 'EMPRESA DE PRUEBA',
-                        nombreEmpresa: 'syssoft',
-                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
-                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
-                        tipoEnvio: true
-                    },
-                    sucursal: {
-                        telefono: '064 78809',
-                        celular: '99999992',
-                        email: 'somoperu@gmail.com',
-                        paginaWeb: 'www.mipagina.com',
-                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
-                        departamento: 'LIMA',
-                        provincia: 'LIMA',
-                        distrito: 'LINCE'
-                    },
-                    cotizacionDetalle: [
-                        {
-                            precio: 10,
-                            cantidad: 2,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        },
-                        {
-                            precio: 10,
-                            cantidad: 1,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        }
-                    ],
-                    bancos: [
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
-                    ]
-                },
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            sendPdf(res, response.data);
-        } catch (error) {
-            sendError(res, "Error al obtener el PDF")
-        }
+        sendSuccess(res, "dd");
     }
 
     async guiaRemision(req, res) {
-        try {
-            console.log(req.params.idCotizacion)
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    serie: 'CT01',
-                    numeracion: 1,
-                    fecha: '2024-03-21',
-                    hora: '17:20:22',
-                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
-                    persona: {
-                        documento: '00000000',
-                        informacion: 'publica general',
-                        direccion: 'av. las perras del solar'
-                    },
-                    comprobante: { nombre: 'COTIZACION' },
-                    empresa: {
-                        documento: '20547848307',
-                        razonSocial: 'EMPRESA DE PRUEBA',
-                        nombreEmpresa: 'syssoft',
-                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
-                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
-                        tipoEnvio: true
-                    },
-                    sucursal: {
-                        telefono: '064 78809',
-                        celular: '99999992',
-                        email: 'somoperu@gmail.com',
-                        paginaWeb: 'www.mipagina.com',
-                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
-                        departamento: 'LIMA',
-                        provincia: 'LIMA',
-                        distrito: 'LINCE'
-                    },
-                    cotizacionDetalle: [
-                        {
-                            precio: 10,
-                            cantidad: 2,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        },
-                        {
-                            precio: 10,
-                            cantidad: 1,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        }
-                    ],
-                    bancos: [
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
-                    ]
-                },
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            sendPdf(res, response.data);
-        } catch (error) {
-            sendError(res, "Error al obtener el PDF")
-        }
+        sendSuccess(res, "dd");
     }
 
     async consultar(req, res) {
-        try {
-            console.log(req.params.idCotizacion)
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    serie: 'CT01',
-                    numeracion: 1,
-                    fecha: '2024-03-21',
-                    hora: '17:20:22',
-                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
-                    persona: {
-                        documento: '00000000',
-                        informacion: 'publica general',
-                        direccion: 'av. las perras del solar'
-                    },
-                    comprobante: { nombre: 'COTIZACION' },
-                    empresa: {
-                        documento: '20547848307',
-                        razonSocial: 'EMPRESA DE PRUEBA',
-                        nombreEmpresa: 'syssoft',
-                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
-                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
-                        tipoEnvio: true
-                    },
-                    sucursal: {
-                        telefono: '064 78809',
-                        celular: '99999992',
-                        email: 'somoperu@gmail.com',
-                        paginaWeb: 'www.mipagina.com',
-                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
-                        departamento: 'LIMA',
-                        provincia: 'LIMA',
-                        distrito: 'LINCE'
-                    },
-                    cotizacionDetalle: [
-                        {
-                            precio: 10,
-                            cantidad: 2,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        },
-                        {
-                            precio: 10,
-                            cantidad: 1,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        }
-                    ],
-                    bancos: [
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
-                    ]
-                },
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            sendPdf(res, response.data);
-        } catch (error) {
-            sendError(res, "Error al obtener el PDF")
-        }
+        sendSuccess(res, "dd");
     }
-    
+
 }
 
 module.exports = Sunat;
