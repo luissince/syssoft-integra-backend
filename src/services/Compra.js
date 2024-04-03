@@ -149,6 +149,19 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalle) {
+                // Obtener inventario
+                const inventario = await conec.execute(connection, `
+                SELECT 
+                    idInventario 
+                FROM 
+                    inventario 
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
+                    item.idProducto,
+                    idAlmacen,
+                ]);
+
+                // Insertar kardex
                 await await conec.execute(connection, `
                 INSERT INTO compraDetalle(
                     idCompraDetalle,
@@ -199,17 +212,6 @@ class Compra {
                 ]);
 
                 // Actualiza el inventario
-                const inventario = await conec.execute(connection, `
-                SELECT 
-                    idInventario 
-                FROM 
-                    inventario 
-                WHERE 
-                    idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    idAlmacen,
-                ]);
-
                 await conec.execute(connection, `
                 UPDATE 
                     inventario 

@@ -15,7 +15,7 @@ router.put('/', async (req, res) => await banco.update(req, res));
 
 router.delete('/', async (req, res) => await banco.delete(req, res));
 
-router.get('/combo', async (req, res) => await banco.combo(req, res));
+router.get('/combo/:idSucursal', async (req, res) => await banco.combo(req, res));
 
 router.get('/detail', async (req, res) => await banco.detail(req, res));
 

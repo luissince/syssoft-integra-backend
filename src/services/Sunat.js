@@ -190,23 +190,6 @@ class Sunat {
         }
     }
 
-    sonIguales(cadena1, cadena2) {
-        // Verificar si las cadenas tienen la misma longitud
-        if (cadena1.length !== cadena2.length) {
-            return false;
-        }
-
-        // Comparar caracter por caracter
-        for (let i = 0; i < cadena1.length; i++) {
-            if (cadena1[i] !== cadena2[i]) {
-                return false;
-            }
-        }
-
-        // Si no se encontraron diferencias, las cadenas son iguales
-        return true;
-    }
-
     async anularBoleta(req, res) {
         try {
             console.log(req.params.idCotizacion)
@@ -498,6 +481,7 @@ class Sunat {
             sendError(res, "Error al obtener el PDF")
         }
     }
+    
 }
 
 module.exports = Sunat;

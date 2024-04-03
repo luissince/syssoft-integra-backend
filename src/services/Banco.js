@@ -250,7 +250,9 @@ class Banco {
             FROM 
                 banco   
             WHERE 
-                estado = 1`);
+                estado = 1 AND idSucursal = ?`,[
+                    req.params.idSucursal
+                ]);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
