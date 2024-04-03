@@ -1,51 +1,54 @@
-# Nombre del flujo de trabajo: Docker Image CI - SySoftIntegra BackEnd
 name: Docker Staging CI - SySoftIntegra BackEnd
 
-# Desencadenadores de eventos: se activará en el push a las ramas 'staging'
 on:
   push:
     branches: 
-      - staging
+      - test
 
-# Definición de los trabajos
 jobs:
-  # Job para construir y desplegar la aplicación en el entorno de producción - Legrand Tiquepos
-  build-and-deploy-app-legrand-tiquepos:
+  build-and-deploy-app-test:
     runs-on: self-hosted
-    environment: legrand-tiquepos
-    
-    # Variables de entorno específicas para este job
+    environment: test
+
     env:  
       PORT: ${{ secrets.PORT }}
       APP_URL: ${{secrets.APP_URL}}
+      APP_PDF: ${{secrets.APP_PDF}}
+      APP_CPE_SUNAT: ${{secrets.APP_CPE_SUNAT}}
+      APP_APIS_PERU: ${{secrets.APP_APIS_PERU}}
+
+
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-    
+
     steps:
-      # Paso: Checkout del código fuente
       - name: Checkout código
         uses: actions/checkout@v3
     
-      # Paso: Crear archivo .env con las variables de entorno
       - name: Crear archivo .env
         run: |
           cat > .env <<EOL
           PORT="${{env.PORT}}"
           APP_URL="${{env.APP_URL}}"
+          APP_PDF="${{env.APP_PDF}}"
+          APP_CPE_SUNAT="${{env.APP_CPE_SUNAT}}"
+          APP_APIS_PERU="${{env.APP_APIS_PERU}}"
+
           DB_HOST="${{env.DB_HOST}}"
           DB_USER="${{env.DB_USER}}"
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
           EOL
-    
-      # Paso: Crear y ejecutar el contenedor Docker
+
       - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build legrand-tiquepos-services -d
+        run: docker compose -f docker-compose.yml up --build sysintegra-services -d
