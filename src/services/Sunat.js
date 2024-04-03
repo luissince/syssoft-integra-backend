@@ -166,7 +166,7 @@ class Sunat {
 
             sendSuccess(res, response.data);
         } catch (error) {
-            logger.error(`Empresa/update: ${error.message ?? error}`)
+            logger.error(`Sunat/facturar: ${error.message ?? error}`)
             sendError(res, "Error en declarar el comprobante.")
         }
     }
