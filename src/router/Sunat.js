@@ -12,6 +12,6 @@ router.get('/anular/factura/:idVenta', async (req, res) => await sunat.anularFac
 
 router.get('/guia/remision/:idGuiaRemision', async (req, res) => await sunat.guiaRemision(req, res));
 
-router.get('/consultar/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.consultar(req, res));
+router.get('/consultar/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.consultar(req, res));
 
 module.exports = router;

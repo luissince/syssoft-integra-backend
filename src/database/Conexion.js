@@ -25,7 +25,7 @@ class Conexion {
                     return resolve(result);
                 });
             });
-        }); 
+        });
     }
 
     procedure(slq, param = []) {
@@ -38,7 +38,7 @@ class Conexion {
                     return resolve(result[0]);
                 });
             });
-        }); 
+        });
     }
 
     beginTransaction() {
@@ -96,6 +96,27 @@ class Conexion {
         });
     }
 
+    async update(json, tablaName, where ,id) {
+        // Obtener los nombres de las propiedades del objeto JSON
+        const campos = Object.keys(json);
+
+        // Construir la consulta SQL dinámicamente
+        let sql = `UPDATE ${tablaName} SET `;
+        campos.forEach((campo, index) => {
+            sql += `${campo} = ?`;
+            if (index < campos.length - 1) {
+                sql += `, `;
+            }
+        });
+        sql += ` WHERE ${where} = ?`;
+
+        // Obtener los valores de los campos del objeto JSON
+        const valores = campos.map(campo => json[campo]);
+        valores.push(id);
+        
+        // Ejecutar la consulta SQL
+        await this.query(sql, valores);
+    }
 
 }
 

@@ -1,6 +1,6 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, dateFormat } = require('../tools/Tools');
+const { dateFormat } = require('../tools/Tools');
 const xl = require('excel4node');
-const { sendSuccess, sendPdf, sendError } = require('../tools/Message');
+const { sendPdf, sendError } = require('../tools/Message');
 const logger = require('../tools/Logger');
 require('dotenv').config();
 const axios = require('axios').default;
@@ -85,7 +85,7 @@ class Reporte {
             const plazos = await conec.query(`
             SELECT 
                 cuota,
-                DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
+                DATE_FORMAT(fecha,'%Y-%m-%d') as fecha,
                 monto
             FROM 
                 plazo 
@@ -518,7 +518,7 @@ class Reporte {
             ws.cell(11, 1).string(`Sucursal(s):`).style(styleHeader);
             ws.cell(11, 2).string(`${cabecera.sucursal}`).style(styleHeader);
 
-            const header = ["N°", "N° DOCUMENTO","CLIENTE", "COMPROBANTE", "SERIE", "NUMERACION", "FECHA", "FORMA DE PAGO", "ESTADO", "MONTO"];
+            const header = ["N°", "N° DOCUMENTO", "CLIENTE", "COMPROBANTE", "SERIE", "NUMERACION", "FECHA", "FORMA DE PAGO", "ESTADO", "MONTO"];
 
             header.map((item, index) => ws.cell(13, 1 + index).string(item).style(styleTableHeader));
 
@@ -531,14 +531,14 @@ class Reporte {
                 }
 
                 let estado = "";
-                if(item.estado === 1){
-                    estado="COBRADO";
-                }else if(item.estado === 2){
-                    estado="POR COBRAR";
-                }else if(item.estado === 3){
-                    estado="ANULADO";
-                }else{
-                    estado="POR LLEVAR";
+                if (item.estado === 1) {
+                    estado = "COBRADO";
+                } else if (item.estado === 2) {
+                    estado = "POR COBRAR";
+                } else if (item.estado === 3) {
+                    estado = "ANULADO";
+                } else {
+                    estado = "POR LLEVAR";
                 }
 
                 ws.cell(14 + index, 1).number(parseInt(index + 1)).style(styleBodyInteger)
@@ -578,7 +578,6 @@ class Reporte {
 
             res.end(data);
         } catch (error) {
-            console.log(error)
             sendError(res, "Error al obtener el PDF")
         }
     }
@@ -700,7 +699,6 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            console.log(error)
             sendError(res, "Error al obtener el PDF")
         }
     }
