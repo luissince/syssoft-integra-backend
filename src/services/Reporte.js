@@ -804,6 +804,14 @@ class Reporte {
         }
     }
 
+    async reporteExcelCEPSunat(req, res){
+        try{
+
+        }catch(error){
+            
+        }
+    }
+
 }
 
 module.exports = Reporte;

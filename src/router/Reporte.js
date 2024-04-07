@@ -35,4 +35,8 @@ router.get('/financiero/pdf/:idSucursalGenerado/:fechaInicio/:fechaFinal/:idSucu
 
 router.get('/financiero/excel/:idSucursalGenerado/:fechaInicio/:fechaFinal/:idSucursal/:idUsuario', async (req, res) => await reporte.reporteExcelFinanciero(req, res));
 
+
+// CPE Sunat
+router.get('/financiero/excel/:idSucursalGenerado/:fechaInicio/:fechaFinal/:idComprobante/:idUsuario', async (req, res) => await reporte.reporteExcelCEPSunat(req, res));
+
 module.exports = router;
