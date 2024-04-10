@@ -20,24 +20,28 @@ class Comprobante {
                 FROM comprobante AS c
                 INNER JOIN tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
                 WHERE 
-                ? = 0
+                ? = 0 AND c.idSucursal = ?
                 OR
-                ? = 1 AND c.nombre LIKE CONCAT(?,'%')
+                ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ? 
                 OR
-                ? = 1 AND c.serie LIKE CONCAT(?,'%')
+                ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
                 OR
-                ? = 1 AND c.numeracion LIKE CONCAT(?,'%')
+                ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?
                 LIMIT ?,?`, [
                 parseInt(req.query.opcion),
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -57,21 +61,25 @@ class Comprobante {
             WHERE 
             ? = 0
             OR
-            ? = 1 AND c.nombre LIKE CONCAT(?,'%')
+            ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ?
             OR
-            ? = 1 AND c.serie LIKE CONCAT(?,'%')
+            ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
             OR
-            ? = 1 AND c.numeracion LIKE CONCAT(?,'%')`, [
+            ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?`, [
                 parseInt(req.query.opcion),
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
 
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.idSucursal,
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
@@ -86,8 +94,15 @@ class Comprobante {
             connection = await conec.beginTransaction();
 
             if (req.body.preferida) {
-                await conec.execute(connection, `UPDATE comprobante SET preferida = 0 WHERE idTipoComprobante = ?`, [
+                await conec.execute(connection, `
+                UPDATE 
+                    comprobante 
+                SET 
+                    preferida = 0 
+                WHERE 
+                    idTipoComprobante = ? AND idSucursal = ?`, [
                     req.body.idTipoComprobante,
+                    req.body.idSucursal,
                 ]);
             }
 
@@ -96,6 +111,7 @@ class Comprobante {
 
             await conec.execute(connection, `INSERT INTO comprobante(
                 idComprobante,
+                idSucursal,
                 idTipoComprobante,
                 nombre,
                 serie,
@@ -112,8 +128,9 @@ class Comprobante {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idComprobante,
+                req.body.idSucursal,
                 req.body.idTipoComprobante,
                 req.body.nombre,
                 req.body.serie,
@@ -170,8 +187,15 @@ class Comprobante {
             connection = await conec.beginTransaction();
 
             if (req.body.preferida) {
-                await conec.execute(connection, `UPDATE comprobante SET preferida = 0 WHERE idTipoComprobante = ?`, [
+                await conec.execute(connection, `
+                UPDATE 
+                    comprobante 
+                SET 
+                    preferida = 0 
+                WHERE 
+                    idTipoComprobante = ? AND idSucursal = ?`, [
                     req.body.idTipoComprobante,
+                    req.body.idSucursal,
                 ]);
             }
 
@@ -248,26 +272,32 @@ class Comprobante {
 
     async combo(req, res) {
         try {
+            const idTipoComprobante = req.query.tipo;
 
-            let estado = req.query.estado == undefined ? "" : req.query.estado;
+            const estado = req.query.estado == undefined ? "" : req.query.estado;
 
-            let result = await conec.query(`SELECT 
-            idComprobante, 
-            nombre, 
-            serie,
-            estado, 
-            preferida,
-            numeroCampo
-            FROM comprobante
+            const idSucursal = req.query.idSucursal == undefined ? "" : req.query.idSucursal;
+
+            const result = await conec.query(`
+            SELECT 
+                idComprobante, 
+                nombre, 
+                serie,
+                estado, 
+                preferida,
+                numeroCampo
+            FROM 
+                comprobante
             WHERE 
-            idTipoComprobante = ? AND estado = 1 AND ? = ''
-            OR
-            idTipoComprobante = ? AND ? = 'all'
+                idTipoComprobante = ? 
+                AND ( ? = '' OR idSucursal = ? ) 
+                AND ( estado = 1 AND ( ? = '' OR ? = 'all' ) )   
             `, [
-                req.query.tipo,
-                estado,
+                idTipoComprobante,
+                idSucursal,
+                idSucursal,
 
-                req.query.tipo,
+                estado,
                 estado,
             ]);
             return sendSuccess(res, result);

@@ -8,6 +8,7 @@ const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
 const forge = require('node-forge');
+const logger = require('./Logger');
 
 function isNumber(value) {
     return typeof value === 'number';
@@ -67,15 +68,15 @@ async function chmod(file, mode = 0o755) {
 }
 
 function currentDate() {
-    let date = new Date();
-    let formatted_date = date.getFullYear() + "-" + ((date.getMonth() + 1) > 9 ? (date.getMonth() + 1) : '0' + (
+    const date = new Date();
+    const formatted_date = date.getFullYear() + "-" + ((date.getMonth() + 1) > 9 ? (date.getMonth() + 1) : '0' + (
         date.getMonth() + 1)) + "-" + (date.getDate() > 9 ? date.getDate() : '0' + date.getDate());
     return formatted_date;
 }
 
 function currentTime() {
-    let time = new Date();
-    let formatted_time = (time.getHours() > 9 ? time.getHours() : '0' + time.getHours()) + ":" + (time.getMinutes() > 9 ? time.getMinutes() : '0' + time.getMinutes()) + ":" + (time.getSeconds() > 9 ? time.getSeconds() : '0' + time.getSeconds());
+    const time = new Date();
+    const formatted_time = (time.getHours() > 9 ? time.getHours() : '0' + time.getHours()) + ":" + (time.getMinutes() > 9 ? time.getMinutes() : '0' + time.getMinutes()) + ":" + (time.getSeconds() > 9 ? time.getSeconds() : '0' + time.getSeconds());
     return formatted_time;
 }
 
@@ -251,48 +252,6 @@ function rounded(amount, decimalCount = 2) {
     return parseFloat(negativeSign + fixedAmount);
 }
 
-function calculateTaxBruto(impuesto, monto) {
-    return monto / ((impuesto + 100) * 0.01);
-}
-
-function calculateTax(porcentaje, valor) {
-    let igv = parseFloat(porcentaje) / 100.0;
-    return valor * igv;
-}
-
-function frecuenciaPago(value) {
-    if (value === 7) return "SEMANAL";
-    if (value === 15) return "QUINCENAL";
-    if (value === 30) return "MENSUAL";
-    if (value === 60) return "BIMESTRAL";
-    if (value === 90) return "TRIMESTRAL";
-    return "NINGUNO";
-}
-
-function zfill(number, width = 6) {
-    var numberOutput = Math.abs(number);
-    var length = number.toString().length;
-    var zero = "0";
-
-    if (width <= length) {
-        if (number < 0) {
-            return ("-" + numberOutput.toString());
-        } else {
-            return numberOutput.toString();
-        }
-    } else {
-        if (number < 0) {
-            return ("-" + (zero.repeat(width - length)) + numberOutput.toString());
-        } else {
-            return ((zero.repeat(width - length)) + numberOutput.toString());
-        }
-    }
-}
-
-function categoriaProducto(producto, categoria) {
-    return producto + " - " + categoria;
-}
-
 function generateAlphanumericCode(idCode, lista, propiedad) {
     if (lista.length === 0) return idCode
 
@@ -309,28 +268,32 @@ function generateNumericCode(idCode, lista, propiedad) {
     return Math.max(...quitarValor) + 1;
 }
 
+function registerLog(nameFunction, error){
+    if (!error || !error.message) {
+        logger.error(`${nameFunction}: Error de conexión intero.`);
+    } else {
+        logger.error(`${nameFunction}: ${error.message ?? error}`);
+    }
+}
+
 module.exports = {
     isNumber,
     currentDate,
     currentTime,
     dateFormat,
     formatMoney,
-    calculateTaxBruto,
-    calculateTax,
     numberFormat,
-    frecuenciaPago,
-    zfill,
     isDirectory,
     isFile,
     removeFile,
     writeFile,
     mkdir,
     chmod,
-    categoriaProducto,
     isEmail,
     generateAlphanumericCode,
     generateNumericCode,
     processImage,
     processFilePem,
-    rounded
+    rounded,
+    registerLog
 };

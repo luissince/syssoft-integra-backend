@@ -1,16 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Producto = require('../services/Producto');
-const empresa = require('../services/Empresa');
-const RepProducto = require('../report/RepProducto');
-const { generateProductoDeuda } = require('../excel/FileProducto');
-const { decrypt } = require('../tools/CryptoJS');
-const { currentDate } = require('../tools/Tools');
-const { sendError } = require('../tools/Message');
 
 const producto = new Producto();
-
-const repProducto = new RepProducto();
 
 router.get('/list', async function (req, res) {
     const result = await producto.list(req)
