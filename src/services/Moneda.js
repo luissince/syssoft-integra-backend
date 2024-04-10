@@ -237,6 +237,7 @@ class Moneda {
             
             return sendNotFound(res, "No hay datos para mostrar")
         } catch (error) {
+            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
