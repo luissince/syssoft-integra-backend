@@ -1,5 +1,5 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
-const { sendSuccess, sendPdf, sendError } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave } = require('../tools/Message');
 require('dotenv').config();
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
@@ -9,9 +9,12 @@ class Compra {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?)`, [
+            console.log(req.query)
+            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
                 req.query.idSucursal,
 
                 parseInt(req.query.posicionPagina),
@@ -25,54 +28,69 @@ class Compra {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
                 req.query.idSucursal
             ]);
 
-            sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
     async id(req, res) {
         try {
-            const ajuste = await conec.query(`SELECT 
-            a.idAjuste,
-            DATE_FORMAT(a.fecha,'%d/%m/%Y') as fecha,
-            a.hora,
-            tp.nombre as tipo,
-            mt.nombre as motivo,
-            al.nombre as almacen,
-            a.observacion,
-            a.estado
-            from ajuste as a 
-            INNER JOIN tipoAjuste as tp ON tp.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN motivoAjuste as mt on mt.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN almacen as al on al.idAlmacen = a.idAlmacen
-            INNER JOIN usuario us on us.idUsuario = a.idUsuario
-            WHERE a.idAjuste = ?`, [
+            const ajuste = await conec.query(`
+            SELECT 
+                a.idAjuste,
+                DATE_FORMAT(a.fecha,'%d/%m/%Y') AS fecha,
+                a.hora,
+                tp.nombre AS tipo,
+                mt.nombre AS motivo,
+                al.nombre AS almacen,
+                a.observacion,
+                a.estado
+            FROM 
+                ajuste AS a 
+            INNER JOIN 
+                tipoAjuste AS tp ON tp.idTipoAjuste = a.idTipoAjuste
+            INNER JOIN 
+                motivoAjuste AS mt on mt.idMotivoAjuste = a.idMotivoAjuste
+            INNER JOIN 
+                almacen AS al on al.idAlmacen = a.idAlmacen
+            INNER JOIN 
+                usuario us on us.idUsuario = a.idUsuario
+            WHERE 
+                a.idAjuste = ?`, [
                 req.query.idAjuste,
             ])
 
-            const detalle = await conec.query(`SELECT 
-            p.codigo,
-            p.nombre as producto,
-            aj.cantidad,
-            m.nombre as unidad,
-            c.nombre as categoria
-            from ajusteDetalle as aj
-            INNER JOIN producto as p on p.idProducto = aj.idProducto
-            INNER JOIN medida as m on m.idMedida = p.idMedida
-            INNER JOIN categoria as c on c.idCategoria = p.idCategoria
-            WHERE aj.idAjuste = ?`, [
+            const detalle = await conec.query(`
+            SELECT 
+                p.codigo,
+                p.nombre as producto,
+                aj.cantidad,
+                m.nombre as unidad,
+                c.nombre as categoria
+            FROM 
+                ajusteDetalle as aj
+            INNER JOIN 
+                producto as p on p.idProducto = aj.idProducto
+            INNER JOIN 
+                medida as m on m.idMedida = p.idMedida
+            INNER JOIN 
+                categoria as c on c.idCategoria = p.idCategoria
+            WHERE 
+                aj.idAjuste = ?`, [
                 req.query.idAjuste,
             ])
-            sendSuccess(res, { cabecera: ajuste[0], detalle });
+            return sendSuccess(res, { cabecera: ajuste[0], detalle });
         } catch (error) {
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
@@ -139,10 +157,108 @@ class Compra {
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            sendSuccess(res, { cabecera: cotizacion[0], detalle });
+            return sendSuccess(res, { cabecera: cotizacion[0], detalle });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+        }
+    }
+
+    async detailVenta(req, res) {
+        try {
+            const cliente = await conec.query(`
+            SELECT 
+                p.idPersona,
+                p.documento,
+                p.informacion
+            FROM 
+                cotizacion AS c
+            INNER JOIN 
+                persona AS p ON p.idPersona = c.idCliente
+            WHERE 
+                c.idCotizacion = ?`, [
+                req.query.idCotizacion
+            ]);
+
+            const detalles = await conec.query(`
+            SELECT 
+                cd.idProducto,
+                cd.precio,
+                cd.cantidad
+            FROM
+                cotizacionDetalle AS cd
+            WHERE
+                cd.idCotizacion = ?`, [
+                req.query.idCotizacion
+            ]);
+
+            let productos = [];
+
+            for (const item of detalles) {
+                console.log(item)
+                const producto = await conec.query(`
+                SELECT 
+                    p.idProducto, 
+                    p.codigo,
+                    p.nombre AS nombreProducto, 
+                    p.preferido,
+                    p.negativo,
+                    c.nombre AS categoria, 
+                    m.nombre AS medida,
+                    p.idTipoTratamientoProducto,
+                    p.imagen,
+                    a.nombre AS almacen,
+                    i.idInventario,
+                    'PRODUCTO' AS tipo
+                FROM 
+                    producto AS p
+                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                    INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+                    INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                    INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
+                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
+                WHERE 
+                    p.idProducto = ? AND a.idAlmacen = ?
+                UNION
+                SELECT 
+                    p.idProducto, 
+                    p.codigo,
+                    p.nombre AS nombreProducto, 
+                    p.preferido,
+                    p.negativo,
+                    c.nombre AS categoria, 
+                    m.nombre AS medida,
+                    p.idTipoTratamientoProducto,
+                    p.imagen,
+                    'SIN ALMACEN' AS almacen,
+                    0 AS idInventario,
+                    'SERVICIO' AS tipo
+                FROM 
+                    producto AS p
+                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                WHERE 
+                    p.idProducto = ?`, [
+                    item.idProducto,
+                    req.query.idAlmacen,
+                    item.idProducto
+                ]);
+
+                const newProducto = {
+                    ...producto[0],
+                    precio: item.precio,
+                    cantidad: item.cantidad
+                }
+
+                productos.push(newProducto);
+            }
+
+            // Devuelve un objeto con la información de la compra, los detalles y las salidas
+            return sendSuccess(res, { cliente: cliente[0], productos });
+        } catch (error) {
+            // Manejo de errores: Si hay un error, devuelve un mensaje de error
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
@@ -239,12 +355,15 @@ class Compra {
             }
 
             await conec.commit(connection);
-            sendSave(res, "Se registró correctamente la cotización.");
+            return sendSave(res, {
+                idCotizacion: idCotizacion,
+                message: "Se registró correctamente la cotización."
+            });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 
@@ -286,86 +405,12 @@ class Compra {
             ]);
 
             await conec.commit(connection);
-            sendSave(res, "Se anuló correctamente la cotización.");
+            return sendSave(res, "Se anuló correctamente la cotización.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.")
-        }
-    }
-
-    async report(req, res) {
-        try {
-
-            console.log(req.params.idCotizacion)
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/a4/`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    serie: 'CT01',
-                    numeracion: 1,
-                    fecha: '2024-03-21',
-                    hora: '17:20:22',
-                    moneda: { nombre: 'SOLES', codiso: 'PEN' },
-                    persona: {
-                        documento: '00000000',
-                        informacion: 'publica general',
-                        direccion: 'av. las perras del solar'
-                    },
-                    comprobante: { nombre: 'COTIZACION' },
-                    empresa: {
-                        documento: '20547848307',
-                        razonSocial: 'EMPRESA DE PRUEBA',
-                        nombreEmpresa: 'syssoft',
-                        logoEmpresa: `${process.env.APP_URL}/files/company/1710643112214_meehj7u.png`,
-                        logoDesarrollador: `${process.env.APP_URL}/files/to/logo.png`,
-                        tipoEnvio: true
-                    },
-                    sucursal: {
-                        telefono: '064 78809',
-                        celular: '99999992',
-                        email: 'somoperu@gmail.com',
-                        paginaWeb: 'www.mipagina.com',
-                        direccion: 'AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO',
-                        departamento: 'LIMA',
-                        provincia: 'LIMA',
-                        distrito: 'LINCE'
-                    },
-                    cotizacionDetalle: [
-                        {
-                            precio: 10,
-                            cantidad: 2,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        },
-                        {
-                            precio: 10,
-                            cantidad: 1,
-                            idImpuesto: 'IM0002',
-                            producto: { nombre: 'producto a' },
-                            medida: { nombre: 'UNIDAD' },
-                            impuesto: { nombre: 'IGV(18%)', porcentaje: 18 }
-                        }
-                    ],
-                    bancos: [
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' },
-                        { nombre: 'banco1', numCuenta: '22323232', cci: '232323233' }
-                    ]
-                },
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            sendPdf(res, response.data);
-        } catch (error) {
-            sendError(res, "Error al obtener el PDF")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 }

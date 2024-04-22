@@ -7,7 +7,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swagger = require('./src/swagger');
-const { isFile } = require('./src/tools/Tools');
+const { isFile, currentDate, currentTime } = require('./src/tools/Tools');
 
 require('dotenv').config();
 
@@ -53,7 +53,7 @@ app.get('/imagen/:nombreImagen', (req, res) => {
         return res.status(404).json({ error: 'El parámetro de nombre de imagen está incompleto.' });
     }
 
-    const noImange =  path.join(__dirname, 'src', 'path', 'to', 'noimage.jpg');
+    const noImange = path.join(__dirname, 'src', 'path', 'to', 'noimage.jpg');
 
     const rutas = [
         path.join(__dirname, 'src', 'path', 'to', nombreImagen),
@@ -75,6 +75,16 @@ app.get('/imagen/:nombreImagen', (req, res) => {
     if (!imagenEncontrada) {
         res.sendFile(noImange)
     }
+});
+
+// Middleware para registrar las solicitudes
+app.use((req, res, next) => {
+    console.log('Solicitud recibida:');
+    console.log('Fecha:', currentDate() + " " + currentTime());
+    console.log('Método:', req.method);
+    console.log('URL:', req.url);
+    console.log('Cuerpo:', req.body); // Registra el cuerpo de la solicitud
+    next();
 });
 
 // Rutas API

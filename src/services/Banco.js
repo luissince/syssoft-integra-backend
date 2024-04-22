@@ -131,8 +131,8 @@ class Banco {
                 vuelto=?,
                 reporte=?,
                 estado=?,
-                fecha=?,
-                hora=?,
+                fupdate=?,
+                hupdate=?,
                 idUsuario=?
             WHERE 
                 idBanco=?`, [

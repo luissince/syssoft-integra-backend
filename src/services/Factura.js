@@ -7,10 +7,15 @@ class Factura {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Ventas(?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Ventas(?,?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
                 req.query.idSucursal,
+
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
@@ -22,9 +27,13 @@ class Factura {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Ventas_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Ventas_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
                 req.query.idSucursal
             ]);
 
@@ -36,10 +45,15 @@ class Factura {
 
     async listCpeSunat(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_CPE_Sunat(?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_CPE_Sunat(?,?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
                 req.query.idSucursal,
+
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ])
@@ -51,14 +65,19 @@ class Factura {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_CPE_Sunat_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_CPE_Sunat_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
                 req.query.idSucursal
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
+            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -190,6 +209,11 @@ class Factura {
                 }
             } else {
                 nuevoIdCliente = idCliente;
+            }
+
+            if (!nuevoIdCliente) {
+                await conec.rollback(connection);
+                return sendClient(res, "No se genero el id de cliente, comuníquese con su proveedor de software.");
             }
 
             /**
@@ -864,6 +888,104 @@ class Factura {
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+    }
+
+    async detailVenta(req, res) {
+        try {
+            const cliente = await conec.query(`
+            SELECT 
+                p.idPersona,
+                p.documento,
+                p.informacion
+            FROM 
+                venta AS v
+            INNER JOIN 
+                persona AS p ON p.idPersona = v.idCliente
+            WHERE 
+                v.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            const detalles = await conec.query(`
+            SELECT 
+                vd.idProducto,
+                vd.descripcion,
+                vd.precio,
+                vd.cantidad
+            FROM
+                ventaDetalle AS vd
+            WHERE
+                vd.idVenta = ?`, [
+                req.query.idVenta
+            ]);
+
+            let productos = [];
+
+            for (const item of detalles) {
+                const producto = await conec.query(`
+                SELECT 
+                    p.idProducto, 
+                    p.codigo,
+                    p.preferido,
+                    p.negativo,
+                    c.nombre AS categoria, 
+                    m.nombre AS medida,
+                    p.idTipoTratamientoProducto,
+                    p.imagen,
+                    a.nombre AS almacen,
+                    i.idInventario,
+                    'PRODUCTO' AS tipo
+                FROM 
+                    producto AS p
+                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                    INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+                    INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                    INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
+                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
+                WHERE 
+                    p.idProducto = ? AND a.idAlmacen = ?
+                UNION
+                SELECT 
+                    p.idProducto, 
+                    p.codigo,
+                    p.preferido,
+                    p.negativo,
+                    c.nombre AS categoria, 
+                    m.nombre AS medida,
+                    p.idTipoTratamientoProducto,
+                    p.imagen,
+                    'SIN ALMACEN' AS almacen,
+                    0 AS idInventario,
+                    'SERVICIO' AS tipo
+                FROM 
+                    producto AS p
+                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                WHERE 
+                    p.idProducto = ?`, [
+                    item.idProducto,
+                    req.query.idAlmacen,
+                    item.idProducto,
+                ]);
+
+                const newProducto = {
+                    ...producto[0],
+                    nombreProducto: item.descripcion,
+                    precio: item.precio,
+                    cantidad: item.cantidad
+                }
+
+                productos.push(newProducto);
+            }
+
+            // Devuelve un objeto con la información de la compra, los detalles y las salidas
+            return sendSuccess(res, { cliente: cliente[0], productos });
+        } catch (error) {
+            console.log(error)
+            // Manejo de errores: Si hay un error, devuelve un mensaje de error
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
     }
 

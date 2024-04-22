@@ -16,6 +16,8 @@ router.get("/detail", async (req, res) => await factura.detail(req, res));
 
 router.get("/detail/only", async (req, res) => await factura.detailOnly(req, res));
 
+router.get("/detail/venta", async (req, res) => await factura.detailVenta(req, res));
+
 router.get("/list/accounts/receivable", async (req, res) => await factura.listAccountsReceivable(req, res));
 
 router.post("/collet/accounts/receivable", async (req, res) => await factura.colletAccountsReceivable(req, res));

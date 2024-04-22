@@ -67,17 +67,27 @@ async function chmod(file, mode = 0o755) {
     }
 }
 
+/**
+ * Obtiene la fecha actual en formato "YYYY-MM-DD".
+ * @returns {string} La fecha actual en formato "YYYY-MM-DD".
+ */
 function currentDate() {
-    const date = new Date();
+    const date = new Date(); // Obtiene la fecha actual
+    // Formatea la fecha como "YYYY-MM-DD"
     const formatted_date = date.getFullYear() + "-" + ((date.getMonth() + 1) > 9 ? (date.getMonth() + 1) : '0' + (
         date.getMonth() + 1)) + "-" + (date.getDate() > 9 ? date.getDate() : '0' + date.getDate());
-    return formatted_date;
+    return formatted_date; // Retorna la fecha formateada
 }
 
+/**
+ * Obtiene la hora actual en formato "HH:MM:SS".
+ * @returns {string} La hora actual en formato "HH:MM:SS".
+ */
 function currentTime() {
-    const time = new Date();
+    const time = new Date(); // Obtiene la hora actual
+    // Formatea la hora como "HH:MM:SS"
     const formatted_time = (time.getHours() > 9 ? time.getHours() : '0' + time.getHours()) + ":" + (time.getMinutes() > 9 ? time.getMinutes() : '0' + time.getMinutes()) + ":" + (time.getSeconds() > 9 ? time.getSeconds() : '0' + time.getSeconds());
-    return formatted_time;
+    return formatted_time; // Retorna la hora formateada
 }
 
 function dateFormat(value) {

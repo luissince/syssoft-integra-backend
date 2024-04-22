@@ -1,7 +1,6 @@
-const { dateFormat, registerLog } = require('../tools/Tools');
+const { dateFormat, registerLog, currentTime, currentDate } = require('../tools/Tools');
 const xl = require('excel4node');
 const { sendPdf, sendError } = require('../tools/Message');
-const logger = require('../tools/Logger');
 require('dotenv').config();
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
@@ -52,8 +51,7 @@ class Reporte {
             INNER JOIN 
                 formaPago AS p ON p.idFormaPago = v.idFormaPago
             WHERE 
-                v.idVenta = ?
-            `, [
+                v.idVenta = ?`, [
                 req.params.idVenta
             ]);
 
@@ -167,8 +165,490 @@ class Reporte {
         }
     }
 
-    async generarCotizacion(req, res, tipo) {
+    async generarPreFacturacion(req, res, tipo) {
+        try {
 
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const sucursal = await conec.query(`
+                SELECT 
+                    s.telefono,
+                    s.celular,
+                    s.email,
+                    s.paginaWeb,
+                    s.direccion,
+                    u.departamento,
+                    u.provincia,
+                    u.distrito
+                FROM 
+                    sucursal AS s
+                INNER JOIN
+                    ubigeo AS u ON u.idUbigeo = s.idUbigeo
+                WHERE
+                    s.idSucursal = ?`, [
+                req.body.idSucursal
+            ]);
+
+            const newEmpresa = {
+                ...empresa[0],
+                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoDesarrollador": `${process.env.APP_URL}/files/to/logo.png`,
+            }
+
+            let detalles = [];
+            for (const item of req.body.detalle) {
+                const producto = await conec.query(`
+                SELECT 
+                    p.nombre,
+                    m.nombre AS medida,
+                    c.nombre AS categoria,
+                    pc.valor AS precio 
+                FROM 
+                    producto AS p 
+                INNER JOIN
+                    medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN 
+                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN
+                    categoria AS c ON c.idCategoria = p.idCategoria
+                WHERE 
+                    p.idProducto = ?`, [
+                    item.idProducto
+                ]);
+
+                let cantidad = 0;
+                let precio = 0;
+
+                if (item.tipo == "SERVICIO") {
+                    precio = item.precio;
+                    cantidad = item.cantidad;
+                } else {
+                    if (item.idTipoTratamientoProducto === 'TT0002') {
+                        precio = producto[0].precio;
+                        cantidad = item.precio / producto[0].precio;
+                    } else {
+                        precio = item.precio;
+                        cantidad = item.inventarios.reduce((account, item) => account += parseFloat(item.cantidad), 0);
+                    }
+                }
+
+                const impuesto = await conec.query(`
+                SELECT 
+                    idImpuesto,
+                    nombre,
+                    porcentaje 
+                FROM 
+                    impuesto 
+                WHERE 
+                    idImpuesto = ?`, [
+                    item.idImpuesto
+                ]);
+
+                detalles.push({
+                    "producto": item.nombreProducto,
+                    "medida": producto[0].medida,
+                    "categoria": producto[0].categoria,
+                    "precio": precio,
+                    "cantidad": cantidad,
+                    "idImpuesto": impuesto[0].idImpuesto,
+                    "impuesto": impuesto[0].nombre,
+                    "porcentaje": impuesto[0].porcentaje
+                });
+            }
+
+            const bancos = await conec.query(`
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1
+            `);
+
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/venta/${tipo}`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "cabecera": {
+                        "idVenta": "VT0001",
+                        "comprobante": "BOLETA",
+                        "codigoVenta": "03",
+                        "serie": "B001",
+                        "numeracion": 1,
+                        "idSucursal": "SC0001",
+                        "codigoHash": null,
+                        "tipoDoc": "SIN DOCUMENTO",
+                        "codigoCliente": "0",
+                        "documento": "00000000",
+                        "informacion": "PUBLICO GENERAL",
+                        "direccion": "",
+                        "usuario": "ALEJANDRO MAGNO2",
+                        "fecha": "2024-03-24",
+                        "fechaQR": "2024-03-24",
+                        "hora": "14:38:09",
+                        "idFormaPago": "FP0001",
+                        "numeroCuota": 2,
+                        "frecuenciaPago": "30",
+                        "estado": 2,
+                        "simbolo": "S/",
+                        "codiso": "PEN",
+                        "moneda": "SOLES",
+                        "formaPago": "CRÉDITO FIJO"
+                    },
+                    "empresa": newEmpresa,
+                    "sucursal": sucursal[0],
+                    "ventaDetalle": detalles,
+                    "plazos": [],
+                    "bancos": bancos
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            registerLog('Reporte/generarFacturacion:', error);
+            sendError(res, "Error al obtener el PDF")
+        }
+    }
+
+    async generarCotizacion(req, res, tipo) {
+        try {
+
+            console.log(req.params.idCotizacion)
+
+            const cotizacion = await conec.query(`
+            SELECT 
+                serie,
+                numeracion,
+                DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, 
+                hora,
+                idSucursal,
+                idMoneda,
+                idCliente,
+                idComprobante
+            FROM 
+                cotizacion 
+            WHERE 
+                idCotizacion = ?`, [
+                req.params.idCotizacion
+            ])
+
+            const cliente = await conec.query(`
+            SELECT 
+                p.documento,
+                p.informacion,
+                p.direccion
+            FROM 
+                persona AS p
+            WHERE 
+                p.idPersona = ?
+            `, [
+                cotizacion[0].idCliente
+            ]);
+
+            const moneda = await conec.query(`
+            SELECT 
+                nombre,
+                simbolo,
+                codiso
+            FROM 
+                moneda AS m
+            WHERE 
+                m.idMoneda = ?`, [
+                cotizacion[0].idMoneda
+            ])
+
+            const comprobante = await conec.query(`
+            SELECT 
+                nombre
+            FROM 
+                comprobante AS c
+            WHERE 
+                c.idComprobante = ?`, [
+                cotizacion[0].idComprobante
+            ]);
+
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const newEmpresa = {
+                ...empresa[0],
+                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoDesarrollador": `${process.env.APP_URL}/files/to/logo.png`,
+            }
+
+            const bancos = await conec.query(`
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1
+            `);
+
+
+            const sucursal = await conec.query(`
+            SELECT 
+                s.telefono,
+                s.celular,
+                s.email,
+                s.paginaWeb,
+                s.direccion,
+                u.departamento,
+                u.provincia,
+                u.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS u ON u.idUbigeo = s.idUbigeo
+            WHERE
+                s.idSucursal = ?`, [
+                cotizacion[0].idSucursal
+            ]);
+
+
+            const detalle = await conec.query(`
+            SELECT 
+                cd.precio,
+                cd.cantidad,
+                cd.idImpuesto,
+                p.nombre AS producto,
+                m.nombre AS medida,
+                i.nombre AS impuesto,
+                i.porcentaje
+            FROM 
+                cotizacionDetalle AS cd
+            INNER JOIN
+                producto AS p ON p.idProducto = cd.idProducto
+            INNER JOIN
+                medida AS m ON m.idMedida = cd.idMedida
+            INNER JOIN
+                impuesto AS i ON i.idImpuesto = cd.idImpuesto
+            WHERE 
+                cd.idCotizacion = ?`, [
+                req.params.idCotizacion
+            ]);
+
+            const detalles = detalle.map((item) => {
+                return {
+                    "precio": item.precio,
+                    "cantidad": item.cantidad,
+                    "idImpuesto": item.idImpuesto,
+                    "producto": {
+                        "nombre": item.producto
+                    },
+                    "medida": {
+                        "nombre": item.medida
+                    },
+                    "impuesto": {
+                        "nombre": item.impuesto,
+                        "porcentaje": item.porcentaje,
+                    }
+                }
+            });
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/cotizacion/${tipo}`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "serie": cotizacion[0].serie,
+                    "numeracion": cotizacion[0].numeracion,
+                    "fecha": cotizacion[0].fecha,
+                    "hora": cotizacion[0].hora,
+                    "moneda": moneda[0],
+                    "persona": cliente[0],
+                    "comprobante": comprobante[0],
+                    "empresa": newEmpresa,
+                    "sucursal": sucursal[0],
+                    "cotizacionDetalle": detalles,
+                    "bancos": bancos
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            registerLog('Reporte/generarCotizacion:', error);
+            sendError(res, "Error al obtener el PDF")
+        }
+    }
+
+    async generarPreCotizacion(req, res, tipo) {
+        try {
+
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const newEmpresa = {
+                ...empresa[0],
+                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoDesarrollador": `${process.env.APP_URL}/files/to/logo.png`,
+            }
+
+            const sucursal = await conec.query(`
+            SELECT 
+                s.telefono,
+                s.celular,
+                s.email,
+                s.paginaWeb,
+                s.direccion,
+                u.departamento,
+                u.provincia,
+                u.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS u ON u.idUbigeo = s.idUbigeo
+            WHERE
+                s.idSucursal = ?`, [
+                req.body.idSucursal
+            ]);
+
+            const cliente = await conec.query(`
+            SELECT 
+                p.documento,
+                p.informacion,
+                p.direccion
+            FROM 
+                persona AS p
+            WHERE 
+                p.idPersona = ?
+            `, [
+                req.body.idCliente
+            ]);
+
+            const comprobante = await conec.query(`
+            SELECT 
+                nombre
+            FROM 
+                comprobante AS c
+            WHERE 
+                c.idComprobante = ?`, [
+                req.body.idComprobante
+            ]);
+
+            const moneda = await conec.query(`
+            SELECT 
+                nombre,
+                simbolo,
+                codiso
+            FROM 
+                moneda AS m
+            WHERE 
+                m.idMoneda = ?`, [
+                req.body.idMoneda
+            ])
+
+            const detalles = [];
+
+            for (const item of req.body.detalle) {
+                const medida = await conec.query(`
+                SELECT 
+                    nombre
+                FROM 
+                    medida AS m
+                WHERE 
+                    m.idMedida = ?`, [
+                    item.idMedida
+                ]);
+
+                detalles.push({
+                    "precio": item.precio,
+                    "cantidad": item.cantidad,
+                    "idImpuesto": item.idImpuesto,
+                    "producto": {
+                        "nombre": item.nombre
+                    },
+                    "medida": {
+                        "nombre": medida[0].nombre
+                    },
+                    "impuesto": {
+                        "nombre": item.nombreImpuesto,
+                        "porcentaje": item.porcentajeImpuesto,
+                    }
+                });
+            }
+
+            const bancos = await conec.query(`
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1
+            `);
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/cotizacion/${tipo}`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "serie": "CT01",
+                    "numeracion": 1,
+                    "fecha": currentDate(),
+                    "hora": currentTime(),
+                    "moneda": moneda[0],
+                    "persona": cliente[0],
+                    "comprobante": comprobante[0],
+                    "empresa": newEmpresa,
+                    "sucursal": sucursal[0],
+                    "cotizacionDetalle": detalles,
+                    "bancos": bancos
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            registerLog('Reporte/generarPreCotizacion:', error);
+            sendError(res, "Error al obtener el PDF")
+        }
     }
 
     async generarGuiaRemision(req, res, tipo) {
@@ -179,7 +659,7 @@ class Reporte {
 
     }
 
-    async reportPdfVenta(req, res) {
+    async reportePdfVenta(req, res) {
         try {
             const fechaInicio = req.params.fechaInicio;
             const fechaFinal = req.params.fechaFinal;
@@ -289,7 +769,7 @@ class Reporte {
 
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/venta/reporte/a4`,
+                url: `${process.env.APP_PDF}/api/v1/cotizacion/reporte/a4`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -310,7 +790,7 @@ class Reporte {
         }
     }
 
-    async reportExcelVenta(req, res) {
+    async reporteExcelVenta(req, res) {
         try {
             const fechaInicio = req.params.fechaInicio;
             const fechaFinal = req.params.fechaFinal;

@@ -159,13 +159,13 @@ class Sunat {
 
             const response = await axios.request(options);
 
+
             await conec.update(response.data.update, "venta", "idVenta", req.params.idVenta);
 
             delete response.data.update;
 
             sendSuccess(res, response.data);
         } catch (error) {
-            console.log(error)
             const errorResponse = new ErrorResponse(error);
             logger.error(`Sunat/facturar: ${errorResponse.getMessage()}`)
             sendError(res, errorResponse.getMessage())
