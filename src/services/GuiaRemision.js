@@ -103,6 +103,66 @@ class GuiaRemision {
         }
     }
 
+    async detailUpdate(req) {
+        try {
+            const guiaRemision = await conec.query(`
+            SELECT
+                v.idVenta,
+                cv.nombre AS nombreComprobante,
+                v.serie,
+                v.numeracion,
+                cl.documento,
+                cl.informacion,
+                gui.idModalidadTraslado,
+                gui.idMotivoTraslado,
+                DATE_FORMAT(gui.fechaTraslado,'%Y-%m-%d') AS fechaTraslado,
+                gui.idTipoPeso,
+                gui.peso,
+                gui.idVehiculo,
+                vh.marca,
+                vh.numeroPlaca,
+                gui.idConductor,
+                cd.documento AS documentoCoductor,
+                cd.informacion AS informacionConductor,
+                gui.direccionPartida,
+                gui.direccionLlegada,                
+                up.idUbigeo AS idUbigeopPartida,
+                up.departamento AS departamentoPartida,
+                up.provincia AS provinciaPartida,
+                up.distrito AS distritoPartida,
+                up.ubigeo AS ubigeoPartida,
+                ul.idUbigeo AS idUbigeoLlegada,
+                ul.departamento AS departamentoLlegada,
+                ul.provincia AS provinciaLlegada,
+                ul.distrito AS distritoLlegada,
+                ul.ubigeo AS ubigeoLlegada
+            FROM
+                guiaRemision AS gui
+            INNER JOIN 
+                venta AS v ON v.idVenta = gui.idVenta
+            INNER JOIN 
+                comprobante AS cv on cv.idComprobante = v.idComprobante
+            INNER JOIN 
+                persona AS cl ON cl.idPersona = v.idCliente
+            INNER JOIN 
+                vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+            INNER JOIN 
+                persona AS cd ON cd.idPersona = gui.idConductor
+            INNER JOIN 
+                ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+            INNER JOIN 
+                ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+            WHERE  
+                gui.idGuiaRemision = ?`, [
+                req.query.idGuiaRemision,
+            ]);
+
+            return { cabecera: guiaRemision[0] };
+        } catch (error) {
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
     async create(req) {
         let connection = null;
         try {
@@ -238,9 +298,77 @@ class GuiaRemision {
         try {
             connection = await conec.beginTransaction();
 
+            await conec.execute(connection, `
+                UPDATE 
+                    guiaRemision 
+                SET
+                    idVenta = ?,
+                    idModalidadTraslado = ?,
+                    idMotivoTraslado = ?,
+                    fechaTraslado = ?,
+                    idTipoPeso = ?,
+                    peso = ?,
+                    idVehiculo = ?,
+                    idConductor = ?,
+                    direccionPartida = ?,
+                    idUbigeoPartida = ?,
+                    direccionLlegada = ?,
+                    idUbigeoLlegada = ?,
+                    fecha = ?,
+                    hora = ?,
+                    idUsuario = ?
+                WHERE
+                    idGuiaRemision = ?`, [
+                req.body.idVenta,
+                req.body.idModalidadTraslado,
+                req.body.idMotivoTraslado,
+                req.body.fechaTraslado,
+                req.body.idTipoPeso,
+                req.body.peso,
+                req.body.idVehiculo,
+                req.body.idConductor,
+                req.body.direccionPartida,
+                req.body.idUbigeoPartida,
+                req.body.direccionLlegada,
+                req.body.idUbigeoLlegada,
+                currentDate(),
+                currentTime(),
+                req.body.idUsuario,
+                req.body.idGuiaRemision
+            ]);
+
+            await conec.execute(connection, `
+            DELETE FROM 
+                guiaRemisionDetalle 
+            WHERE 
+                idGuiaRemision = ?`, [
+                req.body.idGuiaRemision
+            ]);
+
+            const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
+            let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
+
+            for (const producto of req.body.detalle) {
+                await conec.execute(connection, `
+                INSERT INTO guiaRemisionDetalle(
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    idProducto,
+                    cantidad
+                ) VALUES (?,?,?,?)`, [
+                    idGuiaRemisionDetalle,
+                    req.body.idGuiaRemision,
+                    producto.idProducto,
+                    producto.cantidad
+                ]);
+
+                idGuiaRemisionDetalle++;
+            }
+
             await conec.commit(connection);
-            return "create";
+            return "update";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

@@ -32,6 +32,15 @@ router.get('/detail', async function (req, res) {
     }
 });
 
+router.get('/detail/update', async function (req, res) {
+    const result = await guiaRemision.detailUpdate(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result);
+    } else {
+        res.status(500).send(result);
+    }
+});
+
 router.post('/create', async function (req, res) {
     const result = await guiaRemision.create(req)
     if (typeof result === 'object') {
@@ -41,9 +50,9 @@ router.post('/create', async function (req, res) {
     }
 });
 
-router.post('/update', async function (req, res) {
+router.put('/update', async function (req, res) {
     const result = await guiaRemision.update(req)
-    if (result === 'create') {
+    if (result === 'update') {
         res.status(200).send("Se actualizón correctamente la guían de remisión.");
     } else {
         res.status(500).send(result);

@@ -1,6 +1,6 @@
 const { dateFormat, registerLog, currentTime, currentDate } = require('../tools/Tools');
 const xl = require('excel4node');
-const { sendPdf, sendError } = require('../tools/Message');
+const { sendPdf, sendError, sendClient, sendSuccess } = require('../tools/Message');
 require('dotenv').config();
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
@@ -168,6 +168,49 @@ class Reporte {
     async generarPreFacturacion(req, res, tipo) {
         try {
 
+            const comprobante = await conec.query(`
+            SELECT 
+                c.nombre AS comprobante,
+                tc.codigo AS codigoVenta,
+                c.serie,
+                c.numeracion
+            FROM 
+                comprobante AS c
+            INNER JOIN 
+                tipoComprobante AS tc ON tc.idTipoComprobante = c.idTipoComprobante
+            WHERE
+                c.idComprobante = ?`, [
+                req.body.idComprobante
+            ]);
+
+            const cliente = await conec.query(`
+            SELECT 
+                td.nombre AS tipoDoc,
+                td.codigo AS codigoCliente,
+                p.documento,
+                p.informacion,
+                p.direccion
+            FROM 
+                persona AS p
+            INNER JOIN
+                tipoDocumento AS td ON td.idTipoDocumento = p.idTipoDocumento
+            WHERE 
+                p.idPersona = ?`, [
+                req.body.idCliente
+            ]);
+
+            const moneda = await conec.query(`
+            SELECT 
+                m.simbolo,
+                m.codiso,
+                m.nombre AS moneda
+            FROM
+                moneda AS m
+            WHERE
+                m.idMoneda = ?`, [
+                req.body.idMoneda
+            ]);
+
             const empresa = await conec.query(`
             SELECT 
                 documento,
@@ -287,29 +330,29 @@ class Reporte {
                 data: {
                     "cabecera": {
                         "idVenta": "VT0001",
-                        "comprobante": "BOLETA",
-                        "codigoVenta": "03",
-                        "serie": "B001",
-                        "numeracion": 1,
+                        "comprobante": comprobante[0].comprobante,
+                        "codigoVenta": comprobante[0].codigoVenta,
+                        "serie": comprobante[0].serie,
+                        "numeracion": comprobante[0].numeracion,
                         "idSucursal": "SC0001",
                         "codigoHash": null,
-                        "tipoDoc": "SIN DOCUMENTO",
-                        "codigoCliente": "0",
-                        "documento": "00000000",
-                        "informacion": "PUBLICO GENERAL",
-                        "direccion": "",
+                        "tipoDoc": cliente[0].tipoDoc,
+                        "codigoCliente": cliente[0].codigoCliente,
+                        "documento": cliente[0].documento,
+                        "informacion": cliente[0].informacion,
+                        "direccion": cliente[0].direccion,
                         "usuario": "ALEJANDRO MAGNO2",
-                        "fecha": "2024-03-24",
-                        "fechaQR": "2024-03-24",
-                        "hora": "14:38:09",
+                        "fecha": currentDate(),
+                        "fechaQR": currentDate(),
+                        "hora": currentTime(),
                         "idFormaPago": "FP0001",
                         "numeroCuota": 2,
                         "frecuenciaPago": "30",
-                        "estado": 2,
-                        "simbolo": "S/",
-                        "codiso": "PEN",
-                        "moneda": "SOLES",
-                        "formaPago": "CRÉDITO FIJO"
+                        "estado": 1,
+                        "simbolo": moneda[0].simbolo,
+                        "codiso": moneda[0].codiso,
+                        "moneda": moneda[0].moneda,
+                        "formaPago": "CONTADO"
                     },
                     "empresa": newEmpresa,
                     "sucursal": sucursal[0],
@@ -330,8 +373,6 @@ class Reporte {
 
     async generarCotizacion(req, res, tipo) {
         try {
-
-            console.log(req.params.idCotizacion)
 
             const cotizacion = await conec.query(`
             SELECT 
@@ -652,7 +693,142 @@ class Reporte {
     }
 
     async generarGuiaRemision(req, res, tipo) {
+        try {
+            const guiaRemision = await conec.query(`
+            SELECT
+                gui.idSucursal,
+                DATE_FORMAT(gui.fecha,'%d/%m/%Y') AS fecha,
+                gui.hora,
+                cgui.nombre AS comprobante,
+                gui.serie,
+                gui.numeracion,
+                mdt.nombre AS modalidadTraslado,
+                mvt.nombre AS motivoTraslado,
+                DATE_FORMAT(gui.fechaTraslado,'%d/%m/%Y') AS fechaTraslado,
+                tp.nombre AS tipoPeso,
+                gui.peso,
+                vh.marca,
+                vh.numeroPlaca,
+                cd.documento AS documentoConductor,
+                cd.informacion AS informacionConductor,
+                cd.licenciaConducir,
+                gui.direccionPartida,
+                CONCAT(up.departamento,' - ',up.provincia,' - ',up.distrito, '(',up.ubigeo,')') AS ubigeoPartida,
+                gui.direccionLlegada,
+                CONCAT(ul.departamento,' - ',ul.provincia,' - ',ul.distrito, '(',ul.ubigeo,')') AS ubigeoLlegada,
+                CONCAT(u.apellidos,', ',  u.nombres) AS usuario,
+                cv.nombre AS comprobanteRef,
+                v.serie AS serieRef,
+                v.numeracion AS numeracionRef,
+                cl.documento AS documentoCliente,
+                cl.informacion AS informacionCliente,
+                gui.codigoHash
+            FROM
+                guiaRemision AS gui
+            INNER JOIN 
+                comprobante AS cgui on cgui.idComprobante = gui.idComprobante
+            INNER JOIN 
+                modalidadTraslado AS mdt ON mdt.idModalidadTraslado = gui.idModalidadTraslado
+            INNER JOIN 
+                motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
+            INNER JOIN 
+                tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
+            INNER JOIN 
+                vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+            INNER JOIN 
+                persona AS cd ON cd.idPersona = gui.idConductor
+            INNER JOIN 
+                ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+            INNER JOIN 
+                ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+            INNER JOIN 
+                usuario AS u ON u.idUsuario = gui.idUsuario
+            INNER JOIN 
+                venta AS v ON v.idVenta = gui.idVenta
+            INNER JOIN 
+                comprobante AS cv on cv.idComprobante = v.idComprobante
+            INNER JOIN 
+                persona AS cl ON cl.idPersona = v.idCliente
+            WHERE 
+                gui.idGuiaRemision = ?`, [
+                req.params.idGuiaRemision
+            ]);
 
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const sucursal = await conec.query(`
+                SELECT 
+                    s.telefono,
+                    s.celular,
+                    s.email,
+                    s.paginaWeb,
+                    s.direccion,
+                    u.departamento,
+                    u.provincia,
+                    u.distrito
+                FROM 
+                    sucursal AS s
+                INNER JOIN
+                    ubigeo AS u ON u.idUbigeo = s.idUbigeo
+                WHERE
+                    s.idSucursal = ?`, [
+                guiaRemision[0].idSucursal
+            ]);
+
+            const newEmpresa = {
+                ...empresa[0],
+                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoDesarrollador": `${process.env.APP_URL}/files/to/logo.png`,
+            }
+
+            const detalles = await conec.query(` 
+            SELECT 
+                p.codigo,
+                p.nombre,
+                gd.cantidad,
+                m.nombre AS medida 
+            FROM 
+                guiaRemisionDetalle AS gd
+            INNER JOIN 
+                producto AS p ON gd.idProducto = p.idProducto
+            INNER JOIN 
+                medida AS m ON m.idMedida = p.idMedida
+            WHERE 
+                gd.idGuiaRemision = ?`, [
+                req.params.idGuiaRemision
+            ]);
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/guiaremision/${tipo}`,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                data: {
+                    "guiaRemision": guiaRemision[0],
+                    "empresa": newEmpresa,
+                    "sucursal": sucursal[0],
+                    "guiaRemisionDetalle": detalles,
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            registerLog('Reporte/generarFacturacion:', error);
+            sendError(res, "Error al obtener el PDF")
+        }
     }
 
     async generarCompra(req, res, tipo) {
@@ -1027,7 +1203,9 @@ class Reporte {
 
             const data = await wb.writeToBuffer()
 
-            res.end(data);
+            sendSuccess(res, {
+                buffer: data
+            });
         } catch (error) {
             registerLog('Reporte/reportExcelVenta:', error);
             sendError(res, "Error al obtener el PDF")
@@ -1251,7 +1429,9 @@ class Reporte {
 
             const data = await wb.writeToBuffer()
 
-            res.end(data);
+            sendSuccess(res, {
+                buffer: data
+            });
         } catch (error) {
             registerLog('Reporte/reporteExcelFinanciero:', error);
             sendError(res, "Error al obtener el PDF")
@@ -1260,8 +1440,6 @@ class Reporte {
 
     async reporteExcelCEPSunat(req, res) {
         try {
-            console.log(req.params)
-
             const fechaInicio = req.params.fechaInicio;
             const fechaFinal = req.params.fechaFinal;
             const idSucursal = req.params.idSucursal === "-" ? "" : req.params.idSucursal;
@@ -1316,8 +1494,6 @@ class Reporte {
                 fechaFinal,
                 idSucursal
             ]);
-
-            console.log(comprobantes)
 
             const cabecera = {
                 "fechaInicio": fechaInicio,
@@ -1455,9 +1631,77 @@ class Reporte {
 
             const data = await wb.writeToBuffer();
 
-            res.end(data);
+            sendSuccess(res, {
+                buffer: data
+            });
         } catch (error) {
             registerLog('Reporte/reporteExcelCEPSunat:', error);
+            sendError(res, "Error al obtener el PDF")
+        }
+    }
+
+    async generarXmlSunat(req, res) {
+        try {
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const xml = await conec.query(`
+            SELECT 
+                v.xmlGenerado,
+                co.nombre,
+                v.serie,
+                v.numeracion
+            FROM 
+                venta AS v 
+            INNER JOIN 
+                comprobante AS co ON v.idComprobante = co.idComprobante
+            WHERE 
+                v.idVenta = ?
+    
+            UNION
+            
+            SELECT 
+                gu.xmlGenerado,
+                co.nombre,
+                gu.serie,
+                gu.numeracion
+            FROM 
+                guiaRemision AS gu 
+            INNER JOIN 
+                comprobante AS co ON gu.idComprobante = co.idComprobante
+            WHERE 
+                gu.idGuiaRemision = ?`, [
+                req.params.idComprobante,
+                req.params.idComprobante,
+            ]);
+
+            console.log(xml)
+
+            if (xml.length === 0) {
+                return sendClient(res, "No hay información del comprobante.");
+            }
+
+            if (xml[0].xmlGenerado === null || xml[0].xmlGenerado === "") {
+                return sendClient(res, "El comprobante no tiene generado ningún xml.");
+            }
+
+            const xmlBuffer = Buffer.from(xml[0].xmlGenerado, 'utf-8');
+
+            const object = {
+                "name": `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml`,
+                "buffer": xmlBuffer
+            };
+            // const buffXmlSunat = Buffer.from(JSON.stringify(object), "utf-8");
+            // res.end(buffXmlSunat);
+            sendSuccess(res, object);
+        } catch (error) {
             sendError(res, "Error al obtener el PDF")
         }
     }
