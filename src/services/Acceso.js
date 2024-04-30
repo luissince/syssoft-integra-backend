@@ -6,43 +6,55 @@ class Acceso {
 
     async accesos(req, res) {
         try {
-            let menu = await conec.query(`
+            const menu = await conec.query(`
             SELECT 
-            m.idMenu,
-            m.nombre, 
-            pm.estado 
-            FROM permisoMenu as pm 
-            INNER JOIN perfil as p on pm.idPerfil = p.idPerfil
-            INNER JOIN menu as m on pm.idMenu = m.idMenu
-            WHERE p.idPerfil = ?
+                m.idMenu,
+                m.nombre, 
+                pm.estado 
+            FROM 
+                permisoMenu as pm 
+            INNER JOIN 
+                perfil as p on pm.idPerfil = p.idPerfil
+            INNER JOIN 
+                menu as m on pm.idMenu = m.idMenu
+            WHERE 
+                p.idPerfil = ?`, [
+                req.query.idPerfil,
+            ]);
+
+            const submenu = await conec.query(`
+            SELECT 
+                sm.idMenu,
+                sm.idSubMenu,
+                sm.nombre,
+                psm.estado
+            FROM 
+                permisoSubMenu as psm
+            INNER JOIN 
+                perfil AS p ON psm.idPerfil = p.idPerfil
+            INNER JOIN 
+                subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
+            WHERE 
+                psm.idPerfil = ?
             `, [
                 req.query.idPerfil,
             ]);
 
-            let submenu = await conec.query(`
-            SELECT 
-            sm.idMenu,
-            sm.idSubMenu,
-            sm.nombre,
-            psm.estado
-            FROM permisoSubMenu as psm
-            INNER JOIN perfil AS p ON psm.idPerfil = p.idPerfil
-            INNER JOIN subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
-            WHERE psm.idPerfil = ?
-            `, [
-                req.query.idPerfil,
-            ]);
-
-            let privilegio = await conec.query(`SELECT
-            pp.idPrivilegio,
-            pp.idSubMenu,
-            pp.idMenu,
-            pv.nombre, 
-            pp.estado
-            FROM permisoPrivilegio AS pp
-            INNER JOIN perfil AS p ON p.idPerfil = pp.idPerfil
-            INNER JOIN privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu 
-            WHERE pp.idPerfil = ?`, [
+            const privilegio = await conec.query(`
+            SELECT
+                pp.idPrivilegio,
+                pp.idSubMenu,
+                pp.idMenu,
+                pv.nombre, 
+                pp.estado
+            FROM 
+                permisoPrivilegio AS pp
+            INNER JOIN 
+                perfil AS p ON p.idPerfil = pp.idPerfil
+            INNER JOIN 
+                privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu 
+            WHERE 
+                pp.idPerfil = ?`, [
                 req.query.idPerfil,
             ]);
 
