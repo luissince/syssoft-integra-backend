@@ -1614,9 +1614,9 @@ class Reporte {
                 ws.cell(12 + index, 8).number(item.numeracion).style(styleBodyInteger)
 
                 ws.cell(12 + index, 9).string(item.codiso).style(styleBody)
-                ws.cell(12 + index, 10).number(parseFloat(item.numeracion)).style(styleBodyFloat)
-                ws.cell(12 + index, 11).number(parseFloat(item.numeracion)).style(styleBodyFloat)
-                ws.cell(12 + index, 12).number(parseFloat(item.numeracion)).style(styleBodyFloat)
+                ws.cell(12 + index, 10).number(parseFloat(item.subTotal)).style(styleBodyFloat)
+                ws.cell(12 + index, 11).number(parseFloat(item.igv)).style(styleBodyFloat)
+                ws.cell(12 + index, 12).number(parseFloat(item.exogenerada)).style(styleBodyFloat)
 
                 if (item.xmlSunat === '0') {
                     ws.cell(12 + index, 13).number(parseFloat(item.total)).style(styleBodyFloat)
