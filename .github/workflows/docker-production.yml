@@ -275,3 +275,49 @@ jobs:
 
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build leatsac-services -d
+
+  build-and-deploy-app-staging:
+    runs-on: self-hosted
+    environment: ferreteria-rym
+    
+    env:  
+      PORT: ${{ secrets.PORT }}
+      APP_URL: ${{secrets.APP_URL}}
+      APP_PDF: ${{secrets.APP_PDF}}
+      APP_CPE_SUNAT: ${{secrets.APP_CPE_SUNAT}}
+      APP_APIS_PERU: ${{secrets.APP_APIS_PERU}}
+
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+
+      TZ: ${{ secrets.TZ }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+    
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{env.PORT}}"
+          APP_URL="${{env.APP_URL}}"
+          APP_PDF="${{env.APP_PDF}}"
+          APP_CPE_SUNAT="${{env.APP_CPE_SUNAT}}"
+          APP_APIS_PERU="${{env.APP_APIS_PERU}}"
+
+          DB_HOST="${{env.DB_HOST}}"
+          DB_USER="${{env.DB_USER}}"
+          DB_PASSWORD="${{env.DB_PASSWORD}}"
+          DB_NAME="${{env.DB_NAME}}"
+          DB_PORT="${{env.DB_PORT}}"
+
+          TZ="${{env.TZ}}"
+          ENVIRONMENT=${{env.ENVIRONMENT}}
+          EOL
+    
+      - name: Creando y ejecutando contenedor
+        run: docker compose -f docker-compose.yml up --build ferreteria-rym-services -d
