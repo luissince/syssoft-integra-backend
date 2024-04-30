@@ -945,7 +945,7 @@ class Reporte {
 
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/cotizacion/reporte/a4`,
+                url: `${process.env.APP_PDF}/api/v1/venta/reporte/a4`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
