@@ -276,7 +276,7 @@ jobs:
       - name: Creando y ejecutando contenedor
         run: docker compose -f docker-compose.yml up --build leatsac-services -d
 
-  build-and-deploy-app-staging:
+  build-and-deploy-app-ferreteria-rym:
     runs-on: self-hosted
     environment: ferreteria-rym
     
