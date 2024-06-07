@@ -1,11 +1,11 @@
 
 /**
-*Esta función se encarga de resporder las peticiones exitosas con estado 200 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones exitosas con estado 200 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -16,28 +16,29 @@ function sendSuccess(res, result) {
 }
 
 /**
- * Esta función se encarga de enviar un archivo PDF como respuesta a una solicitud HTTP.
- * @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
- *
- * @param {object} res El objeto de respuesta del request
- * @param {Buffer} data Los datos del PDF que se van a enviar como respuesta
- * @returns {object} Retorna el objeto de respuesta `res` con el PDF adjunto
+ * Envía un archivo PDF como respuesta a una solicitud HTTP.
+ * 
+ * @param {import('express').Response} res - El objeto de respuesta de Express.
+ * @param {Buffer} data - Los datos del PDF que se enviarán como respuesta.
+ * @returns {import('express').Response} - El objeto de respuesta modificado con el PDF adjunto.
+ * 
  * @example
- * // Envía los datos del PDF como respuesta
+ * // Envia los datos del PDF como respuesta
  * sendPdf(res, data);
  */
-function sendPdf(res, data) {
+function sendPdf(res, data, fileName = "reporte") {
+    res.setHeader('Content-Disposition', 'inline; filename="'+fileName+'.pdf"');
     res.setHeader('Content-Type', 'application/pdf');
     return res.send(data);
 }
 
 /**
-*Esta función se encarga de resporder las peticiones registradas con estado 201 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones registradas con estado 201 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -48,12 +49,12 @@ function sendSave(res, result) {
 }
 
 /**
-*Esta función se encarga de resporder las peticiones exitosas sin contenido con estado 204 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones exitosas sin contenido con estado 204 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -64,12 +65,12 @@ function sendNoContent(res, result) {
 }
 
 /**
-*Esta función se encarga de resporder las peticiones fallidas con estado 500 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones fallidas con estado 500 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result{"Se produjo un error de servidor, intente nuevamente."} El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result{"Se produjo un error de servidor, intente nuevamente."} El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -80,12 +81,12 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
 }
 
 /**
-*Esta función se encarga de resporder las peticiones de error del cliente con estado 400 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones de error del cliente con estado 400 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -99,9 +100,9 @@ function sendClient(res, result) {
 *Esta función se encarga de resporder las peticiones que no tiene autorización con estado 401 http. 
 *@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -113,12 +114,12 @@ function sendNoAutorizado(res, result) {
 
 
 /**
-*Esta función se encarga de resporder las peticiones expiradas 403 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones expiradas 403 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
@@ -129,12 +130,12 @@ function sendExpired(res, result) {
 }
 
 /**
-*Esta función se encarga de resporder las peticiones no encontradas 404 http. 
-*@author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
+* Esta función se encarga de resporder las peticiones no encontradas 404 http. 
+* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
 *
-*@param {object} res El objeto de respuesta del request
-*@param {object} result El objeto de respuesta de la petición
-*@returns {object} Retorna 
+* @param {import('express').Response} res - El objeto de respuesta (Response).
+* @param {object} result El objeto de respuesta de la petición
+* @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');

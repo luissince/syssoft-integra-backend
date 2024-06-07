@@ -9,13 +9,13 @@ class Compra {
 
     async list(req, res) {
         try {
-            console.log(req.query)
-            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
+                parseInt(req.query.estado),
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -28,12 +28,13 @@ class Compra {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
-                req.query.idSucursal
+                req.query.idSucursal,
+                parseInt(req.query.estado),
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
@@ -44,51 +45,55 @@ class Compra {
 
     async id(req, res) {
         try {
-            const ajuste = await conec.query(`
+            const cabecera = await conec.query(`
             SELECT 
-                a.idAjuste,
-                DATE_FORMAT(a.fecha,'%d/%m/%Y') AS fecha,
-                a.hora,
-                tp.nombre AS tipo,
-                mt.nombre AS motivo,
-                al.nombre AS almacen,
-                a.observacion,
-                a.estado
+                p.idPersona,
+                p.documento,
+                p.informacion,
+                p.celular,
+                p.email,
+                p.direccion,
+                c.idComprobante,
+                c.idMoneda,
+                c.observacion,
+                c.nota
             FROM 
-                ajuste AS a 
+                cotizacion AS c
             INNER JOIN 
-                tipoAjuste AS tp ON tp.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN 
-                motivoAjuste AS mt on mt.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN 
-                almacen AS al on al.idAlmacen = a.idAlmacen
-            INNER JOIN 
-                usuario us on us.idUsuario = a.idUsuario
+                persona AS p ON p.idPersona = c.idCliente
             WHERE 
-                a.idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
+                c.idCotizacion = ?`, [
+                req.query.idCotizacion,
+            ]);
 
             const detalle = await conec.query(`
             SELECT 
-                p.codigo,
-                p.nombre as producto,
-                aj.cantidad,
-                m.nombre as unidad,
-                c.nombre as categoria
-            FROM 
-                ajusteDetalle as aj
+                cd.cantidad,
+                cd.idImpuesto,
+                p.idMedida,
+                p.idProducto,
+                p.nombre,
+                i.nombre AS nombreImpuesto,
+                m.nombre AS nombreMedida,
+                i.porcentaje AS porcentajeImpuesto,
+                cd.precio
+            from 
+                cotizacionDetalle AS cd
             INNER JOIN 
-                producto as p on p.idProducto = aj.idProducto
+                producto AS p ON cd.idProducto = p.idProducto
             INNER JOIN 
-                medida as m on m.idMedida = p.idMedida
+                medida AS m ON m.idMedida = p.idMedida
             INNER JOIN 
-                categoria as c on c.idCategoria = p.idCategoria
+                impuesto AS i ON cd.idImpuesto = i.idImpuesto
             WHERE 
-                aj.idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
-            return sendSuccess(res, { cabecera: ajuste[0], detalle });
+                cd.idCotizacion = ?`, [
+                req.query.idCotizacion,
+            ]);
+
+            const idImpuesto = detalle[0]?.idImpuesto ?? '';
+            cabecera[0].idImpuesto = idImpuesto;
+
+            return sendSuccess(res, { cabecera: cabecera[0], detalle });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
@@ -167,10 +172,15 @@ class Compra {
     async detailVenta(req, res) {
         try {
             const cliente = await conec.query(`
-            SELECT 
+            SELECT                 
                 p.idPersona,
+                p.idTipoCliente,     
+                p.idTipoDocumento,
                 p.documento,
-                p.informacion
+                p.informacion,
+                IFNULL(p.celular,'') AS celular,
+                IFNULL(p.email,'') AS email,
+                IFNULL(p.direccion,'') AS direccion
             FROM 
                 cotizacion AS c
             INNER JOIN 
@@ -195,7 +205,6 @@ class Compra {
             let productos = [];
 
             for (const item of detalles) {
-                console.log(item)
                 const producto = await conec.query(`
                 SELECT 
                     p.idProducto, 
@@ -325,7 +334,7 @@ class Compra {
                 req.body.estado,
                 currentDate(),
                 currentTime(),
-            ])
+            ]);
 
             // Genera un nuevo ID para los detalles de cotización
             const listaCotizacionDetalle = await conec.execute(connection, 'SELECT idCotizacionDetalle FROM cotizacionDetalle');
@@ -360,6 +369,88 @@ class Compra {
                 message: "Se registró correctamente la cotización."
             });
         } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+        }
+    }
+
+    async update(req, res) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            await conec.execute(connection, `
+            UPDATE 
+                cotizacion 
+            SET
+                idCliente = ?,
+                idUsuario = ?,
+                idSucursal = ?,
+                idMoneda = ?,
+                observacion = ?,
+                nota = ?,
+                estado = ?,
+                fecha = ?,
+                hora = ?
+            WHERE 
+                idCotizacion = ?`, [
+                req.body.idCliente,
+                req.body.idUsuario,
+                req.body.idSucursal,
+                req.body.idMoneda,
+                req.body.observacion,
+                req.body.nota,
+                req.body.estado,
+                currentDate(),
+                currentTime(),
+                req.body.idCotizacion,
+            ]);
+
+            await conec.execute(connection, `
+            DELETE FROM 
+                cotizacionDetalle
+            WHERE 
+                idCotizacion = ?`, [
+                req.body.idCotizacion,
+            ]);
+
+            const listaCotizacionDetalle = await conec.execute(connection, 'SELECT idCotizacionDetalle FROM cotizacionDetalle');
+            let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
+
+            // Inserta los detalles de compra en la base de datos
+            for (const item of req.body.detalle) {
+                await await conec.execute(connection, `
+                INSERT INTO
+                cotizacionDetalle(
+                    idCotizacionDetalle,
+                    idCotizacion,
+                    idProducto,
+                    idMedida,
+                    precio,
+                    cantidad,
+                    idImpuesto
+                ) VALUES(?,?,?,?,?,?,?)`, [
+                    idCotizacionDetalle,
+                    req.body.idCotizacion,
+                    item.idProducto,
+                    item.idMedida,
+                    item.precio,
+                    item.cantidad,
+                    item.idImpuesto
+                ]);
+
+                idCotizacionDetalle++;
+            }
+
+            await conec.commit(connection);
+            return sendSave(res, {
+                idCotizacion: req.body.idCotizacion,
+                message: "Se actualizó correctamente la cotización."
+            });
+        } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

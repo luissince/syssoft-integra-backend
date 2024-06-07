@@ -1,4 +1,4 @@
-const { dateFormat, registerLog, currentTime, currentDate } = require('../tools/Tools');
+const { dateFormat, registerLog, currentTime, currentDate, formatNumberWithZeros } = require('../tools/Tools');
 const xl = require('excel4node');
 const { sendPdf, sendError, sendClient, sendSuccess } = require('../tools/Message');
 require('dotenv').config();
@@ -8,6 +8,13 @@ const conec = new Conexion();
 
 class Reporte {
 
+    /**
+     * Genera un PDF la factura.
+     * 
+     * @param {import('express').Request} req - El objeto de solicitud (Request).
+     * @param {import('express').Response} res - El objeto de respuesta (Response).
+     * @returns {Promise<void>} - Una promesa que se resuelve cuando se ha generado el PDF.
+     */
     async generarFacturacion(req, res, tipo) {
         try {
             const venta = await conec.query(`
@@ -158,7 +165,7 @@ class Reporte {
             };
 
             const response = await axios.request(options);
-            sendPdf(res, response.data);
+            sendPdf(res, response.data, empresa[0].razonSocial + " " + venta[0].serie + "-" + formatNumberWithZeros(venta[0].numeracion));
         } catch (error) {
             registerLog('Reporte/generarFacturacion:', error);
             sendError(res, "Error al obtener el PDF")
@@ -323,7 +330,7 @@ class Reporte {
 
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/api/v1/venta/${tipo}`,
+                url: `${process.env.APP_PDF}/api/v1/venta/pre/${tipo}`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -1212,6 +1219,13 @@ class Reporte {
         }
     }
 
+    /**
+     * Genera un reporte PDF financiero.
+     * 
+     * @param {import('express').Request} req - El objeto de solicitud (Request).
+     * @param {import('express').Response} res - El objeto de respuesta (Response).
+     * @returns {Promise<void>} - Una promesa que se resuelve cuando se ha generado el PDF.
+     */
     async reportePdfFinanciero(req, res) {
         try {
             const fechaInicio = req.params.fechaInicio;

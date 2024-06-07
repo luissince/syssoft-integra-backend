@@ -17,12 +17,16 @@ jobs:
       APP_CPE_SUNAT: ${{secrets.APP_CPE_SUNAT}}
       APP_APIS_PERU: ${{secrets.APP_APIS_PERU}}
 
-
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
+
+      # VITE_APP_BACK_END: ${{ secrets.VITE_APP_BACK_END }}
+      # VITE_APP_APIS_PERU: ${{ secrets.VITE_APP_APIS_PERU }}
+      # VITE_APP_ENV: ${{ vars.VITE_APP_ENV }}
+      # VITE_APP_VERSION: ${{ vars.VITE_APP_VERSION }}
 
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
@@ -30,8 +34,21 @@ jobs:
     steps:
       - name: Checkout código
         uses: actions/checkout@v3
+
+      # - name: Preparar frontend y definir variables de entorno
+      #   run: |
+      #     mkdir app
+      #     git clone -b development https://github.com/luissince/syssoft-integra-frontend.git ./app
+      #     cd app
+      #     echo "VITE_APP_BACK_END=${{ env.VITE_APP_BACK_END }}" >> .env
+      #     echo "VITE_APP_APIS_PERU=${{ env.VITE_APP_APIS_PERU }}" >> .env
+      #     echo "VITE_APP_ENV=${{ env.VITE_APP_ENV }}" >> .env
+      #     echo "VITE_APP_VERSION=${{ env.VITE_APP_VERSION }}" >> .env
+      #     npm install
+      #     source .env
+      #     npm run build
     
-      - name: Crear archivo .env
+      - name: Crear archivo .env para el backend
         run: |
           cat > .env <<EOL
           PORT="${{env.PORT}}"

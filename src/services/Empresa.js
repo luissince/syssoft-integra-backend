@@ -22,54 +22,6 @@ require('dotenv').config();
 
 class Empresa {
 
-    async infoEmpresaReporte(req) {
-        try {
-
-            const empresa = await conec.query(`
-            SELECT 
-                e.idEmpresa,
-                e.nombreEmpresa,
-                e.documento as ruc,
-                e.razonSocial as nombreEmpresa,
-                u.departamento,
-                u.distrito,
-                e.rutaLogo,
-                e.rutaImage,
-                e.usuarioEmail,
-                e.claveEmail
-            FROM 
-                empresa AS e
-            LEFT JOIN 
-                ubigeo AS u ON e.idUbigeo  = u.idUbigeo 
-            LIMIT 
-                1`);
-
-            const sucursal = await conec.query(`
-            SELECT 
-                idSucursal,
-                nombre AS nombreSucursal
-            FROM 
-                sucursal
-            WHERE 
-                idSucursal = ?`, [
-                req.query.idSucursal,
-            ]);
-
-            const result = [...empresa, ...sucursal];
-
-            if (result.length >= 1) {
-                return {
-                    ...result[0],
-                    ...result[1],
-                }
-            } else {
-                return "Datos no encontrados";
-            }
-        } catch (error) {
-            return 'Error interno de conexión, intente nuevamente.';
-        }
-    }
-
     async load(req, res) {
         try {
             const [primeraEmpresa] = await conec.query(`
@@ -269,7 +221,7 @@ class Empresa {
 
     async config(req, res) {
         try {
-            const result = await conec.query(`
+            const [result] = await conec.query(`
             SELECT 
                 idEmpresa,
                 documento,
@@ -279,13 +231,15 @@ class Empresa {
                 rutaImage
             FROM 
                 empresa 
-            LIMIT 
-                1`);
-            if (result.length > 0) {
-                return sendSuccess(res, result[0]);
-            } else {
-                return sendClient(res, "Iniciar configuración.");
+            LIMIT 1`);
+
+            const empresa = {
+                ...result,
+                rutaLogo: !result.rutaLogo ? null : `${process.env.APP_URL}/files/company/${result.rutaLogo}`,
+                rutaImage: !result.rutaImage ? null : `${process.env.APP_URL}/files/company/${result.rutaImage}`
             }
+
+            return sendSuccess(res, empresa);
         } catch (error) {
             return sendClient(res, "Iniciar configuración.");
         }

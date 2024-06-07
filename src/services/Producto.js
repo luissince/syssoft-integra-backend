@@ -19,6 +19,7 @@ class Producto {
 
     async list(req) {
         try {
+            console.log(req.query)
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -40,6 +41,7 @@ class Producto {
             ]);
             return { "result": resultLista, "total": total[0].Total }
         } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -681,21 +683,31 @@ class Producto {
 
     async filtrarParaVenta(req) {
         try {
-            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?)", [
-                parseInt(req.query.codBar),
+            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?,?)", [
+                parseInt(req.query.tipo),
+                req.query.filtrar,
+                req.query.idSucursal,
+                req.query.idAlmacen,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina),
+            ]);
+
+            const resultLista = result.map(function (item, index) {
+                return {
+                    ...item,
+                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Filtrar_Productos_Para_Venta_Count(?,?,?,?)`, [
+                parseInt(req.query.tipo),
                 req.query.filtrar,
                 req.query.idSucursal,
                 req.query.idAlmacen,
             ]);
 
-            const resultLista = result.map(function (item) {
-                return {
-                    ...item,
-                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                }
-            });
-
-            return resultLista;
+            return { "lists": resultLista, "total": total[0].Total }
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }

@@ -323,6 +323,7 @@ class Persona {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -408,11 +409,18 @@ class Persona {
         try {
             const result = await conec.query(`
             SELECT 
-            idPersona, 
-            documento, 
-            informacion
-            FROM persona
-            WHERE predeterminado = 1`);
+                idPersona, 
+                idTipoCliente,
+                idTipoDocumento,
+                documento, 
+                informacion,
+                IFNULL(celular,'') AS celular,
+                IFNULL(email,'') AS email,
+                IFNULL(direccion,'') AS direccion
+            FROM 
+                persona
+            WHERE 
+                predeterminado = 1`);
             if (result.length !== 0) {
                 return result[0];
             }

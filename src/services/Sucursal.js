@@ -17,17 +17,20 @@ class Sucursal {
 
     async list(req, res) {
         try {
-            const lista = await conec.query(`SELECT  
-            p.idSucursal,
-            p.nombre,
-            p.direccion,
-            p.estado
-            FROM sucursal AS p
+            const lista = await conec.query(`
+            SELECT  
+                p.idSucursal,
+                p.nombre,
+                p.direccion,
+                p.estado
+            FROM 
+                sucursal AS p
             WHERE 
-            ? = 0
-            OR
-            ? = 1 AND p.nombre LIKE concat(?,'%')
-            LIMIT ?,?`, [
+                ? = 0
+                OR
+                ? = 1 AND p.nombre LIKE concat(?,'%')
+            LIMIT 
+                ?,?`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -44,12 +47,15 @@ class Sucursal {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total 
-            FROM sucursal AS p
+            const total = await conec.query(`
+            SELECT 
+                COUNT(*) AS Total 
+            FROM 
+                sucursal AS p
             WHERE 
-            ? = 0
-            OR
-            ? = 1 AND p.nombre LIKE concat(?,'%')`, [
+                ? = 0
+                OR
+                ? = 1 AND p.nombre LIKE concat(?,'%')`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -81,7 +87,8 @@ class Sucursal {
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
             const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
 
-            await conec.execute(connection, `INSERT INTO sucursal(
+            await conec.execute(connection, `
+            INSERT INTO sucursal(
                 idSucursal,
                 nombre, 
                 telefono,
@@ -128,7 +135,7 @@ class Sucursal {
 
     async id(req, res) {
         try {
-            let result = await conec.query(`
+            const [result] = await conec.query(`
             SELECT 
                 p.idSucursal,
                 p.nombre,
@@ -137,7 +144,7 @@ class Sucursal {
                 IFNULL(p.email, '') AS email,
                 IFNULL(p.paginaWeb, '') AS paginaWeb,
                 IFNULL(p.direccion, '') AS direccion,
-                IFNULL(p.ruta,'') AS ruta,
+                p.ruta,
                 p.estado,
                 --
                 p.idUbigeo,
@@ -146,15 +153,23 @@ class Sucursal {
                 u.provincia,
                 u.distrito
                 --
-                FROM sucursal AS p
-                INNER JOIN ubigeo AS u ON u.idUbigeo = p.idUbigeo
+            FROM 
+                sucursal AS p
+            INNER JOIN 
+                ubigeo AS u ON u.idUbigeo = p.idUbigeo
             WHERE 
                 p.idSucursal = ?`, [
                 req.query.idSucursal,
             ]);
 
+            const respuesta = {
+                ...result,
+                ruta: !result.ruta ? null : `${process.env.APP_URL}/files/proyect/${result.ruta}`,
+            };
 
-            return sendSuccess(res, result[0]);
+            console.log(respuesta)
+
+            return sendSuccess(res, respuesta);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -179,7 +194,10 @@ class Sucursal {
 
             const imagen = await processImage(fileDirectory, req.body.imagen, req.body.extension, sucursal[0].ruta);
 
-            await conec.execute(connection, `UPDATE sucursal SET
+            await conec.execute(connection, `
+            UPDATE 
+                sucursal 
+            SET
                 nombre = ?,
                 telefono = ?,
                 celular = ?,
@@ -192,7 +210,8 @@ class Sucursal {
                 fupdate = ?,
                 hupdate = ? ,
                 idUsuario = ?
-                WHERE idSucursal=?`, [
+            WHERE 
+                idSucursal=?`, [
                 req.body.nombre,
                 req.body.telefono,
                 req.body.celular,
@@ -278,14 +297,24 @@ class Sucursal {
 
     async inicio(req, res) {
         try {
-            const sucursales = await conec.query(`SELECT 
-            p.idSucursal,
-            p.nombre,
-            p.direccion,
-            p.ruta,
-            p.estado
-            FROM sucursal AS p`);
-            return sendSuccess(res, sucursales);
+            const lista = await conec.query(`
+            SELECT 
+                p.idSucursal,
+                p.nombre,
+                p.direccion,
+                p.ruta,
+                p.estado
+            FROM 
+                sucursal AS p`);
+
+            const newLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    imagen: !item.ruta ? null : `${process.env.APP_URL}/files/proyect/${item.ruta}`,
+                }
+            });
+
+            return sendSuccess(res, newLista);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
@@ -293,7 +322,13 @@ class Sucursal {
 
     async combo(req, res) {
         try {
-            const sucursales = await conec.query(`SELECT idSucursal,nombre FROM sucursal`)
+            const sucursales = await conec.query(`
+            SELECT 
+                idSucursal,
+                nombre 
+            FROM 
+                sucursal`)
+
             return sendSuccess(res, sucursales);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");

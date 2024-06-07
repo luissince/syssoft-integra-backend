@@ -10,6 +10,21 @@ const chmodAsync = promisify(fs.chmod);
 const forge = require('node-forge');
 const logger = require('./Logger');
 
+/**
+ * Formatea un número agregando ceros delante hasta alcanzar una longitud específica.
+ *
+ * @param {number} numero - El número que se va a formatear.
+ * @returns {string} El número formateado con ceros delante.
+ */
+function formatNumberWithZeros(numero) {
+    // Convierte el número a cadena y maneja números negativos
+    const numeroAbsoluto = Math.abs(numero);
+    const numeroFormateado = String(numeroAbsoluto).padStart(6, '0');
+
+    // Añade el signo negativo si el número original era negativo
+    return numero < 0 ? `-${numeroFormateado}` : numeroFormateado;
+}
+
 function isNumber(value) {
     return typeof value === 'number';
 }
@@ -278,7 +293,7 @@ function generateNumericCode(idCode, lista, propiedad) {
     return Math.max(...quitarValor) + 1;
 }
 
-function registerLog(nameFunction, error){
+function registerLog(nameFunction, error) {
     if (!error || !error.message) {
         logger.error(`${nameFunction}: Error de conexión intero.`);
     } else {
@@ -286,7 +301,51 @@ function registerLog(nameFunction, error){
     }
 }
 
+
+function responseSSE(req, res, callback) {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream({
+        async start(controller) {
+            let connectionActive = true;
+
+            const sendEvent = (data) => {
+                const message = `data: ${JSON.stringify(data)}\n\n`;
+                controller.enqueue(encoder.encode(message));
+            };
+
+            callback(sendEvent).catch(() => {
+                if (connectionActive)
+                    controller.close();
+            });
+
+            req.on('close', () => {
+                connectionActive = false;
+                controller.close();
+            });
+        }
+    });
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    body.pipeTo(new WritableStream({
+        write(chunk) {
+            res.write(chunk);
+        },
+        close() {
+            res.end();
+        },
+        abort(err) {
+            console.error('Pipeline aborted:', err);
+            res.end();
+        }
+    }));
+};
+
+
 module.exports = {
+    formatNumberWithZeros,
     isNumber,
     currentDate,
     currentTime,
@@ -305,5 +364,6 @@ module.exports = {
     processImage,
     processFilePem,
     rounded,
-    registerLog
+    registerLog,
+    responseSSE
 };

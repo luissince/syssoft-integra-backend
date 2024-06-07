@@ -14,6 +14,8 @@ router.get('/detail/venta', async (req, res) => await cotizacion.detailVenta(req
 
 router.post('/create', async (req, res) => await cotizacion.create(req, res));
 
+router.put('/update', async (req, res) => await cotizacion.update(req, res));
+
 router.delete('/cancel', async (req, res) => await cotizacion.cancel(req, res));
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Producto = require('../services/Producto');
+const { responseSSE } = require('../tools/Tools');
 
 const producto = new Producto();
 
@@ -68,12 +69,25 @@ router.get('/combo', async function (req, res) {
 });
 
 router.get('/filtrar/venta', async function (req, res) {
-    const result = await producto.filtrarParaVenta(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
+    return responseSSE(req, res, async (sendEvent) => {
+        const result = await producto.filtrarParaVenta(req)
+        if (typeof result === 'object') {
+            for await (const list of result.lists) {
+                sendEvent(list);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            sendEvent(result.total);
+        }
+
+        sendEvent('__END__')
+    });
+
+    // const result = await producto.filtrarParaVenta(req)
+    // if (typeof result === 'object') {
+    //     res.status(200).send(result)
+    // } else {
+    //     res.status(500).send(result)
+    // }
 });
 
 router.get('/filter', async function (req, res) {

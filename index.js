@@ -1,13 +1,13 @@
 const express = require('express');
 const app = express();
-const router = express.Router();  // Crear un router para organizar rutas
+// const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swagger = require('./src/swagger');
-const { isFile, currentDate, currentTime } = require('./src/tools/Tools');
+const { currentDate, currentTime } = require('./src/tools/Tools');
 
 require('dotenv').config();
 
@@ -18,13 +18,13 @@ app.use(morgan('dev'));
 app.use(cors());
 
 // Middleware para servir archivos estáticos desde diferentes carpetas
-router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
-router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
-router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
-router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
+// router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
+// router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
+// router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
+// router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
 
 // Montar el router en la ruta 'imagenes, archivos entre otros'
-app.use('/files', router);
+// app.use('/files', router);
 
 // Configuración del puerto
 app.set('port', process.env.PORT || 5000);
@@ -35,6 +35,10 @@ app.use(express.urlencoded({ extended: false }));
 
 // Middleware para servir la documentación de Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
+
+
+// Cargar la app estatica compilada
+// app.use(express.static(path.join(__dirname, "app", "dist")));
 
 // Ruta principal
 app.get('/', (_, res) => {
@@ -83,7 +87,7 @@ app.use((req, res, next) => {
     console.log('Fecha:', currentDate() + " " + currentTime());
     console.log('Método:', req.method);
     console.log('URL:', req.url);
-    console.log('Cuerpo:', req.body); // Registra el cuerpo de la solicitud
+    console.log('Cuerpo:', req.body);
     next();
 });
 
@@ -142,6 +146,10 @@ app.use('/api/ingreso', require('./src/router/Ingreso'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));
+
+// app.use((req, res, next) => {
+//     res.sendFile(path.join(__dirname, "app", "dist", "index.html"));
+// });
 
 // Iniciar el servidor
 app.listen(app.get("port"), () => {

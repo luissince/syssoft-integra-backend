@@ -180,13 +180,14 @@ class Factura {
                         conductor,
                         licenciaConducir,
                         celular,
+                        email,
                         direccion,
                         predeterminado,
                         estado,
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         idPersona,
                         nuevoCliente.idTipoCliente,
                         nuevoCliente.idTipoDocumento,
@@ -197,6 +198,7 @@ class Factura {
                         0,
                         '',
                         nuevoCliente.numeroCelular,
+                        nuevoCliente.email,
                         nuevoCliente.direccion,
                         false,
                         true,
@@ -206,6 +208,8 @@ class Factura {
                     ])
 
                     nuevoIdCliente = idPersona;
+                } else {
+                    nuevoIdCliente = cliente[0].idPersona;
                 }
             } else {
                 nuevoIdCliente = idCliente;
@@ -896,8 +900,13 @@ class Factura {
             const cliente = await conec.query(`
             SELECT 
                 p.idPersona,
+                p.idTipoCliente,     
+                p.idTipoDocumento,
                 p.documento,
-                p.informacion
+                p.informacion,
+                IFNULL(p.celular,'') AS celular,
+                IFNULL(p.email,'') AS email,
+                IFNULL(p.direccion,'') AS direccion
             FROM 
                 venta AS v
             INNER JOIN 
