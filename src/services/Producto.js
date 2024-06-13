@@ -709,6 +709,7 @@ class Producto {
 
             return { "lists": resultLista, "total": total[0].Total }
         } catch (error) {
+            console.log(error)
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
