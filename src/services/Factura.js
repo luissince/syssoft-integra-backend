@@ -595,7 +595,8 @@ class Factura {
                 v.estado, 
                 m.simbolo,
                 m.codiso,
-                m.nombre as moneda
+                m.nombre as moneda,
+                v.comentario
             FROM 
                 venta AS v 
             INNER JOIN 

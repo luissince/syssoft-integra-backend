@@ -42,7 +42,8 @@ class Reporte {
                 m.simbolo,
                 m.codiso,
                 m.nombre as moneda,
-                p.nombre as formaPago
+                p.nombre as formaPago,
+                v.comentario
             FROM 
                 venta AS v 
             INNER JOIN 
@@ -359,7 +360,8 @@ class Reporte {
                         "simbolo": moneda[0].simbolo,
                         "codiso": moneda[0].codiso,
                         "moneda": moneda[0].moneda,
-                        "formaPago": "CONTADO"
+                        "formaPago": "CONTADO",
+                        "comentario": req.body.comentario
                     },
                     "empresa": newEmpresa,
                     "sucursal": sucursal[0],
