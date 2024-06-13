@@ -1,5 +1,5 @@
 .env
-/app
+
 /node_modules
 src/path/certificates
 src/path/company

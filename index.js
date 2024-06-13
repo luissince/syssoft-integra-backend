@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-// const router = express.Router();
+const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
@@ -18,13 +18,13 @@ app.use(morgan('dev'));
 app.use(cors());
 
 // Middleware para servir archivos estáticos desde diferentes carpetas
-// router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
-// router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
-// router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
-// router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
+router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
+router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
+router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
+router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
 
 // Montar el router en la ruta 'imagenes, archivos entre otros'
-// app.use('/files', router);
+app.use('/files', router);
 
 // Configuración del puerto
 app.set('port', process.env.PORT || 5000);
