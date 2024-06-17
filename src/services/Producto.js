@@ -18,8 +18,7 @@ require('dotenv').config();
 class Producto {
 
     async list(req) {
-        try {
-            console.log(req.query)
+        try {         
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -40,8 +39,7 @@ class Producto {
                 req.query.buscar
             ]);
             return { "result": resultLista, "total": total[0].Total }
-        } catch (error) {
-            console.log(error)
+        } catch (error) {            
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -708,8 +706,7 @@ class Producto {
             ]);
 
             return { "lists": resultLista, "total": total[0].Total }
-        } catch (error) {
-            console.log(error)
+        } catch (error) {           
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

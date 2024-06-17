@@ -368,7 +368,6 @@ class GuiaRemision {
             await conec.commit(connection);
             return "update";
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

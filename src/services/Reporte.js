@@ -84,7 +84,9 @@ class Reporte {
             INNER JOIN 
                 impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
-                vd.idVenta = ?`, [
+                vd.idVenta = ?
+            ORDER BY 
+                vd.idVentaDetalle ASC`, [
                 req.params.idVenta
             ])
 
@@ -392,7 +394,8 @@ class Reporte {
                 idSucursal,
                 idMoneda,
                 idCliente,
-                idComprobante
+                idComprobante,
+                nota
             FROM 
                 cotizacion 
             WHERE 
@@ -503,7 +506,9 @@ class Reporte {
             INNER JOIN
                 impuesto AS i ON i.idImpuesto = cd.idImpuesto
             WHERE 
-                cd.idCotizacion = ?`, [
+                cd.idCotizacion = ?
+            ORDER BY 
+                cd.idCotizacionDetalle ASC`, [
                 req.params.idCotizacion
             ]);
 
@@ -536,6 +541,7 @@ class Reporte {
                     "numeracion": cotizacion[0].numeracion,
                     "fecha": cotizacion[0].fecha,
                     "hora": cotizacion[0].hora,
+                    "nota": cotizacion[0].nota,
                     "moneda": moneda[0],
                     "persona": cliente[0],
                     "comprobante": comprobante[0],
@@ -682,6 +688,7 @@ class Reporte {
                     "numeracion": 1,
                     "fecha": currentDate(),
                     "hora": currentTime(),
+                    "nota": req.body.nota,
                     "moneda": moneda[0],
                     "persona": cliente[0],
                     "comprobante": comprobante[0],
@@ -1352,8 +1359,6 @@ class Reporte {
 
     async reporteExcelFinanciero(req, res) {
         try {
-            console.log(req.params)
-
             const wb = new xl.Workbook();
 
             let ws = wb.addWorksheet('Hoja 1');
@@ -1697,8 +1702,6 @@ class Reporte {
                 req.params.idComprobante,
                 req.params.idComprobante,
             ]);
-
-            console.log(xml)
 
             if (xml.length === 0) {
                 return sendClient(res, "No hay información del comprobante.");

@@ -77,7 +77,6 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
@@ -159,7 +158,7 @@ class Factura {
 
             let nuevoIdCliente = "";
 
-            if (nuevoCliente) {
+            if (nuevoCliente !== null && typeof nuevoCliente === 'object') {
                 const cliente = await conec.execute(connection, `SELECT * FROM persona WHERE documento = ?`, [
                     nuevoCliente.numeroDocumento
                 ])
@@ -636,7 +635,9 @@ class Factura {
             INNER JOIN 
                 impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
-                vd.idVenta = ?`, [
+                vd.idVenta = ?
+            ORDER BY 
+                vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
 
@@ -837,7 +838,6 @@ class Factura {
             // Enviar respuesta exitosa
             return sendSave(res, "Se anuló correctamente la venta.");
         } catch (error) {
-            console.log(error)
             // Manejar errores y realizar rollback en caso de problemas
             if (connection != null) {
                 await conec.rollback(connection);
@@ -884,7 +884,9 @@ class Factura {
             INNER JOIN 
                 impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
-                vd.idVenta = ?`, [
+                vd.idVenta = ?
+            ORDER BY 
+                vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
 
@@ -926,7 +928,9 @@ class Factura {
             FROM
                 ventaDetalle AS vd
             WHERE
-                vd.idVenta = ?`, [
+                vd.idVenta = ?
+            ORDER BY 
+                vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
 
@@ -993,7 +997,6 @@ class Factura {
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
-            console.log(error)
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
         }
@@ -1035,7 +1038,6 @@ class Factura {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
-            console.log(req.body)
 
             const {
                 idVenta,
@@ -1258,7 +1260,9 @@ class Factura {
             INNER JOIN 
                 impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
-                vd.idVenta = ?`, [
+                vd.idVenta = ?
+            ORDER BY 
+                vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
 

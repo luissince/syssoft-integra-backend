@@ -322,8 +322,7 @@ class Persona {
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
-            }
-            console.log(error)
+            }      
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

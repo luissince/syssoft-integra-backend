@@ -1,7 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave } = require('../tools/Message');
 require('dotenv').config();
-const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
@@ -68,6 +67,7 @@ class Compra {
 
             const detalle = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
                 cd.cantidad,
                 cd.idImpuesto,
                 p.idMedida,
@@ -76,17 +76,23 @@ class Compra {
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
-                cd.precio
+                cd.precio,
+                tp.nombre as tipoProducto,
+                p.idTipoTratamientoProducto
             from 
                 cotizacionDetalle AS cd
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto
             INNER JOIN 
+                tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+            INNER JOIN 
                 medida AS m ON m.idMedida = p.idMedida
             INNER JOIN 
                 impuesto AS i ON cd.idImpuesto = i.idImpuesto
             WHERE 
-                cd.idCotizacion = ?`, [
+                cd.idCotizacion = ?
+            ORDER BY 
+                cd.idCotizacionDetalle ASC`, [
                 req.query.idCotizacion,
             ]);
 
@@ -138,6 +144,7 @@ class Compra {
             // Consulta los detalles de la compra
             const detalle = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -157,7 +164,9 @@ class Compra {
             INNER JOIN 
                 impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
             WHERE
-                cd.idCotizacion = ?`, [
+                cd.idCotizacion = ?
+            ORDER BY 
+                cd.idCotizacionDetalle ASC`, [
                 req.query.idCotizacion,
             ]);
 
@@ -198,7 +207,9 @@ class Compra {
             FROM
                 cotizacionDetalle AS cd
             WHERE
-                cd.idCotizacion = ?`, [
+                cd.idCotizacion = ?
+            ORDER BY 
+                cd.idCotizacionDetalle ASC`, [
                 req.query.idCotizacion
             ]);
 
@@ -422,8 +433,7 @@ class Compra {
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalle) {
                 await await conec.execute(connection, `
-                INSERT INTO
-                cotizacionDetalle(
+                INSERT INTO cotizacionDetalle(
                     idCotizacionDetalle,
                     idCotizacion,
                     idProducto,
@@ -450,7 +460,6 @@ class Compra {
                 message: "Se actualizó correctamente la cotización."
             });
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

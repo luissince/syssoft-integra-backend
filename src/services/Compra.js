@@ -299,7 +299,6 @@ class Compra {
             await conec.commit(connection);
             return "create";
         } catch (error) {
-            console.log(error)
             // En caso de error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);

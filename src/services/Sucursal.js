@@ -167,8 +167,6 @@ class Sucursal {
                 ruta: !result.ruta ? null : `${process.env.APP_URL}/files/proyect/${result.ruta}`,
             };
 
-            console.log(respuesta)
-
             return sendSuccess(res, respuesta);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");

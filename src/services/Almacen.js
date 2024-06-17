@@ -175,7 +175,6 @@ class Almacen {
             connection = await conec.beginTransaction();
 
             if (req.body.predefinido) {
-                console.log(req.body.idSucursal)
                 await conec.execute(connection, `UPDATE almacen SET predefinido = 0 WHERE idSucursal = ?`, [
                     req.body.idSucursal
                 ]);
