@@ -338,7 +338,6 @@ function responseSSE(req, res, callback) {
             res.end();
         },
         abort(err) {
-            console.error('Pipeline aborted:', err);
             res.end();
         }
     }));

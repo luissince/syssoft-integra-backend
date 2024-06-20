@@ -53,7 +53,7 @@ class Login {
                 rol: usuario[0].rol
             }
 
-            const menu = await conec.query(`
+            const menus = await conec.query(`
                     SELECT 
                     m.idMenu,
                     m.nombre,
@@ -68,7 +68,7 @@ class Login {
                 usuario[0].idPerfil,
             ]);
 
-            const submenu = await conec.query(`
+            const subMenus = await conec.query(`
                     SELECT 
                     sm.idMenu,
                     sm.idSubMenu,
@@ -83,7 +83,7 @@ class Login {
                 usuario[0].idPerfil,
             ]);
 
-            const privilegio = await conec.query(`SELECT
+            const privilegios = await conec.query(`SELECT
                     pp.idPrivilegio,
                     pp.idSubMenu,
                     pp.idMenu,
@@ -97,7 +97,51 @@ class Login {
             ]);
 
             const token = await create(user, 'userkeylogin');
-            return sendSuccess(res, { ...user, token, menu, submenu, privilegio });
+
+            const data = menus.map((mn) => {
+
+                let submenu = [];
+
+                for (const sb of subMenus) {
+                    let privilegio = [];
+
+                    if (mn.idMenu === sb.idMenu) {
+
+                        for (const priv of privilegios) {
+
+                            if (priv.idSubMenu === sb.idSubMenu && mn.idMenu === priv.idMenu) {
+                                privilegio.push({
+                                    estado: priv.estado,
+                                    idMenu: priv.idMenu,
+                                    idPrivilegio: priv.idPrivilegio,
+                                    idSubMenu: priv.idSubMenu,
+                                    nombre: priv.nombre,
+                                });
+                            }
+                        }
+
+                        submenu.push({
+                            estado: sb.estado,
+                            idMenu: sb.idMenu,
+                            idSubMenu: sb.idSubMenu,
+                            nombre: sb.nombre,
+                            ruta: sb.ruta,
+                            privilegio: privilegio,
+                        });
+                    }
+                }
+
+                return {
+                    ...mn,
+                    submenu,
+                };
+            });
+
+            return sendSuccess(res, {
+                ...user,
+                token,
+                menus: data
+            });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }

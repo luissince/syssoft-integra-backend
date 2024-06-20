@@ -36,7 +36,6 @@ app.use(express.urlencoded({ extended: false }));
 // Middleware para servir la documentación de Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
 
-
 // Cargar la app estatica compilada
 // app.use(express.static(path.join(__dirname, "app", "dist")));
 
