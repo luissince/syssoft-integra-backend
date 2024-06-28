@@ -9,7 +9,6 @@ const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
 const forge = require('node-forge');
 const logger = require('./Logger');
-const { time } = require('console');
 
 /**
  * Formatea un número agregando ceros delante hasta alcanzar una longitud específica.

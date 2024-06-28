@@ -60,7 +60,7 @@ class Vehiculo {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {          
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/list", error);
         }
     }
 
@@ -102,7 +102,7 @@ class Vehiculo {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/add", error);
         }
     }
 
@@ -119,7 +119,7 @@ class Vehiculo {
             }
 
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/id", error);
         }
     }
 
@@ -155,7 +155,7 @@ class Vehiculo {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/edit", error);
         }
     }
 
@@ -192,7 +192,7 @@ class Vehiculo {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/delete", error);
         }
     }
 
@@ -209,7 +209,7 @@ class Vehiculo {
                 estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/combo", error);
         }
     }
 
@@ -233,7 +233,7 @@ class Vehiculo {
             ]);
             return sendSuccess(res, result);
         } catch (error) {         
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/filter", error);
         }
     }
 }

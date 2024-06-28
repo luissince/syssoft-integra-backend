@@ -39,7 +39,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/list", error);
         }
     }
 
@@ -77,7 +77,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/listCpeSunat", error);
         }
     }
 
@@ -568,7 +568,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/create", error);
         }
     }
 
@@ -666,7 +666,7 @@ class Factura {
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detail", error);
         }
     }
 
@@ -692,13 +692,13 @@ class Factura {
             // Verificar si la venta existe
             if (venta.length === 0) {
                 await conec.rollback(connection);
-                return sendError(res, "La venta no existe, verifique el código o actualiza la lista.");
+                return sendClient(res, "La venta no existe, verifique el código o actualiza la lista.");
             }
 
             // Verificar si la venta ya está anulada
             if (venta[0].estado === 3) {
                 await conec.rollback(connection);
-                return sendError(res, "La venta ya se encuentra anulada.");
+                return sendClient(res, "La venta ya se encuentra anulada.");
             }
 
             // Actualizar el estado de la venta a anulado
@@ -842,7 +842,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/cancel", error);
         }
     }
 
@@ -854,7 +854,7 @@ class Factura {
             ])
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/filtrar", error);
         }
     }
 
@@ -894,7 +894,7 @@ class Factura {
             return sendSuccess(res, detalle);
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailOnly", error);
         }
     }
 
@@ -998,7 +998,7 @@ class Factura {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailVenta", error)
         }
     }
 
@@ -1030,7 +1030,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/listAccountReceivable", error);
         }
     }
 
@@ -1193,7 +1193,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/colletAccountReceivable", error);
         }
 
     }
@@ -1325,7 +1325,7 @@ class Factura {
 
             return sendSuccess(res, { "cabecera": result[0], detalles, resumen: resumen, plazos: plazos });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailAccountReceivable", error);
         }
     }
 }

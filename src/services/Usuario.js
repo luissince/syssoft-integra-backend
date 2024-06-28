@@ -77,7 +77,7 @@ class Usuario {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/list", error);
         }
     }
 
@@ -151,7 +151,7 @@ class Usuario {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/add", error);
         }
     }
 
@@ -219,7 +219,7 @@ class Usuario {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/update", error);
         }
     }
 
@@ -255,7 +255,7 @@ class Usuario {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/delete", error);
         }
     }
 
@@ -291,7 +291,7 @@ class Usuario {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/reset", error);
         }
     }
 
@@ -308,7 +308,7 @@ class Usuario {
             }
 
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/id", error);
         }
     }
 
@@ -325,7 +325,7 @@ class Usuario {
                     usuario`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Usuario/combo", error);
         }
     }
 }

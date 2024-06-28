@@ -9,7 +9,7 @@ class Motivo {
             let result = await conec.query(`SELECT idMotivo, nombre FROM motivo WHERE estado = 1`);
             return sendSuccess(res, result)
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Motivo/listCombo", error);
         }
     }
 

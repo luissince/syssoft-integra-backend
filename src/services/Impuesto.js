@@ -52,7 +52,7 @@ class Impuesto {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/list", error);
         }
     }
 
@@ -102,7 +102,7 @@ class Impuesto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/add", error);
         }
     }
 
@@ -119,7 +119,7 @@ class Impuesto {
             }
 
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/id", error);
         }
     }
 
@@ -157,7 +157,7 @@ class Impuesto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/edit", error);
         }
     }
 
@@ -212,7 +212,7 @@ class Impuesto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/delete", error);
         }
     }
 
@@ -227,7 +227,7 @@ class Impuesto {
                 impuesto`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Impuesto/combo", error);
         }
     }
 }

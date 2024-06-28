@@ -53,7 +53,7 @@ class Moneda {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Moneda/list", error);
         }
     }
 
@@ -93,11 +93,11 @@ class Moneda {
 
             await conec.commit(connection);
             return sendSave(res, 'Datos insertados correctamente.');
-        } catch (err) {
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Moneda/add", error);
         }
     }
 
@@ -131,7 +131,7 @@ class Moneda {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(error, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(error, "Se produjo un error de servidor, intente nuevamente.","Moneda/update", error);
         }
     }
 
@@ -147,7 +147,7 @@ class Moneda {
 
             return sendClient(res, "Datos no encontrados");
         } catch (error) {
-            return sendError(error, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(error, "Se produjo un error de servidor, intente nuevamente.","Moneda/id", error);
         }
     }
 
@@ -202,7 +202,7 @@ class Moneda {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Moneda/delete", error);
         }
     }
 
@@ -218,7 +218,7 @@ class Moneda {
             WHERE estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Moneda/combo", error);
         }
     }
 
@@ -234,10 +234,10 @@ class Moneda {
             if (result.length >= 1) {
                 return sendSuccess(res, result[0]);
             }
-            
+
             return sendNotFound(res, "No hay datos para mostrar")
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Moneda/nacional", error);
         }
     }
 

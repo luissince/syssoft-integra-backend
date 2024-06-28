@@ -1,6 +1,5 @@
 const { sendSuccess, sendError } = require('../tools/Message');
 const { currentDate } = require('../tools/Tools');
-const logger = require('../tools/Logger');
 
 require('dotenv').config();
 const axios = require('axios').default;
@@ -167,8 +166,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            logger.error(`Sunat/facturar: ${errorResponse.getMessage()}`)
-            sendError(res, errorResponse.getMessage())
+            sendError(res, errorResponse.getMessage(),"Sunat/factura", error)
         }
     }
 
@@ -309,8 +307,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            logger.error(`Sunat/anularBoleta: ${errorResponse.getMessage()}`)
-            sendError(res, errorResponse.getMessage())
+            sendError(res, errorResponse.getMessage(),"Sunat/anularBoleta", error)
         }
     }
 
@@ -427,8 +424,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            logger.error(`Sunat/anularFactura: ${errorResponse.getMessage()}`)
-            sendError(res, errorResponse.getMessage())
+            sendError(res, errorResponse.getMessage(),"Sunat/anularFactura", error)
         }
     }
 
@@ -588,8 +584,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            logger.error(`Sunat/facturar: ${errorResponse.getMessage()}`)
-            sendError(res, errorResponse.getMessage())
+            sendError(res, errorResponse.getMessage(),"Sunat/guiaRemision", error)
         }
     }
 
@@ -617,8 +612,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            logger.error(`Sunat/consultar: ${errorResponse.getMessage()}`)
-            sendError(res, errorResponse.getMessage())
+            sendError(res, errorResponse.getMessage(),"Sunat/consultar", error)
         }
     }
 

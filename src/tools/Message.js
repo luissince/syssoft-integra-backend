@@ -1,3 +1,4 @@
+const logger = require('./Logger');
 
 /**
 * Esta función se encarga de resporder las peticiones exitosas con estado 200 http. 
@@ -27,7 +28,7 @@ function sendSuccess(res, result) {
  * sendPdf(res, data);
  */
 function sendPdf(res, data, fileName = "reporte") {
-    res.setHeader('Content-Disposition', 'inline; filename="'+fileName+'.pdf"');
+    res.setHeader('Content-Disposition', 'inline; filename="' + fileName + '.pdf"');
     res.setHeader('Content-Type', 'application/pdf');
     return res.send(data);
 }
@@ -76,7 +77,12 @@ function sendNoContent(res, result) {
 *     res.send('<p>some html</p>');
 *     res.status(500).send('Sorry, cant find that');
 */
-function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.") {
+function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
+    if (!error || !error.message) {
+        logger.error(`${title}: Error de conexión intero.`);
+    } else {
+        logger.error(`${title}: ${error.message ?? error}`);
+    }
     return res.status(500).send(result);
 }
 

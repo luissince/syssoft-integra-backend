@@ -1,5 +1,4 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
-const logger = require('../tools/Logger');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
@@ -366,7 +365,6 @@ class Persona {
             await conec.commit(connection);
             return "delete";
         } catch (error) {
-            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }

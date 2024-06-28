@@ -60,7 +60,7 @@ class Acceso {
 
             return sendSuccess(res, { "menu": menu, "submenu": submenu, "privilegio": privilegio });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/accesos", error);
         }
     }
 
@@ -112,7 +112,7 @@ class Acceso {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/save", error);
         }
     }
 
@@ -213,7 +213,7 @@ class Acceso {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/update", error);
         }
     }
 

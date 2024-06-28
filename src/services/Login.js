@@ -104,7 +104,7 @@ class Login {
                 menus: this.generateMenus(menus, subMenus, privilegios)
             });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Login/createSession", error);
         }
     }
 
@@ -192,7 +192,7 @@ class Login {
                 menus: this.generateMenus(menus, subMenus, privilegios)
             });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Login/validateToken", error);
         }
     }
 

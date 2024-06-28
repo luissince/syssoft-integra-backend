@@ -16,7 +16,7 @@ class TipoDocumento {
             estado = 1`);
             return sendSuccess(res, result)
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","TipoDocumento/combo", error);
         }
     }
 

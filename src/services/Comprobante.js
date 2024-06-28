@@ -88,7 +88,7 @@ class Comprobante {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/list", error)
         }
     }
 
@@ -169,7 +169,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/add", error);
         }
     }
 
@@ -181,7 +181,7 @@ class Comprobante {
 
             return sendSuccess(res, result[0])
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/id", error);
         }
     }
 
@@ -246,7 +246,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/edit", error);
         }
     }
 
@@ -274,7 +274,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/delete", error);
         }
     }
 
@@ -309,7 +309,7 @@ class Comprobante {
                 ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/combo", error)
         }
     }
 

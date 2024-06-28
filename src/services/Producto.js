@@ -10,7 +10,6 @@ const {
     chmod,
     generateNumericCode,
 } = require('../tools/Tools');
-const logger = require('../tools/Logger');
 const conec = new Conexion();
 
 require('dotenv').config();
@@ -310,7 +309,6 @@ class Producto {
             await conec.commit(connection);
             return "insert";
         } catch (error) {
-            logger.error(`Producto/add: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }

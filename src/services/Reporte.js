@@ -1,4 +1,4 @@
-const { dateFormat, registerLog, currentTime, currentDate, formatNumberWithZeros } = require('../tools/Tools');
+const { dateFormat, currentTime, currentDate, formatNumberWithZeros } = require('../tools/Tools');
 const xl = require('excel4node');
 const { sendPdf, sendError, sendClient, sendSuccess } = require('../tools/Message');
 require('dotenv').config();
@@ -170,8 +170,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data, empresa[0].razonSocial + " " + venta[0].serie + "-" + formatNumberWithZeros(venta[0].numeracion));
         } catch (error) {
-            registerLog('Reporte/generarFacturacion:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarFacturacion", error)
         }
     }
 
@@ -377,8 +376,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/generarFacturacion:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarPreFacturacion", error)
         }
     }
 
@@ -556,8 +554,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/generarCotizacion:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarCotizacion", error)
         }
     }
 
@@ -703,8 +700,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/generarPreCotizacion:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarPreCotizacion", error)
         }
     }
 
@@ -842,8 +838,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/generarFacturacion:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarGuiaRemision", error)
         }
     }
 
@@ -977,8 +972,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/reportPdfVenta:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/reportePdfVenta", error)
         }
     }
 
@@ -1223,8 +1217,7 @@ class Reporte {
                 buffer: data
             });
         } catch (error) {
-            registerLog('Reporte/reportExcelVenta:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarExcelVenta", error)
         }
     }
 
@@ -1352,8 +1345,7 @@ class Reporte {
             const response = await axios.request(options);
             sendPdf(res, response.data);
         } catch (error) {
-            registerLog('Reporte/reportePdfFinanciero:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarPdfFinanciero", error)
         }
     }
 
@@ -1454,8 +1446,7 @@ class Reporte {
                 buffer: data
             });
         } catch (error) {
-            registerLog('Reporte/reporteExcelFinanciero:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarExcelFinanciero", error)
         }
     }
 
@@ -1656,8 +1647,7 @@ class Reporte {
                 buffer: data
             });
         } catch (error) {
-            registerLog('Reporte/reporteExcelCEPSunat:', error);
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarExcelCpeSunat", error)
         }
     }
 
@@ -1721,7 +1711,7 @@ class Reporte {
             // res.end(buffXmlSunat);
             sendSuccess(res, object);
         } catch (error) {
-            sendError(res, "Error al obtener el PDF")
+            sendError(res, "Error al obtener el PDF", "Reporte/generarXmlSunat", error)
         }
     }
 

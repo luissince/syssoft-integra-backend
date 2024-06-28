@@ -16,7 +16,6 @@ const {
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
-const logger = require('../tools/Logger');
 const conec = new Conexion();
 require('dotenv').config();
 
@@ -51,7 +50,7 @@ class Empresa {
 
             return sendSuccess(res, respuesta);
         } catch (error) {
-            sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.");
+            sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.","Empresa/load", error);
         }
     }
 
@@ -88,7 +87,7 @@ class Empresa {
 
             return sendSuccess(res, respuesta)
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/id", error)
         }
     }
 
@@ -211,11 +210,10 @@ class Empresa {
             await conec.commit(connection);
             return sendSuccess(res, "Se actualizó correctamente los datos de la empresa.");
         } catch (error) {
-            logger.error(`Empresa/update: ${error.message ?? error}`)
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Ocurrió un problema inesperado y no pudimos completar la solicitud en este momento. Por favor, revise los registros para obtener más información");
+            return sendError(res, "Se produjo un error en el servidor, intente nuevamente.","Empresa/update", error);
         }
     }
 
@@ -335,7 +333,7 @@ class Empresa {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/save", error);
         }
     }
 
@@ -349,7 +347,7 @@ class Empresa {
                 empresa`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/combo", error);
         }
     }
 }

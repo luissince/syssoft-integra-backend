@@ -38,7 +38,7 @@ class Compra {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/list", error)
         }
     }
 
@@ -101,7 +101,7 @@ class Compra {
 
             return sendSuccess(res, { cabecera: cabecera[0], detalle });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/id", error)
         }
     }
 
@@ -174,7 +174,7 @@ class Compra {
             return sendSuccess(res, { cabecera: cotizacion[0], detalle });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/detail", error)
         }
     }
 
@@ -278,7 +278,7 @@ class Compra {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/detailVenta", error)
         }
     }
 
@@ -383,7 +383,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/create", error)
         }
     }
 
@@ -463,7 +463,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/update", error)
         }
     }
 
@@ -510,7 +510,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.")
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/cancel", error)
         }
     }
 }

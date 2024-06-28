@@ -39,7 +39,7 @@ class Dashboard {
 
             return sendSuccess(res, { "totalCategorias": totalCategorias[0].total, "totalProductos": totalProductos[0].total, "totalClientes": totalClientes[0].total, "totalVentas": totalVentas[0].total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Dashboard/totales", error);
         }
     }
 

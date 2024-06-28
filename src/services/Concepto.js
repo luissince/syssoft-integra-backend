@@ -50,7 +50,7 @@ class Concepto {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/list", error);
         }
     }
 
@@ -115,7 +115,7 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/add", error);
         }
     }
 
@@ -131,7 +131,7 @@ class Concepto {
                 return sendClient(res, 'Datos no encontados.');
             }
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/id", error);
         }
     }
 
@@ -163,7 +163,7 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/update", error);
         }
     }
 
@@ -218,7 +218,7 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/delete", error);
         }
     }
 
@@ -227,7 +227,7 @@ class Concepto {
             const result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 2');
             return sendSuccess(res,result);;
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/listcombo", error);
         }
     }
 
@@ -236,7 +236,7 @@ class Concepto {
             let result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 1');
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/listcombogasto", error);
         }
     }
 
@@ -251,7 +251,7 @@ class Concepto {
             ]);
             return sendSuccess(res,result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/filtrarCobro", error);
         }
     }
 
@@ -266,7 +266,7 @@ class Concepto {
             ]);
             return sendSuccess(res,result);;
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/Gasto", error);
         }
     }
 }
