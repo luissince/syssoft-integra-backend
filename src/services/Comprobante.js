@@ -55,17 +55,21 @@ class Comprobante {
                 };
             });
 
-            let total = await conec.query(`SELECT COUNT(*) AS Total 
-            FROM comprobante AS c
-            INNER JOIN tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
+            let total = await conec.query(`
+            SELECT 
+                COUNT(*) AS Total 
+            FROM 
+                comprobante AS c
+            INNER JOIN 
+                tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
             WHERE 
-            ? = 0
-            OR
-            ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ?
-            OR
-            ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
-            OR
-            ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?`, [
+                ? = 0
+                OR
+                ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ?
+                OR
+                ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
+                OR
+                ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?`, [
                 parseInt(req.query.opcion),
                 req.query.idSucursal,
 
@@ -199,7 +203,10 @@ class Comprobante {
                 ]);
             }
 
-            await conec.execute(connection, `UPDATE comprobante SET 
+            await conec.execute(connection, `
+            UPDATE 
+                comprobante 
+            SET 
                 idTipoComprobante = ?,
                 nombre = ?,
                 serie = ?,
@@ -214,7 +221,8 @@ class Comprobante {
                 fupdate = ?,
                 hupdate = ?,
                 idUsuario = ?
-                WHERE idComprobante = ?`, [
+            WHERE 
+                idComprobante = ?`, [
                 req.body.idTipoComprobante,
                 req.body.nombre,
                 req.body.serie,
@@ -274,8 +282,6 @@ class Comprobante {
         try {
             const idTipoComprobante = req.query.tipo;
 
-            const estado = req.query.estado == undefined ? "" : req.query.estado;
-
             const idSucursal = req.query.idSucursal == undefined ? "" : req.query.idSucursal;
 
             const result = await conec.query(`
@@ -289,17 +295,18 @@ class Comprobante {
             FROM 
                 comprobante
             WHERE 
-                idTipoComprobante = ? 
-                AND ( ? = '' OR idSucursal = ? ) 
-                AND ( estado = 1 AND ( ? = '' OR ? = 'all' ) )   
-            `, [
-                idTipoComprobante,
-                idSucursal,
-                idSucursal,
+                estado = 1 AND (
+                    (idTipoComprobante = ? AND ? = '')
+                    OR
+                    (idTipoComprobante = ? AND idSucursal = ?)
+                )`,
+                [
+                    idTipoComprobante,
+                    idSucursal,
 
-                estado,
-                estado,
-            ]);
+                    idTipoComprobante,
+                    idSucursal,
+                ]);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.")

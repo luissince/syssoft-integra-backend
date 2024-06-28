@@ -14,10 +14,11 @@ function create(user, key, expiresIn = '10h') {
 
 function verify(req, res, next) {
     try {
-        jwt.verify(req.token, 'userkeylogin');
+        const decoded = jwt.verify(req.token, 'userkeylogin');
+        req.idUsuario = decoded.idUsuario;
         next();
     } catch (err) {
-        res.sendStatus(403);
+        return res.status(403).send("Acceso denegado.");
     }
 }
 
@@ -29,7 +30,7 @@ function token(req, res, next) {
         req.token = token;
         next();
     } else {
-        res.sendStatus(401);
+        return res.status(401).send("No autorizado.");
     }
 }
 

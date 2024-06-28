@@ -297,6 +297,7 @@ class Sucursal {
         try {
             const lista = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY p.idSucursal ASC) AS id,
                 p.idSucursal,
                 p.nombre,
                 p.direccion,
@@ -317,6 +318,36 @@ class Sucursal {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
         }
     }
+
+    async idInicio(req, res) {
+        try {
+            const lista = await conec.query(`
+            SELECT 
+                ROW_NUMBER() OVER (ORDER BY p.idSucursal ASC) AS id,
+                p.idSucursal,
+                p.nombre,
+                p.direccion,
+                p.ruta,
+                p.estado
+            FROM 
+                sucursal AS p
+            WHERE p.idSucursal = ?`, [
+                req.query.idSucursal
+            ]);
+
+            const newLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    imagen: !item.ruta ? null : `${process.env.APP_URL}/files/proyect/${item.ruta}`,
+                }
+            });
+
+            return sendSuccess(res, newLista[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.");
+        }
+    }
+
 
     async combo(req, res) {
         try {
