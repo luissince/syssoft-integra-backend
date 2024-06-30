@@ -39,7 +39,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
 
@@ -77,7 +77,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/listCpeSunat", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/listCpeSunat", error);
         }
     }
 
@@ -93,6 +93,7 @@ class Factura {
                 idSucursal,
                 idMoneda,
                 idFormaPago,
+                idCotizacion,
                 estado,
                 comentario,
                 nuevoCliente,
@@ -559,6 +560,32 @@ class Factura {
 
             }
 
+            /**
+             * Registrar el proceso de venta y cotzaición
+             */
+
+            if (idCotizacion !== "") {
+                const listaIdVentaCotizacion = await conec.execute(connection, 'SELECT idVentaCotizacion FROM ventaCotizacion');
+                const idVentaCotizacion = generateNumericCode(1, listaIdVentaCotizacion, 'idVentaCotizacion');
+
+                await conec.execute(connection, `
+                    INSERT INTO ventaCotizacion(
+                    idVentaCotizacion, 
+                    idVenta, 
+                    idCotizacion, 
+                    fecha, 
+                    hora,
+                    idUsuario) 
+                    VALUES(?,?,?,?,?,?)`, [
+                    idVentaCotizacion,
+                    idVenta,
+                    idCotizacion,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
+            }
+
             await conec.commit(connection);
             return sendSave(res, {
                 message: "Se completo el proceso correctamente.",
@@ -568,7 +595,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/create", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/create", error);
         }
     }
 
@@ -666,7 +693,7 @@ class Factura {
             return sendSuccess(res, { "cabecera": result[0], detalle, ingresos });
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detail", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detail", error);
         }
     }
 
@@ -842,7 +869,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/cancel", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/cancel", error);
         }
     }
 
@@ -854,7 +881,7 @@ class Factura {
             ])
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/filtrar", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/filtrar", error);
         }
     }
 
@@ -894,7 +921,7 @@ class Factura {
             return sendSuccess(res, detalle);
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailOnly", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailOnly", error);
         }
     }
 
@@ -998,7 +1025,7 @@ class Factura {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailVenta", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailVenta", error)
         }
     }
 
@@ -1030,7 +1057,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/listAccountReceivable", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/listAccountReceivable", error);
         }
     }
 
@@ -1193,7 +1220,7 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/colletAccountReceivable", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/colletAccountReceivable", error);
         }
 
     }
@@ -1325,7 +1352,7 @@ class Factura {
 
             return sendSuccess(res, { "cabecera": result[0], detalles, resumen: resumen, plazos: plazos });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Factura/detailAccountReceivable", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountReceivable", error);
         }
     }
 }

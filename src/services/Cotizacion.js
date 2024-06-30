@@ -38,7 +38,7 @@ class Compra {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/list", error)
         }
     }
 
@@ -101,7 +101,7 @@ class Compra {
 
             return sendSuccess(res, { cabecera: cabecera[0], detalle });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/id", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/id", error)
         }
     }
 
@@ -142,7 +142,7 @@ class Compra {
             ]);
 
             // Consulta los detalles de la compra
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
                 p.nombre AS producto,
@@ -170,11 +170,37 @@ class Compra {
                 req.query.idCotizacion,
             ]);
 
+            // Consulta los ventas asociadas
+            const ventas = await conec.query(`
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
+                    v.idVenta,
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
+                    v.hora,
+                    co.nombre AS comprobante,
+                    v.serie,
+                    v.numeracion,
+                    v.estado
+                FROM 
+                    ventaCotizacion AS vc 
+                INNER JOIN 
+                    cotizacion AS c ON c.idCotizacion = vc.idCotizacion
+                INNER JOIN 
+                    venta AS v ON v.idVenta = vc.idVenta
+                INNER JOIN 
+                    comprobante AS co ON co.idComprobante = v.idComprobante
+                WHERE 
+                    vc.idCotizacion = ?
+                ORDER BY 
+                    v.fecha DESC, v.hora DESC`, [
+                req.query.idCotizacion,
+            ]);
+
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cabecera: cotizacion[0], detalle });
+            return sendSuccess(res, { cabecera: cotizacion[0], detalles, ventas });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/detail", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detail", error)
         }
     }
 
@@ -278,7 +304,7 @@ class Compra {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/detailVenta", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detailVenta", error)
         }
     }
 
@@ -383,7 +409,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/create", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/create", error)
         }
     }
 
@@ -463,7 +489,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/update", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/update", error)
         }
     }
 
@@ -510,7 +536,7 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Cotizacion/cancel", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/cancel", error)
         }
     }
 }
