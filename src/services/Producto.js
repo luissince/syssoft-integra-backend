@@ -664,9 +664,9 @@ class Producto {
             INNER JOIN 
                 inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?          
             WHERE 
-                (p.codigo LIKE CONCAT(?,'%'))
+                (p.codigo LIKE CONCAT('%',?,'%'))
                 OR 
-                (p.nombre LIKE CONCAT(?,'%'))`, [
+                (p.nombre LIKE CONCAT('%',?,'%'))`, [
                 req.query.idAlmacen,
                 req.query.filtrar,
                 req.query.filtrar,
