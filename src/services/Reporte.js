@@ -110,8 +110,10 @@ class Reporte {
             FROM
                 banco
             WHERE 
-                reporte = 1
-            `);
+                reporte = 1 AND idSucursal = ?
+            `, [
+                venta[0].idSucursal
+            ]);
 
             const empresa = await conec.query(`
             SELECT 
@@ -326,9 +328,10 @@ class Reporte {
             FROM
                 banco
             WHERE 
-                reporte = 1
-            `);
-
+                reporte = 1 AND idSucursal = ?
+            `, [
+                req.body.idSucursal
+            ]);
 
             const options = {
                 method: 'POST',
@@ -409,8 +412,7 @@ class Reporte {
             FROM 
                 persona AS p
             WHERE 
-                p.idPersona = ?
-            `, [
+                p.idPersona = ?`, [
                 cotizacion[0].idCliente
             ]);
 
@@ -462,9 +464,10 @@ class Reporte {
             FROM
                 banco
             WHERE 
-                reporte = 1
-            `);
-
+                reporte = 1 AND idSucursal = ?
+            `, [
+                cotizacion[0].idSucursal
+            ]);
 
             const sucursal = await conec.query(`
             SELECT 
@@ -484,7 +487,6 @@ class Reporte {
                 s.idSucursal = ?`, [
                 cotizacion[0].idSucursal
             ]);
-
 
             const detalle = await conec.query(`
             SELECT 
@@ -671,8 +673,10 @@ class Reporte {
             FROM
                 banco
             WHERE 
-                reporte = 1
-            `);
+                reporte = 1 AND idSucursal = ?
+            `, [
+                req.body.idSucursal
+            ]);
 
             const options = {
                 method: 'POST',
