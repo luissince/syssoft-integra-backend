@@ -630,9 +630,9 @@ class Producto {
             INNER JOIN 
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
-                (p.codigo LIKE CONCAT(?,'%')) 
+                (p.codigo LIKE CONCAT('%',?,'%')) 
                 OR 
-                (p.nombre LIKE CONCAT(?,'%'))`, [
+                (p.nombre LIKE CONCAT('%',?,'%'))`, [
                 req.query.filtrar,
                 req.query.filtrar,
             ])
