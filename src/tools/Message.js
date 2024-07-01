@@ -66,17 +66,15 @@ function sendNoContent(res, result) {
 }
 
 /**
-* Esta función se encarga de resporder las peticiones fallidas con estado 500 http. 
-* @author Luis Alexander Lara <https://www.facebook.com/luisal.laras>
-*
-* @param {import('express').Response} res - El objeto de respuesta (Response).
-* @param {object} result{"Se produjo un error de servidor, intente nuevamente."} El objeto de respuesta de la petición
-* @returns {object} Retorna 
-*     res.send(new Buffer('wahoo'));
-*     res.send({ some: 'json' });
-*     res.send('<p>some html</p>');
-*     res.status(500).send('Sorry, cant find that');
-*/
+ * Envía una respuesta de error HTTP 500.
+ * @author Luis Alexander Lara
+ *
+ * @param {import('express').Response} res - El objeto de respuesta (Response) de Express.
+ * @param {string} [result="Se produjo un error de servidor, intente nuevamente."] - El mensaje de error a enviar.
+ * @param {string} title - El título o contexto del error.
+ * @param {Error} [error] - El error capturado, si está disponible.
+ * @returns {import('express').Response} - La respuesta HTTP 500 con el mensaje de error.
+ */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
     if (!error || !error.message) {
         logger.error(`${title}: Error de conexión intero.`);

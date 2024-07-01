@@ -213,7 +213,7 @@ class Empresa {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error en el servidor, intente nuevamente.","Empresa/update", error);
+            return sendError(res, error ??  "Se produjo un error en el servidor, intente nuevamente.","Empresa/update", error);
         }
     }
 
