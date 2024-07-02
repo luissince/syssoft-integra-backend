@@ -643,6 +643,7 @@ class Factura {
             // Obtener detalles de productos vendidos en la venta
             const detalle = await conec.query(`
             SELECT 
+                p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 

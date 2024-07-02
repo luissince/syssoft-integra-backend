@@ -1,0 +1,263 @@
+{
+  "serie": "CT0001",
+  "numeracion": 1,
+  "fecha": "2024-07-02",
+  "hora": "12:56:22",
+  "nota": "El cliente se le tiene que enviar a casa",
+  "moneda": {
+    "nombre": "SOLES",
+    "simbolo": "S/",
+    "codiso": "PEN"
+  },
+  "persona": {
+    "documento": "45657223",
+    "informacion": "MARCOS DEL SOLAR",
+    "direccion": ""
+  },
+  "comprobante": {
+    "nombre": "COTIZACIÓN"
+  },
+  "empresa": {
+    "documento": "10764233889",
+    "razonSocial": "LARA SERNA LUIS ALEXANDER",
+    "nombreEmpresa": "SYSSOFT-INTEGRA",
+    "rutaLogo": "1711841980445_230bzyl.png",
+    "tipoEnvio": 0,
+    "logoEmpresa": "http://127.0.0.1:5002/files/company/1711841980445_230bzyl.png",
+    "logoDesarrollador": "http://127.0.0.1:5002/files/to/logo.png"
+  },
+  "sucursal": {
+    "telefono": "064 78809",
+    "celular": "99999992",
+    "email": "somoperu@gmail.com",
+    "paginaWeb": "www.mipagina.com",
+    "direccion": "AV. PROCERES DE LA INDEPENDEN NRO. 1775 INT. 307 URB. SAN HILARION LIMA LIMA SAN JUAN DE LURIGANCHO",
+    "departamento": "LIMA",
+    "provincia": "LIMA",
+    "distrito": "INDEPENDENCIA"
+  },
+  "cotizacionDetalle": [
+    {
+      "precio": 4,
+      "cantidad": 5,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "ARROZ TONDERO"
+      },
+      "medida": {
+        "nombre": "KILOGRAMO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 6,
+      "cantidad": 2,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "POLLO"
+      },
+      "medida": {
+        "nombre": "KILOGRAMO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 10,
+      "cantidad": 2,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "suerox sabor manzana 630 ml"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 7,
+      "cantidad": 2,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "suerox sabor mora azul-hierbabuena 630ml"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 50,
+      "cantidad": 4,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "Pollito con papas y cremas"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 1.5,
+      "cantidad": 5,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "agua san mateo con gas de 600ml"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 100,
+      "cantidad": 3,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "Pijama a rayas"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 100,
+      "cantidad": 5,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "Pijama a rayas 2"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 200,
+      "cantidad": 2,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "Pijama a rayas 3"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 5,
+      "cantidad": 4,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "33"
+      },
+      "medida": {
+        "nombre": "UNIDAD"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 6,
+      "cantidad": 5,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "wwtgf"
+      },
+      "medida": {
+        "nombre": "SERVICIO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 4,
+      "cantidad": 4,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "wer11"
+      },
+      "medida": {
+        "nombre": "SERVICIO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 5,
+      "cantidad": 8,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "werwe2"
+      },
+      "medida": {
+        "nombre": "SERVICIO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    },
+    {
+      "precio": 5,
+      "cantidad": 6,
+      "idImpuesto": "IM0002",
+      "producto": {
+        "nombre": "ww111w22"
+      },
+      "medida": {
+        "nombre": "KILOGRAMO"
+      },
+      "impuesto": {
+        "nombre": "IGV(18%)",
+        "porcentaje": 18
+      }
+    }
+  ],
+  "bancos": [
+    {
+      "nombre": "BCP",
+      "numCuenta": "1912416560096",
+      "cci": "00219100241656009656"
+    },
+    {
+      "nombre": "YAPE",
+      "numCuenta": "",
+      "cci": ""
+    }
+  ]
+}

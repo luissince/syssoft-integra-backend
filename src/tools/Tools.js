@@ -62,6 +62,7 @@ async function writeFile(file, data, options = 'base64') {
         await writeFileAsync(file, data, options);
         return true;
     } catch (error) {
+        console.log(error)
         return false;
     }
 }
@@ -300,7 +301,6 @@ function registerLog(nameFunction, error) {
         logger.error(`${nameFunction}: ${error.message ?? error}`);
     }
 }
-
 
 function responseSSE(req, res, callback) {
     const encoder = new TextEncoder();
