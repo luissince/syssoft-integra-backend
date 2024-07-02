@@ -145,6 +145,7 @@ class Compra {
             const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
+                p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 

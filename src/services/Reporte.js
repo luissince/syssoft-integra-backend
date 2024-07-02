@@ -65,6 +65,7 @@ class Reporte {
 
             const detalle = await conec.query(`
             SELECT 
+                p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -263,6 +264,7 @@ class Reporte {
             for (const item of req.body.detalle) {
                 const producto = await conec.query(`
                 SELECT 
+                    p.codigo,
                     p.nombre,
                     m.nombre AS medida,
                     c.nombre AS categoria,
@@ -493,6 +495,7 @@ class Reporte {
                 cd.precio,
                 cd.cantidad,
                 cd.idImpuesto,
+                p.codigo AS codigo,
                 p.nombre AS producto,
                 m.nombre AS medida,
                 i.nombre AS impuesto,
@@ -518,6 +521,7 @@ class Reporte {
                     "cantidad": item.cantidad,
                     "idImpuesto": item.idImpuesto,
                     "producto": {
+                        "codigo": item.codigo,
                         "nombre": item.producto
                     },
                     "medida": {
@@ -653,6 +657,7 @@ class Reporte {
                     "cantidad": item.cantidad,
                     "idImpuesto": item.idImpuesto,
                     "producto": {
+                        "codigo": item.codigo,
                         "nombre": item.nombre
                     },
                     "medida": {
