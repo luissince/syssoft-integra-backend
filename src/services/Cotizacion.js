@@ -8,12 +8,13 @@ class Compra {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
+                parseInt(req.query.ligado),
                 parseInt(req.query.estado),
 
                 parseInt(req.query.posicionPagina),
@@ -27,12 +28,13 @@ class Compra {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
+                parseInt(req.query.ligado),
                 parseInt(req.query.estado),
             ]);
 

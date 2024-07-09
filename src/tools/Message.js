@@ -77,7 +77,7 @@ function sendNoContent(res, result) {
  */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
     if (!error || !error.message) {
-        logger.error(`${title}: Error de conexión intero.`);
+        logger.error(`${title}: ${error}`);
     } else {
         logger.error(`${title}: ${error.message ?? error}`);
     }
