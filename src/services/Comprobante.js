@@ -7,83 +7,25 @@ class Comprobante {
 
     async list(req, res) {
         try {
-
-            let lista = await conec.query(`SELECT 
-                c.idComprobante,
-                tc.nombre 'tipo',
-                c.nombre,
-                c.serie, 
-                c.numeracion,
-                c.impresion,
-                c.estado, 
-                c.preferida
-                FROM comprobante AS c
-                INNER JOIN tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
-                WHERE 
-                ? = 0 AND c.idSucursal = ?
-                OR
-                ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ? 
-                OR
-                ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
-                OR
-                ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?
-                LIMIT ?,?`, [
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-
+            const lista = await conec.procedure(`CALL Listar_Comprobantes(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
-
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
             ]);
 
-
-            let resultLista = lista.map(function (item, index) {
+            const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
                     id: (index + 1) + parseInt(req.query.posicionPagina),
                 };
             });
 
-            let total = await conec.query(`
-            SELECT 
-                COUNT(*) AS Total 
-            FROM 
-                comprobante AS c
-            INNER JOIN 
-                tipoComprobante AS tc on c.idTipoComprobante = tc.idTipoComprobante
-            WHERE 
-                ? = 0
-                OR
-                ? = 1 AND c.nombre LIKE CONCAT(?,'%') AND c.idSucursal = ?
-                OR
-                ? = 1 AND c.serie LIKE CONCAT(?,'%') AND c.idSucursal = ?
-                OR
-                ? = 1 AND c.numeracion LIKE CONCAT(?,'%') AND c.idSucursal = ?`, [
-                parseInt(req.query.opcion),
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
-
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
+            const total = await conec.procedure(`CALL Listar_Comprobantes_Count(?,?,?)`, [
+                    parseInt(req.query.opcion),
+                    req.query.buscar,
+                    req.query.idSucursal,
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
