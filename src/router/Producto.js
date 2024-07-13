@@ -126,7 +126,6 @@ router.get('/lista/precios', async function (req, res) {
     }
 });
 
-
 router.put('/establecer/preferido', async function (req, res) {
     const result = await producto.preferidoEstablecer(req)
     if (result === "update") {
@@ -135,7 +134,5 @@ router.put('/establecer/preferido', async function (req, res) {
         res.status(500).send(result)
     }
 })
-
-
 
 module.exports = router;

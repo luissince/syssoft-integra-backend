@@ -52,7 +52,7 @@ class Compra {
                 nota,
                 idFormaCobro,
                 estado,
-                detalle,
+                detalles,
                 metodoPago
             } = req.body;
 
@@ -148,7 +148,7 @@ class Compra {
             }
 
             // Inserta los detalles de compra en la base de datos
-            for (const item of detalle) {
+            for (const item of detalles) {
                 // Obtener inventario
                 const inventario = await conec.execute(connection, `
                 SELECT 
@@ -306,7 +306,6 @@ class Compra {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
-
 
     async detail(req) {
         try {

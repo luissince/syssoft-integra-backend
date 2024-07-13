@@ -614,6 +614,7 @@ class Producto {
             const result = await conec.query(`
             SELECT 
                 p.idProducto,
+                p.codigo,
                 p.nombre,
                 p.costo,
                 pc.valor AS precio,
@@ -647,6 +648,7 @@ class Producto {
             const result = await conec.query(`
             SELECT 
                 p.idProducto,
+                p.codigo,
                 p.nombre,
                 inv.cantidad,
                 p.costo,
