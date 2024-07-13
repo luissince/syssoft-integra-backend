@@ -6,10 +6,13 @@ class GuiaRemision {
 
     async list(req) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Guia_Remision(?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Guia_Remision(?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.idSucursal,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                parseInt(req.query.estado),
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -22,10 +25,13 @@ class GuiaRemision {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Guia_Remision_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Guia_Remision_Count(?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.idSucursal,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                parseInt(req.query.estado),
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
