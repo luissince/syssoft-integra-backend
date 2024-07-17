@@ -32,6 +32,8 @@ router.get('/facturacion/cotizacion/pdf/ticket/:idCotizacion', async (req, res) 
 router.post('/facturacion/cotizacion/pre/pdf/a4', async (req, res) => await reporte.generarPreCotizacion(req, res, "a4"));
 router.post('/facturacion/cotizacion/pre/pdf/ticket', async (req, res) => await reporte.generarPreCotizacion(req, res, "ticket"));
 
+router.get('/facturacion/cotizacion/pedido/pdf/a4/:idCotizacion', async (req, res) => await reporte.generarPedidoCotizacion(req, res));
+
 // comprobante de guía de remisión
 router.get('/facturacion/guiaremision/pdf/a4/:idGuiaRemision', async (req, res) => await reporte.generarGuiaRemision(req, res, "a4"));
 router.get('/facturacion/guiaremision/pdf/ticket/:idGuiaRemision', async (req, res) => await reporte.generarGuiaRemision(req, res, "ticket"));

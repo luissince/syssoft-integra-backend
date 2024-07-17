@@ -496,6 +496,7 @@ class Reporte {
                 cd.cantidad,
                 cd.idImpuesto,
                 p.codigo AS codigo,
+                p.imagen,
                 p.nombre AS producto,
                 m.nombre AS medida,
                 i.nombre AS impuesto,
@@ -522,6 +523,7 @@ class Reporte {
                     "idImpuesto": item.idImpuesto,
                     "producto": {
                         "codigo": item.codigo,
+                        "imagen": item.imagen,
                         "nombre": item.producto
                     },
                     "medida": {
@@ -553,6 +555,174 @@ class Reporte {
                     "sucursal": sucursal[0],
                     "cotizacionDetalle": detalles,
                     "bancos": bancos
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            sendPdf(res, response.data);
+        } catch (error) {
+            sendError(res, "Error al obtener el PDF", "Reporte/generarCotizacion", error)
+        }
+    }
+
+    async generarPedidoCotizacion(req, res) {
+        try {
+
+            const cotizacion = await conec.query(`
+            SELECT 
+                serie,
+                numeracion,
+                DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, 
+                hora,
+                idSucursal,
+                idMoneda,
+                idCliente,
+                idComprobante,
+                nota
+            FROM 
+                cotizacion 
+            WHERE 
+                idCotizacion = ?`, [
+                req.params.idCotizacion
+            ])
+
+            const cliente = await conec.query(`
+            SELECT 
+                p.documento,
+                p.informacion,
+                p.direccion
+            FROM 
+                persona AS p
+            WHERE 
+                p.idPersona = ?`, [
+                cotizacion[0].idCliente
+            ]);
+
+            const moneda = await conec.query(`
+            SELECT 
+                nombre,
+                simbolo,
+                codiso
+            FROM 
+                moneda AS m
+            WHERE 
+                m.idMoneda = ?`, [
+                cotizacion[0].idMoneda
+            ])
+
+            const comprobante = await conec.query(`
+            SELECT 
+                nombre
+            FROM 
+                comprobante AS c
+            WHERE 
+                c.idComprobante = ?`, [
+                cotizacion[0].idComprobante
+            ]);
+
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const newEmpresa = {
+                ...empresa[0],
+                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoDesarrollador": `${process.env.APP_URL}/files/to/logo.png`,
+            }
+
+            const sucursal = await conec.query(`
+            SELECT 
+                s.telefono,
+                s.celular,
+                s.email,
+                s.paginaWeb,
+                s.direccion,
+                u.departamento,
+                u.provincia,
+                u.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS u ON u.idUbigeo = s.idUbigeo
+            WHERE
+                s.idSucursal = ?`, [
+                cotizacion[0].idSucursal
+            ]);
+
+            const detalle = await conec.query(`
+            SELECT 
+                cd.precio,
+                cd.cantidad,
+                cd.idImpuesto,
+                p.codigo AS codigo,
+                p.imagen,
+                p.nombre AS producto,
+                m.nombre AS medida,
+                i.nombre AS impuesto,
+                i.porcentaje
+            FROM 
+                cotizacionDetalle AS cd
+            INNER JOIN
+                producto AS p ON p.idProducto = cd.idProducto
+            INNER JOIN
+                medida AS m ON m.idMedida = cd.idMedida
+            INNER JOIN
+                impuesto AS i ON i.idImpuesto = cd.idImpuesto
+            WHERE 
+                cd.idCotizacion = ?
+            ORDER BY 
+                cd.idCotizacionDetalle ASC`, [
+                req.params.idCotizacion
+            ]);
+
+            const detalles = detalle.map((item) => {
+                return {
+                    "precio": item.precio,
+                    "cantidad": item.cantidad,
+                    "idImpuesto": item.idImpuesto,
+                    "producto": {
+                        "codigo": item.codigo,
+                        "imagen": `${process.env.APP_URL}/files/product/${item.imagen}`,
+                        "nombre": item.producto
+                    },
+                    "medida": {
+                        "nombre": item.medida
+                    },
+                    "impuesto": {
+                        "nombre": item.impuesto,
+                        "porcentaje": item.porcentaje,
+                    }
+                }
+            });
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/api/v1/cotizacion/pedido/a4/`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "serie": cotizacion[0].serie,
+                    "numeracion": cotizacion[0].numeracion,
+                    "fecha": cotizacion[0].fecha,
+                    "hora": cotizacion[0].hora,
+                    "nota": cotizacion[0].nota,
+                    "moneda": moneda[0],
+                    "persona": cliente[0],
+                    "comprobante": comprobante[0],
+                    "empresa": newEmpresa,
+                    "sucursal": sucursal[0],
+                    "cotizacionDetalle": detalles,
+                    "bancos": []
                 },
                 responseType: 'arraybuffer'
             };
