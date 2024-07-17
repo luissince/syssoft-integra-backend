@@ -47,7 +47,7 @@ class Gasto {
                 idComprobante,
                 estado,
                 observacion,
-                detalle,
+                detalles,
                 metodoPago
             } = req.body;
 
@@ -113,7 +113,7 @@ class Gasto {
             ]);
 
             /**
-             * Proceso para ingresar el detalle del gasto.
+             * Proceso para ingresar los detalles del gasto.
              */
 
             // Generar el Id único
@@ -121,7 +121,7 @@ class Gasto {
             let idGastoDetalle = generateNumericCode(1, listaGastoDetalle, 'idGastoDetalle');
 
             // Proceso de registro  
-            for (const item of detalle) {
+            for (const item of detalles) {
                 await await conec.execute(connection, `INSERT INTO gastoDetalle(
                     idGastoDetalle,
                     idGasto,

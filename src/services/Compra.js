@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep, } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
 
@@ -42,6 +42,7 @@ class Compra {
 
             // Extrae los datos del cuerpo de la solicitud
             const {
+                idFormaPago,
                 idComprobante,
                 idProveedor,
                 idUsuario,
@@ -50,7 +51,6 @@ class Compra {
                 idMoneda,
                 observacion,
                 nota,
-                idFormaCobro,
                 estado,
                 detalles,
                 metodoPago
@@ -102,7 +102,7 @@ class Compra {
                 idAlmacen,
                 serie,
                 numeracion,
-                idFormaCobro,
+                idFormaPago,
                 observacion,
                 nota,
                 estado,
@@ -118,7 +118,7 @@ class Compra {
                 idAlmacen,
                 comprobante[0].serie,
                 numeracion,
-                idFormaCobro,
+                idFormaPago,
                 observacion,
                 nota,
                 estado,
@@ -227,7 +227,7 @@ class Compra {
             }
 
             // Si el tipo de compra es 1 (contado), realiza acciones adicionales
-            if (idFormaCobro === 'FC0001') {
+            if (idFormaPago === 'FP0001') {
                 const listaSalidas = await conec.execute(connection, `
                 SELECT 
                     idSalida 
@@ -335,7 +335,7 @@ class Compra {
             INNER JOIN 
                 comprobante AS co ON co.idComprobante = c.idComprobante
             INNER JOIN 
-                formaCobro AS fc ON fc.idFormaCobro = c.idFormaCobro
+                formaPago AS fc ON fc.idFormaPago = c.idFormaPago
             INNER JOIN 
                 moneda AS mo ON mo.idMoneda = c.idMoneda
             INNER JOIN 
