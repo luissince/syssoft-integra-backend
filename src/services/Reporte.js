@@ -691,7 +691,7 @@ class Reporte {
                     "idImpuesto": item.idImpuesto,
                     "producto": {
                         "codigo": item.codigo,
-                        "imagen": `${process.env.APP_URL}/files/product/${item.imagen}`,
+                        "imagen": !item.imagen ? `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.APP_URL}/files/product/${item.imagen}`,
                         "nombre": item.producto
                     },
                     "medida": {
