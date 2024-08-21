@@ -30,6 +30,7 @@ jobs:
 
       FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
       FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+      FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
 
       # VITE_APP_BACK_END: ${{ secrets.VITE_APP_BACK_END }}
       # VITE_APP_APIS_PERU: ${{ secrets.VITE_APP_APIS_PERU }}
@@ -58,7 +59,7 @@ jobs:
 
       # Configurar el secreto como una variable de entorno para Docker Compose
       - name: Configurar la configuración de Firebase
-        run: echo "FIREBASE_CONFIG=${{ secrets.FIREBASE_CONFIG }}" >> $GITHUB_ENV
+        run: echo "FIREBASE_CONFIG=${{ env.FIREBASE_CONFIG }}" >> $GITHUB_ENV
 
       - name: Crear archivo .env para el backend
         run: |
