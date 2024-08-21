@@ -16,6 +16,9 @@ COPY . .
 # Establecer el argumento para inyectar la configuración de Firebase
 ARG FIREBASE_CONFIG
 
+# Crear el directorio si no existe
+RUN mkdir -p src/path/certificates/
+
 # Crear el archivo JSON con el contenido proporcionado
 RUN echo "$FIREBASE_CONFIG" > src/path/certificates/syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5.json
 
