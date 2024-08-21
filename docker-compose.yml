@@ -8,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        FIREBASE_CONFIG: ${FIREBASE_CONFIG}
     # Nombre de la imagen de la imagen generada
     image: sysintegra-backend-image
     # Nombre del contenedor

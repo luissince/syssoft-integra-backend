@@ -55,7 +55,11 @@ jobs:
       #     npm install
       #     source .env
       #     npm run build
-    
+
+      # Configurar el secreto como una variable de entorno para Docker Compose
+      - name: Configurar la configuración de Firebase
+        run: echo "FIREBASE_CONFIG=${{ secrets.FIREBASE_CONFIG }}" >> $GITHUB_ENV
+
       - name: Crear archivo .env para el backend
         run: |
           cat > .env <<EOL
