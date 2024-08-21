@@ -7,25 +7,18 @@ const {
     generateNumericCode,
 } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave } = require("../tools/Message");
-const admin = require('firebase-admin');
-const serviceAccount = require('../path/certificates/syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5.json');
-
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 
 require('dotenv').config();
-
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: process.env.FIREBASE_BUCKET
-});
-
-const bucket = admin.storage().bucket();
-
 
 class Producto {
 
     async list(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -57,6 +50,9 @@ class Producto {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
 
             const {
                 idCategoria,
@@ -476,6 +472,9 @@ class Producto {
 
     async id(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             const producto = await conec.query(`
             SELECT 
                 p.idProducto,
@@ -635,6 +634,9 @@ class Producto {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
 
             const validateCodigo = await conec.execute(connection, `
             SELECT 
@@ -1037,6 +1039,9 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             const { idProducto } = req.query;
 
             const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto  = ?`, [
@@ -1239,6 +1244,9 @@ class Producto {
 
     async filtrarParaVenta(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?,?)", [
                 parseInt(req.query.tipo),
                 req.query.filtrar,
@@ -1272,6 +1280,9 @@ class Producto {
 
     async preferidos(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             const result = await conec.procedure("CALL Listar_Productos_Preferidos(?,?)", [
                 req.query.idSucursal,
                 req.query.idAlmacen
@@ -1358,6 +1369,9 @@ class Producto {
 
     async filterWeb(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+
             console.log(req.query)
             const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?)`, [
                 req.query.buscar,
@@ -1392,6 +1406,9 @@ class Producto {
 
     async filterWebId(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
+            
             const producto = await conec.query(`
             SELECT 
                 p.idProducto,
