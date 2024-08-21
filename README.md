@@ -148,10 +148,50 @@ Puerto de la base de datos
 DB_PORT=3306
 ```
 
+Nombre de la cuenta
+
+```bash
+CLOUDFLARE_ACCOUNT_ID="replace_me"
+```
+
+ApiKey de la cuenta
+
+```bash
+CLOUDFLARE_ACCESS_KEY_ID="replace_me"
+```
+
+ApiKey secreta de la cuenta
+
+```bash
+CLOUDFLARE_SECRET_ACCESS_KEY="replace_me"
+```
+
+Nombre del bucket
+
+```bash
+CLOUDFLARE_BUCKET_NAME="replace_me"
+```
+
+Nombre del bucket
+
+```bash
+FIREBASE_BUCKET="replace_me"
+```
+
+URL publica
+
+```bash
+FIREBASE_URL_PUBLIC="replace_me"
+```
+
 Configuración de la zona horaria
 
 ```bash
 TZ="America/Lima"
+```
+
+```bash
+ENVIRONMENT="development"
 ```
 
 ### 6. Ejecute **npm run dev** para iniciar el Banck-end en modo desarrollo
