@@ -564,7 +564,7 @@ class Factura {
              * Registrar el proceso de venta y cotzaición
              */
 
-            if (idCotizacion !== "") {
+            if (idCotizacion) {
                 const listaIdVentaCotizacion = await conec.execute(connection, 'SELECT idVentaCotizacion FROM ventaCotizacion');
                 const idVentaCotizacion = generateNumericCode(1, listaIdVentaCotizacion, 'idVentaCotizacion');
 

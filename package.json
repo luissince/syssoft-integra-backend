@@ -8,6 +8,8 @@
     "dev": "npx nodemon index.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.627.0",
+    "@aws-sdk/s3-request-presigner": "^3.627.0",
     "axios": "^1.6.8",
     "bcrypt": "5.1.1",
     "cors": "2.8.5",
@@ -15,6 +17,7 @@
     "dotenv": "16.3.1",
     "excel4node": "1.8.2",
     "express": "4.18.2",
+    "firebase-admin": "^12.3.1",
     "get-stream": "6.0.1",
     "js-file-download": "0.4.12",
     "jsonwebtoken": "9.0.2",
@@ -25,6 +28,7 @@
     "pdfkit": "0.13.0",
     "pdfkit-table": "0.1.99",
     "qrcode": "1.5.0",
+    "sharp": "^0.33.4",
     "swagger-jsdoc": "6.2.8",
     "swagger-ui-express": "4.6.3",
     "winston": "^3.12.0",

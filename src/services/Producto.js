@@ -1,23 +1,31 @@
-const path = require("path");
+require("@aws-sdk/client-s3");
 const Conexion = require('../database/Conexion');
 const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
-    isDirectory,
-    processImage,
-    mkdir,
-    chmod,
     generateNumericCode,
 } = require('../tools/Tools');
+const { sendSuccess, sendError, sendClient, sendSave } = require("../tools/Message");
+const admin = require('firebase-admin');
+const serviceAccount = require('../path/certificates/syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5.json');
+
 const conec = new Conexion();
 
 require('dotenv').config();
 
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: process.env.FIREBASE_BUCKET
+});
+
+const bucket = admin.storage().bucket();
+
+
 class Producto {
 
-    async list(req) {
-        try {         
+    async list(req, res) {
+        try {
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
@@ -28,7 +36,8 @@ class Producto {
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -37,13 +46,14 @@ class Producto {
                 parseInt(req.query.opcion),
                 req.query.buscar
             ]);
-            return { "result": resultLista, "total": total[0].Total }
-        } catch (error) {            
-            return "Se produjo un error de servidor, intente nuevamente.";
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/list", error);
         }
     }
 
-    async add(req) {
+    async create(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -51,23 +61,29 @@ class Producto {
             const {
                 idCategoria,
                 idMedida,
+                idMarca,
                 nombre,
                 codigo,
                 idCodigoSunat,
-                descripcion,
+                descripcionCorta,
+                descripcionLarga,
                 idTipoTratamientoProducto,
                 costo,
                 precio,
                 tipo,
                 publicar,
-                inventariado,
                 negativo,
                 preferido,
                 estado,
                 idUsuario,
 
                 inventarios,
-                precios
+                precios,
+                detalles,
+                imagenes,
+                colores,
+                tallas,
+                sabores
             } = req.body;
 
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ?`, [
@@ -76,7 +92,7 @@ class Producto {
 
             if (validateCodigo.length !== 0) {
                 await conec.rollback(connection);
-                return "No se puede haber 2 producto con la misma clave.";
+                return sendClient(res, "No se puede haber 2 producto con la misma clave.");
             }
 
             const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ?`, [
@@ -85,18 +101,38 @@ class Producto {
 
             if (validateNombre.length !== 0) {
                 await conec.rollback(connection);
-                return "No se puede haber 2 producto con el mismo nombre.";
+                return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
             }
 
-            const fileDirectory = path.join(__dirname, '..', 'path', 'product');
-            const exists = await isDirectory(fileDirectory);
+            // const fileDirectory = path.join(__dirname, '..', 'path', 'product');
+            // const exists = await isDirectory(fileDirectory);
 
-            if (!exists) {
-                await mkdir(fileDirectory);
-                await chmod(fileDirectory);
+            // if (!exists) {
+            //     await mkdir(fileDirectory);
+            //     await chmod(fileDirectory);
+            // }
+
+            // const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, null);
+
+            let imagen = null;
+
+            if (req.body.imagen && req.body.imagen.base64 !== undefined) {
+                const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+
+                const timestamp = Date.now();
+                const uniqueId = Math.random().toString(36).substring(2, 9);
+                const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+
+                const file = bucket.file(fileName);
+                await file.save(buffer, {
+                    metadata: {
+                        contentType: 'image/' + req.body.imagen.extension,
+                    }
+                });
+                await file.makePublic();
+
+                imagen = fileName;
             }
-
-            const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, null);
 
             const resultProducto = await conec.execute(connection, 'SELECT idProducto FROM producto');
             const idProducto = generateAlphanumericCode("PD0001", resultProducto, 'idProducto');
@@ -106,15 +142,16 @@ class Producto {
                 idProducto,
                 idCategoria,
                 idMedida,
+                idMarca,
                 nombre,
                 codigo,
                 idCodigoSunat,
-                descripcion,
+                descripcionCorta,
+                descripcionLarga,
                 idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
                 publicar,
-                inventariado,
                 negativo,
                 preferido,
                 estado,
@@ -124,19 +161,20 @@ class Producto {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 idMedida,
+                idMarca,
                 nombre,
                 codigo,
                 idCodigoSunat,
-                descripcion,
+                descripcionCorta,
+                descripcionLarga,
                 idTipoTratamientoProducto,
                 costo,
                 tipo,
                 publicar,
-                inventariado,
                 negativo,
                 preferido,
                 estado,
@@ -300,39 +338,160 @@ class Producto {
                 ) VALUES(?,?,?,?,?)`, [
                     idPrecio,
                     idProducto,
-                    precio.nombre,
+                    precio.nombre.trim(),
                     precio.precio,
                     0
                 ])
             }
 
+            /**
+             * Registrar detalles
+             */
+            let idDetalle = 1;
+
+            for (const detalle of detalles) {
+                idDetalle++;
+
+                await conec.execute(connection, `
+                INSERT INTO productoDetalle(
+                    idDetalle,
+                    idProducto,
+                    nombre,
+                    valor
+                ) VALUES(?,?,?,?)`, [
+                    idDetalle,
+                    idProducto,
+                    detalle.nombre.trim(),
+                    detalle.valor.trim()
+                ])
+            }
+
+            /**
+             * Registrar imagenes
+             */
+
+            let idImagen = 0;
+
+            for (const imagen of imagenes) {
+                if (imagen.base64 !== undefined) {
+                    const buffer = Buffer.from(imagen.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+
+                    const fileName = `${req.body.codigo}_${timestamp}_${uniqueId}.${imagen.extension}`;
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
+
+                    idImagen++;
+
+                    await conec.execute(connection, `
+                    INSERT INTO productoImagen(
+                        idImagen,
+                        idProducto,
+                        nombre,
+                        extension,
+                        ancho,
+                        alto
+                    ) VALUES(?,?,?,?,?,?)`, [
+                        idImagen,
+                        idProducto,
+                        fileName,
+                        imagen.extension,
+                        imagen.width,
+                        imagen.height,
+                    ]);
+                }
+            }
+
+            /**
+             * Actualizar colores, tallas, sabores
+             */
+
+            for (const color of colores) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    idProducto,
+                    color.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario,
+                ])
+            }
+
+            for (const color of tallas) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    idProducto,
+                    color.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario,
+                ])
+            }
+
+            for (const color of sabores) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    idProducto,
+                    color.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario,
+                ])
+            }
+
             await conec.commit(connection);
-            return "insert";
+            return sendSave(res, "Datos registrados correctamente.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/create", error);
         }
     }
 
-    async id(req) {
+    async id(req, res) {
         try {
             const producto = await conec.query(`
             SELECT 
                 p.idProducto,
                 p.idCategoria,
                 p.idMedida,
+                p.idMarca,
                 p.nombre,
                 p.codigo,
                 p.idCodigoSunat,
-                p.descripcion,
+                p.descripcionCorta,
+                p.descripcionLarga,
                 p.idTipoTratamientoProducto,
                 pc.valor AS precio,
                 p.costo,
                 p.idTipoProducto,
                 p.publicar,
-                p.inventariado,
                 p.negativo,
                 p.preferido,
                 p.imagen,
@@ -348,7 +507,13 @@ class Producto {
 
             const respuesta = {
                 ...producto[0],
-                imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
+                // imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
+                imagen: !producto[0].imagen
+                    ? null
+                    : {
+                        nombre: producto[0].imagen,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
+                    }
             };
 
             const precios = await conec.query(`
@@ -363,18 +528,110 @@ class Producto {
                 req.query.idProducto
             ]);
 
-            const newProducto = {
-                ...respuesta,
-                precios
+            const imagenes = await conec.query(`
+                SELECT
+                    idImagen,
+                    idProducto,
+                    nombre,
+                    ancho,
+                    alto
+                FROM 
+                    productoImagen 
+                WHERE 
+                    idProducto = ?`, [
+                req.query.idProducto
+            ]);
+
+            const newImagenes = [];
+            let countImage = 0;
+
+            for (const image of imagenes) {
+                newImagenes.push({
+                    "index": countImage,
+                    "idImagen": image.idImagen,
+                    "idProducto": image.idProducto,
+                    "nombre": image.nombre,
+                    "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                    "remover": false
+                });
+
+                countImage++;
             }
 
-            return newProducto
+            const detalles = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    nombre,
+                    valor
+                FROM 
+                    productoDetalle 
+                WHERE 
+                    idProducto = ?`, [
+                req.query.idProducto
+            ]);
+
+            const colores = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.hexadecimal
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
+                WHERE 
+                    pc.idProducto = ?`, [
+                req.query.idProducto
+            ]);
+
+            const tallas = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.valor
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
+                WHERE 
+                    pc.idProducto = ?`, [
+                req.query.idProducto
+            ]);
+
+            const sabores = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.valor
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
+                WHERE 
+                    pc.idProducto = ?`, [
+                req.query.idProducto
+            ]);
+
+            const newProducto = {
+                ...respuesta,
+                precios,
+                detalles,
+                colores,
+                tallas,
+                sabores,
+                imagenes: newImagenes
+            }
+
+            return sendSuccess(res, newProducto);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/id", error);
         }
     }
 
-    async update(req) {
+    async update(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -392,7 +649,7 @@ class Producto {
 
             if (validateCodigo.length !== 0) {
                 await conec.rollback(connection);
-                return "No se puede haber 2 producto con la misma clave.";
+                return sendClient(res, "No se puede haber 2 producto con la misma clave.");
             }
 
             const validateNombre = await conec.execute(connection, `
@@ -408,16 +665,18 @@ class Producto {
 
             if (validateNombre.length !== 0) {
                 await conec.rollback(connection);
-                return "No se puede haber 2 producto con el mismo nombre.";
+                return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
             }
 
-            const fileDirectory = path.join(__dirname, '..', 'path', 'product');
-            const exists = await isDirectory(fileDirectory);
+            // const fileDirectory = path.join(__dirname, '..', 'path', 'product');
+            // const exists = await isDirectory(fileDirectory);
 
-            if (!exists) {
-                await mkdir(fileDirectory);
-                await chmod(fileDirectory);
-            }
+            // if (!exists) {
+            //     await mkdir(fileDirectory);
+            //     await chmod(fileDirectory);
+            // }
+
+            // const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, producto[0].imagen);
 
             const producto = await await conec.execute(connection, `
             SELECT 
@@ -427,9 +686,36 @@ class Producto {
             WHERE 
                 idProducto = ?`, [
                 req.body.idProducto
-            ])
+            ]);
 
-            const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, producto[0].imagen);
+
+            let imagen = null;
+
+            if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
+                if (producto[0].imagen) {
+                    const file = bucket.file(producto[0].imagen);
+                    await file.delete();
+                }
+
+            } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
+                const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+
+                const timestamp = Date.now();
+                const uniqueId = Math.random().toString(36).substring(2, 9);
+                const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+
+                const file = bucket.file(fileName);
+                await file.save(buffer, {
+                    metadata: {
+                        contentType: 'image/' + req.body.imagen.extension,
+                    }
+                });
+                await file.makePublic();
+
+                imagen = fileName;
+            } else {
+                imagen = req.body.imagen.nombre;
+            }
 
             await conec.execute(connection, `
             UPDATE 
@@ -437,14 +723,15 @@ class Producto {
             SET
                 idCategoria = ?,
                 idMedida = ?,     
+                idMarca = ?,
                 nombre = ?,
                 codigo = ?,
                 idCodigoSunat = ?,
-                descripcion = ?,
+                descripcionCorta = ?,
+                descripcionLarga = ?,
                 idTipoTratamientoProducto = ?,
                 costo = ?,
                 publicar = ?,
-                inventariado = ?,
                 negativo = ?,
                 preferido = ?,
                 estado = ?,
@@ -456,14 +743,15 @@ class Producto {
                 idProducto = ?`, [
                 req.body.idCategoria,
                 req.body.idMedida,
+                req.body.idMarca,
                 req.body.nombre,
                 req.body.codigo,
                 req.body.idCodigoSunat,
-                req.body.descripcion,
+                req.body.descripcionCorta,
+                req.body.descripcionLarga,
                 req.body.idTipoTratamientoProducto,
                 req.body.costo,
                 req.body.publicar,
-                req.body.inventariado,
                 req.body.negativo,
                 req.body.preferido,
                 req.body.estado,
@@ -474,14 +762,14 @@ class Producto {
                 req.body.idProducto
             ]);
 
+            /**
+             * Actualizar precio
+             */
 
             await conec.execute(connection, `DELETE FROM precio WHERE idProducto = ?`, [
                 req.body.idProducto
-            ])
+            ]);
 
-            /**
-             * Registrar precio
-             */
             let idPrecio = 1;
 
             await conec.execute(connection, `
@@ -497,7 +785,7 @@ class Producto {
                 "Precio Normal",
                 req.body.precio,
                 1
-            ])
+            ]);
 
             for (const precio of req.body.precios) {
                 idPrecio++;
@@ -512,23 +800,239 @@ class Producto {
                 ) VALUES(?,?,?,?,?)`, [
                     idPrecio,
                     req.body.idProducto,
-                    precio.nombre,
+                    precio.nombre.trim(),
                     precio.precio,
                     0
                 ])
             }
 
+            /**
+             * Actualizar detalles
+             */
+            await conec.execute(connection, `DELETE FROM productoDetalle WHERE idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            let idDetalle = 0;
+
+            for (const detalle of req.body.detalles) {
+                idDetalle++;
+
+                await conec.execute(connection, `
+                INSERT INTO productoDetalle(
+                    idDetalle,
+                    idProducto,
+                    nombre,
+                    valor
+                ) VALUES(?,?,?,?)`, [
+                    idDetalle,
+                    req.body.idProducto,
+                    detalle.nombre.trim(),
+                    detalle.valor.trim()
+                ])
+            }
+
+            /**
+             * Actualizar imagenes
+             */
+            const cacheImagenes = await conec.execute(connection, `
+                SELECT 
+                    idImagen,
+                    idProducto,
+                    nombre,
+                    extension,
+                    ancho,
+                    alto
+                FROM
+                    productoImagen
+                WHERE
+                    idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            let idImagen = 0;
+
+            for (const imagen of req.body.imagenes) {
+                if (imagen.remover !== undefined && imagen.remover === true) {
+                    const file = bucket.file(imagen.nombre);
+                    await file.delete();
+                } else if (imagen.base64 !== undefined) {
+                    const buffer = Buffer.from(imagen.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+
+                    const fileName = `${req.body.codigo}_${timestamp}_${uniqueId}.${imagen.extension}`;
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
+
+                    idImagen++;
+
+                    await conec.execute(connection, `
+                    INSERT INTO productoImagen(
+                        idImagen,
+                        idProducto,
+                        nombre,
+                        extension,
+                        ancho,
+                        alto
+                    ) VALUES(?,?,?,?,?,?)`, [
+                        idImagen,
+                        req.body.idProducto,
+                        fileName,
+                        imagen.extension,
+                        imagen.width,
+                        imagen.height,
+                    ]);
+                } else {
+                    const imageOld = cacheImagenes.find((item) => item.idImagen === imagen.idImagen && item.idProducto == imagen.idProducto);
+
+                    idImagen++;
+                    await conec.execute(connection, `
+                    INSERT INTO productoImagen(
+                        idImagen,
+                        idProducto,
+                        nombre,
+                        extension,
+                        ancho,
+                        alto
+                    ) VALUES(?,?,?,?,?,?)`, [
+                        idImagen,
+                        imageOld.idProducto,
+                        imageOld.nombre,
+                        imageOld.extension,
+                        imageOld.ancho,
+                        imageOld.alto,
+                    ]);
+                }
+            }
+
+            // if (imagen && imagen.base64 && imagen.extension) {
+            // const buffer = Buffer.from(imagen.base64, 'base64');
+
+            // const timestamp = Date.now();
+            // const uniqueId = Math.random().toString(36).substring(2, 9);
+
+            // const fileName = `${req.body.codigo}_${timestamp}_${uniqueId}.${imagen.extension}`;
+
+            // const r2 = new S3Client({
+            //     region: 'auto',
+            //     endpoint: process.env.CLOUDFLARE_ACCOUNT_ID,
+            //     credentials: {
+            //         accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
+            //         secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
+            //     }
+            // });
+
+            // // const putObjectCommand = new PutObjectCommand({
+            // //     Bucket: process.env.CLOUDFLARE_BUCKET_NAME,
+            // //     Key: fileName,
+            // //     Body: buffer,
+            // //     ContentType: 'image/' + imagen.extension,
+            // // });
+
+            // // await r2.send(putObjectCommand);
+
+            //     idImagen++;
+
+            //     await conec.execute(connection, `
+            //     INSERT INTO productoImagen(
+            //         idImagen,
+            //         idProducto,
+            //         nombre,
+            //         extension,
+            //         ancho,
+            //         alto
+            //     ) VALUES(?,?,?,?,?,?)`, [
+            //         idImagen,
+            //         req.body.idProducto,
+            //         fileName,
+            //         imagen.extension,
+            //         imagen.width,
+            //         imagen.height,
+            //     ])
+            // }
+
+
+            /**
+             * Actualizar colores, tallas, sabores
+             */
+
+            await conec.execute(connection, `DELETE FROM productoAtributo WHERE idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            for (const color of req.body.colores) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    req.body.idProducto,
+                    color.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    req.body.idUsuario,
+                ])
+            }
+
+            for (const talla of req.body.tallas) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    req.body.idProducto,
+                    talla.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    req.body.idUsuario,
+                ])
+            }
+
+            for (const sabor of req.body.sabores) {
+                await conec.execute(connection, `
+                    INSERT INTO productoAtributo(
+                        idProducto,
+                        idAtributo,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?)`, [
+                    req.body.idProducto,
+                    sabor.idAtributo,
+                    currentDate(),
+                    currentTime(),
+                    req.body.idUsuario,
+                ])
+            }
+
             await conec.commit(connection);
-            return "update";
+            return sendSave(res, "Los datos se actualizarón correctamente.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/update", error);
         }
     }
 
-    async delete(req) {
+    async delete(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -541,54 +1045,103 @@ class Producto {
 
             if (producto.length === 0) {
                 await conec.rollback(connection);
-                return "El producto ya se encuentra eliminado.";
+                return sendClient(res, "El producto ya se encuentra eliminado.");
             }
 
             const inventario = await conec.execute(connection, `SELECT * FROM kardex WHERE idProducto = ?`, [
                 idProducto
-            ])
+            ]);
 
             if (inventario.length !== 0) {
                 await conec.rollback(connection);
-                return "El producto no se puede eliminar porque tiene un historial de ingresos y salidas en el kardex.";
+                return sendClient(res, "El producto no se puede eliminar porque tiene un historial de ingresos y salidas en el kardex.");
             }
+
+            const compra = await conec.execute(connection, `SELECT * FROM compraDetalle WHERE idProducto = ?`, [
+                idProducto
+            ]);
+
+            if (compra.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "El producto no se puede eliminar porque tiene una compra asociada.");
+            }
+
 
             const venta = await conec.execute(connection, `SELECT * FROM ventaDetalle WHERE idProducto = ?`, [
                 idProducto
-            ])
+            ]);
 
             if (venta.length > 0) {
                 await conec.rollback(connection);
-                return "No se puede eliminar el producto ya que esta ligado a una venta.";
+                return sendClient(res, "No se puede eliminar el producto ya que esta ligado a una venta.");
             }
 
             await conec.execute(connection, `DELETE FROM inventario WHERE idProducto  = ?`, [
                 idProducto
-            ])
+            ]);
 
             await conec.execute(connection, `DELETE FROM precio WHERE idProducto = ?`, [
                 idProducto
-            ])
+            ]);
+
+            if (producto[0].imagen) {
+                const file = bucket.file(producto[0].imagen);
+                await file.delete();
+            }
+
+            const cacheImagenes = await conec.execute(connection, `
+                SELECT 
+                    idImagen,
+                    idProducto,
+                    nombre,
+                    extension,
+                    ancho,
+                    alto
+                FROM
+                    productoImagen
+                WHERE
+                    idProducto = ?`, [
+                idProducto
+            ]);
+
+            for (const imagen of cacheImagenes) {
+                if (imagen.nombre) {
+                    const file = bucket.file(imagen.nombre);
+                    await file.delete();
+                }
+            }
+
+            await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
+                idProducto
+            ]);
+
+            await conec.execute(connection, `DELETE FROM productoDetalle WHERE idProducto = ?`, [
+                idProducto
+            ]);
+
+            await conec.execute(connection, `DELETE FROM productoAtributo WHERE idProducto = ?`, [
+                idProducto
+            ]);
 
             await conec.execute(connection, `DELETE FROM producto WHERE idProducto  = ?`, [
                 idProducto
-            ])
+            ]);
 
             await conec.commit(connection)
-            return "delete";
+            return sendSave(res, "Se eliminó correctamente el producto.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/delete", error);
         }
     }
 
-    async detalle(req) {
+    async detalle(req, res) {
 
     }
 
-    async combo(req) {
+    async combo(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -603,13 +1156,13 @@ class Producto {
                 medida as m ON m.idMedida = p.idMedida
             WHERE 
                 p.idTipoProducto <> 'TP0003'`);
-            return result
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/combo", error);
         }
     }
 
-    async filter(req) {
+    async filter(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -621,9 +1174,12 @@ class Producto {
                 c.nombre AS categoria,
                 tp.nombre as tipoProducto,
                 p.idTipoTratamientoProducto,
-                p.idMedida
+                p.idMedida,
+                me.nombre AS unidad
             FROM 
                 producto AS p
+            INNER JOIN 
+                medida AS me ON me.idMedida = p.idMedida
             INNER JOIN 
                 categoria AS c ON c.idCategoria = p.idCategoria
             INNER JOIN 
@@ -637,13 +1193,14 @@ class Producto {
                 req.query.filtrar,
                 req.query.filtrar,
             ])
-            return result;
+
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filter", error);
         }
     }
 
-    async filterAlmacen(req) {
+    async filterAlmacen(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -673,13 +1230,14 @@ class Producto {
                 req.query.filtrar,
                 req.query.filtrar,
             ])
-            return result;
+
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterAlmacen", error);
         }
     }
 
-    async filtrarParaVenta(req) {
+    async filtrarParaVenta(req, res) {
         try {
             const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?,?)", [
                 parseInt(req.query.tipo),
@@ -693,7 +1251,8 @@ class Producto {
             const resultLista = result.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -705,13 +1264,13 @@ class Producto {
                 req.query.idAlmacen,
             ]);
 
-            return { "lists": resultLista, "total": total[0].Total }
-        } catch (error) {           
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendSuccess(res, { "lists": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filtrarParaVenta", error);
         }
     }
 
-    async preferidos(req) {
+    async preferidos(req, res) {
         try {
             const result = await conec.procedure("CALL Listar_Productos_Preferidos(?,?)", [
                 req.query.idSucursal,
@@ -721,17 +1280,18 @@ class Producto {
             const resultLista = result.map(function (item) {
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                 }
             });
 
-            return resultLista
+            return sendSuccess(res, resultLista);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/preferidos", error);
         }
     }
 
-    async preferidoEstablecer(req) {
+    async preferidoEstablecer(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -748,16 +1308,16 @@ class Producto {
             ]);
 
             await conec.commit(connection);
-            return "update";
+            return sendSave(res, "Se estableció como preferido el producto.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/preferidoEstablecer", error);
         }
     }
 
-    async obtenerListPrecio(req) {
+    async obtenerListPrecio(req, res) {
         try {
             const lista = await conec.query(`
             SELECT 
@@ -770,11 +1330,257 @@ class Producto {
                 req.query.idProducto
             ]);
 
-            return lista;
+            return sendSuccess(res, lista);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/obtenerListPrecio", error);
         }
     }
+
+    async rangePriceWeb(req, res){
+        try {
+            const data = await conec.query(`
+            SELECT 
+                IFNULL(MIN(valor), 0) AS minimo,
+                IFNULL(MAX(valor), 0) AS maximo
+            FROM 
+                precio`, [
+                req.query.idProducto
+            ]);
+            return sendSuccess(res, {
+                "minimo": data[0].minimo,
+                "maximo": data[0].maximo,
+            });
+        } catch (error) {
+            console.log(error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/rangePriceWeb", error);
+        }
+    }
+
+    async filterWeb(req, res) {
+        try {
+            console.log(req.query)
+            const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?)`, [
+                req.query.buscar,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ]);
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+            return sendSuccess(res, resultLista);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
+        }
+    }
+
+    async filterWebPages(req, res) {
+        try {
+            const total = await conec.procedure(`CALL Listar_Productos_Web_Count(?)`, [
+                req.query.buscar
+            ]);
+
+            return sendSuccess(res, { "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
+        }
+    }
+
+    async filterWebId(req, res) {
+        try {
+            const producto = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.nombre,
+                p.codigo,
+                p.descripcionCorta,
+                p.descripcionLarga,
+                pc.valor AS precio,
+                p.imagen,
+
+                c.idCategoria,
+                c.nombre AS categoriaNombre,
+
+                m.idMarca,
+                m.nombre AS marcaNombre
+            FROM 
+                producto AS p
+            INNER JOIN 
+                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
+            INNER JOIN 
+                categoria AS c ON c.idCategoria = p.idCategoria
+            LEFT JOIN 
+                marca AS m ON m.idMarca = p.idMarca
+            WHERE 
+                p.codigo = ?`, [
+                req.query.codigo
+            ]);
+
+            const detalles = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    nombre,
+                    valor
+                FROM 
+                    productoDetalle 
+                WHERE 
+                    idProducto = ?`, [
+                producto[0].idProducto
+            ]);
+
+            const imagenes = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    nombre,
+                    ancho,
+                    alto
+                FROM 
+                    productoImagen 
+                WHERE 
+                    idProducto = ?`, [
+                producto[0].idProducto
+            ]);
+
+            const newImagenes = [];
+
+            for (const image of imagenes) {
+                newImagenes.push({
+                    "idImagen": image.id,
+                    "nombre": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                    "ancho": image.ancho,
+                    "alto": image.alto,
+                });
+            }
+
+            const colores = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.hexadecimal
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
+                WHERE 
+                    pc.idProducto = ?`, [
+                producto[0].idProducto
+            ]);
+
+            const tallas = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.valor
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
+                WHERE 
+                    pc.idProducto = ?`, [
+                producto[0].idProducto
+            ]);
+
+            const sabores = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    pc.idAtributo,
+                    c.nombre,
+                    c.valor
+                FROM 
+                    productoAtributo AS pc
+                INNER JOIN 
+                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
+                WHERE 
+                    pc.idProducto = ?`, [
+                producto[0].idProducto
+            ]);
+
+            const respuesta = {
+                ...producto[0],
+                imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
+                categoria: {
+                    idCategoria: producto[0].idCategoria,
+                    nombre: producto[0].categoriaNombre,
+                },
+                marca: {
+                    idMarca: producto[0].idMarca,
+                    nombre: producto[0].marcaNombre,
+                },
+                detalles: detalles,
+                imagenes: newImagenes,
+                colores,
+                tallas,
+                sabores
+            };
+
+            // const r2 = new S3Client({
+            //     region: 'auto',
+            //     endpoint: process.env.CLOUDFLARE_ACCOUNT_ID,
+            //     credentials: {
+            //         accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
+            //         secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
+            //     }
+            // });
+
+            // const url = await getSignedUrl(r2,
+            //     new GetObjectCommand({
+            //         Bucket: process.env.CLOUDFLARE_BUCKET_NAME,
+            //         Key: image.nombre
+            //     }),
+            //     { expiresIn: 3600 }
+            // );
+
+            return sendSuccess(res, respuesta);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
+        }
+    }
+
+    // async filterWebRelatedProduct(req, res) {
+    //     try {
+    //         const lista = await conec.query(`
+    //         SELECT 
+    //             p.idProducto,
+    //             p.codigo,
+    //             p.nombre,
+    //             pc.valor AS precio,
+    //             p.imagen,
+    //             c.nombre AS categoria
+    //         FROM 
+    //             producto AS p 
+    //         INNER JOIN 
+    //             precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+    //         INNER JOIN 
+    //             categoria AS c ON p.idCategoria = c.idCategoria    
+    //         WHERE
+    //             c.idCategoria = ? 
+    //         ORDER BY 
+    //             p.fecha DESC, p.hora DESC
+    //         LIMIT 
+                
+    //             posicionPagina, filasPorPagina`, [
+    //             req.query.idCategoria
+    //         ]);
+
+    //         const resultLista = lista.map(function (item, index) {
+    //             return {
+    //                 ...item,
+    //                 imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+    //                 id: (index + 1) + parseInt(req.query.posicionPagina)
+    //             }
+    //         });
+
+    //         return sendSuccess(res, resultLista);
+    //     } catch (error) {
+    //         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
+    //     }
+    // }
 
 }
 

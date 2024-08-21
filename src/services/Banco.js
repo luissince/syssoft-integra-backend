@@ -31,7 +31,6 @@ class Banco {
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/list", error);
-
         }
     }
 

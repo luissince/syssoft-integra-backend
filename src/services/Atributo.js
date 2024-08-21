@@ -3,11 +3,11 @@ const { sendError, sendSuccess, sendSave, sendClient } = require("../tools/Messa
 const { currentDate, currentTime, generateAlphanumericCode } = require("../tools/Tools");
 const conec = new Conexion();
 
-class Categoria {
+class Atributo {
 
   async list(req, res) {
     try {
-      const lista = await conec.procedure(`CALL Listar_Categoria(?,?,?,?)`, [
+      const lista = await conec.procedure(`CALL Listar_Atributos(?,?,?,?)`, [
         parseInt(req.query.opcion),
         req.query.buscar,
 
@@ -17,19 +17,29 @@ class Categoria {
 
       const resultLista = lista.map(function (item, index) {
         return {
-          ...item,
           id: index + 1 + parseInt(req.query.posicionPagina),
+          idAtributo: item.idAtributo,
+          nombre: item.nombre,
+          hexadecimal: item.hexadecimal,
+          valor: item.valor,
+          estado: item.estado,
+          fecha: item.fecha,
+          hora: item.hora,
+          tipoAtributo: {
+            idTipoAtributo: item.idTipoAtributo,
+            nombre: item.nombreTipoAtributo
+          }
         };
       });
 
-      const total = await conec.procedure(`CALL Listar_Categoria_Count(?,?)`, [
+      const total = await conec.procedure(`CALL Listar_Atributos_Count(?,?)`, [
         parseInt(req.query.opcion),
         req.query.buscar
       ]);
 
       return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
     } catch (error) {
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/list", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/list", error);
     }
   }
 
@@ -37,21 +47,22 @@ class Categoria {
     try {
       const result = await conec.query(`
       SELECT
-        idCategoria,
-        codigo,
+        idAtributo,
+        idTipoAtributo,
         nombre,
-        descripcion,
+        hexadecimal,
+        valor,
         estado
       FROM 
-        categoria 
+        atributo 
       WHERE 
-        idCategoria = ?`, [
-        req.query.idCategoria
+        idAtributo = ?`, [
+        req.query.idAtributo
       ]);
 
       return sendSuccess(res, result[0]);
     } catch (error) {
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/id", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/id", error);
     }
   }
 
@@ -60,25 +71,27 @@ class Categoria {
     try {
       connection = await conec.beginTransaction();
 
-      const result = await conec.execute(connection, "SELECT idCategoria FROM categoria");
-      const idCategoria = generateAlphanumericCode("CT0001", result, 'idCategoria');
+      const result = await conec.execute(connection, "SELECT idAtributo FROM atributo");
+      const idAtributo = generateAlphanumericCode("AT0001", result, 'idAtributo');
 
-      await conec.execute(connection, `INSERT INTO categoria(
-            idCategoria,
-            codigo,
+      await conec.execute(connection, `INSERT INTO atributo(
+            idAtributo,
+            idTipoAtributo,
             nombre,
-            descripcion,
+            hexadecimal,
+            valor,
             estado,
             fecha,
             hora,
             fupdate,
             hupdate,
             idUsuario
-          ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
-        idCategoria,
-        req.body.codigo,
+          ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+        idAtributo,
+        req.body.idTipoAtributo,
         req.body.nombre,
-        req.body.descripcion,
+        req.body.hexadecimal,
+        req.body.valor,
         req.body.estado,
         currentDate(),
         currentTime(),
@@ -89,12 +102,12 @@ class Categoria {
 
       await conec.commit(connection);
 
-      return sendSave(res, "Se registró correctamente la categoria.");
+      return sendSave(res, "Se registró correctamente la atributo.");
     } catch (error) {
       if (connection != null) {
         await conec.rollback(connection);
       }
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/add", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/add", error);
     }
   }
 
@@ -105,35 +118,35 @@ class Categoria {
 
       await conec.execute(connection, `
       UPDATE 
-        categoria 
+        atributo 
       SET
-        codigo = ?,
         nombre = ?,
-        descripcion = ?,
+        hexadecimal = ?,
+        valor = ?,
         estado = ?,
         fupdate = ?,
         hupdate = ?,
         idUsuario = ?
       WHERE 
-        idCategoria  = ?`, [
-        req.body.codigo,
+        idAtributo  = ?`, [
         req.body.nombre,
-        req.body.descripcion,
+        req.body.hexadecimal,
+        req.body.valor,
         req.body.estado,
         currentDate(),
         currentTime(),
         req.body.idUsuario,
-        req.body.idCategoria,
+        req.body.idAtributo,
       ]
       );
 
       await conec.commit(connection);
-      return sendSave(res, "Se actualizó correctamente la categoria.");
+      return sendSave(res, "Se actualizó correctamente la atributo.");
     } catch (error) {
       if (connection != null) {
         await conec.rollback(connection);
       }
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/edit", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/edit", error);
     }
   }
 
@@ -142,26 +155,17 @@ class Categoria {
     try {
       connection = await conec.beginTransaction();
 
-      const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idCategoria = ?`, [
-        req.query.idCategoria
-      ]);
-
-      if (producto.length > 0) {
-        await conec.rollback(connection);
-        return sendClient(res, "No se puede eliminar la categoria ya que esta ligada a un producto.");
-      }
-
-      await conec.execute(connection, `DELETE FROM categoria WHERE idCategoria  = ?`, [
-        req.query.idCategoria
+      await conec.execute(connection, `DELETE FROM atributo WHERE idAtributo  = ?`, [
+        req.query.idAtributo
       ]);
 
       await conec.commit(connection);
-      return sendSave(res, "Se eliminó correctamente la categoria.");
+      return sendSave(res, "Se eliminó correctamente el atributo.");
     } catch (error) {
       if (connection != null) {
         await conec.rollback(connection);
       }
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/delete", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/delete", error);
     }
   }
 
@@ -169,18 +173,23 @@ class Categoria {
     try {
       const result = await conec.query(`
       SELECT 
-        idCategoria,
-        nombre 
+        idAtributo,
+        idTipoAtributo,
+        nombre,
+        hexadecimal,
+        valor
       FROM 
-        categoria 
+        atributo 
       WHERE 
-        estado = 1`);
+        estado = 1 AND idTipoAtributo = ?`, [
+        req.query.idTipoAtributo
+      ]);
 
       return sendSuccess(res, result);
     } catch (error) {
-      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/combo", error);
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/combo", error);
     }
   }
 }
 
-module.exports = Categoria;
+module.exports = Atributo;

@@ -1,10 +1,11 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep, } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const { sendSave, sendError, sendSuccess, sendClient } = require('../tools/Message');
 const conec = new Conexion();
 
 class Compra {
 
-    async list(req) {
+    async list(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -28,13 +29,14 @@ class Compra {
                 req.query.idSucursal,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            // return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/list", error);
         }
     }
 
-    async create(req) {
+    async create(req, res) {
         let connection = null;
         try {
             // Inicia la transacción
@@ -297,17 +299,17 @@ class Compra {
 
             // Confirma la transacción
             await conec.commit(connection);
-            return "create";
+            return sendSave(res, "Se registró correctamente la compra.");
         } catch (error) {
             // En caso de error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/create", error);
         }
     }
 
-    async detail(req) {
+    async detail(req, res) {
         try {
             // Consulta la información principal de la compra
             const compra = await conec.query(`
@@ -394,14 +396,16 @@ class Compra {
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return { cabecera: compra[0], detalle, salidas };
+            return sendSave(res, {
+                cabecera: compra[0],
+                detalle, salidas
+            });
         } catch (error) {
-            // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/detail", error);
         }
     }
 
-    async accountsPayable(req) {
+    async accountsPayable(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Cuenta_Pagar(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -425,14 +429,14 @@ class Compra {
                 req.query.idSucursal
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/accountsPayable", error);
         }
     }
 
 
-    async cancel(req) {
+    async cancel(req, res) {
         let connection = null;
         try {
             // Inicia una transacción
@@ -454,14 +458,14 @@ class Compra {
             if (compra.length === 0) {
                 // Si no existe, realiza un rollback y devuelve un mensaje de error
                 await conec.rollback(connection);
-                return "La compra no existe, verifique el código o actualiza la lista.";
+                return sendClient(res, "La compra no existe, verifique el código o actualiza la lista.");
             }
 
             // Verifica si la compra ya está anulada
             if (compra[0].estado === 3) {
                 // Si ya está anulada, realiza un rollback y devuelve un mensaje de error
                 await conec.rollback(connection);
-                return "La compra ya se encuentra anulada.";
+                return sendClient(res, "La compra ya se encuentra anulada.");
             }
 
             // Actualiza el estado de la compra a anulado
@@ -547,7 +551,7 @@ class Compra {
                     req.query.idCompra,
                     item.idProducto,
                 ]);
-                
+
                 // Inserta un nuevo registro en el kardex
                 await conec.execute(connection, `
                 INSERT INTO kardex(
@@ -595,13 +599,13 @@ class Compra {
 
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito
             await conec.commit(connection);
-            return "cancel";
+            return sendSave(res, "Se anuló correctamente la compra.");
         } catch (error) {
             // Manejo de errores: Si hay un error, realiza un rollback y devuelve un mensaje de error
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/cancel", error);
         }
     }
 }

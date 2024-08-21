@@ -6,7 +6,7 @@ const conec = new Conexion();
 
 class Login {
 
-    async createsession(req, res) {
+    async createSession(req, res) {
         try {
             const validate = await conec.query(`SELECT idUsuario, clave FROM usuario 
             WHERE usuario = ?`, [
@@ -74,6 +74,7 @@ class Login {
                     sm.idSubMenu,
                     sm.nombre,
                     sm.ruta,
+                    sm.icon,
                     psm.estado
                     FROM permisoSubMenu as psm
                     INNER JOIN perfil AS p ON psm.idPerfil = p.idPerfil
@@ -97,7 +98,7 @@ class Login {
             ]);
 
             const token = await create(user, 'userkeylogin');
-
+            console.log(subMenus)
             return sendSuccess(res, {
                 ...user,
                 token,
@@ -108,7 +109,7 @@ class Login {
         }
     }
 
-    async validtoken(req, res) {
+    async validToken(req, res) {
         try {
             const usuario = await conec.query(`
                 SELECT 
@@ -219,6 +220,7 @@ class Login {
                         idSubMenu: subMenu.idSubMenu,
                         nombre: subMenu.nombre,
                         ruta: subMenu.ruta,
+                        icon: subMenu.icon,
                         privilegios: subMenuPrivilegios,
                     };
                 });

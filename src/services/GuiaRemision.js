@@ -320,8 +320,7 @@ class GuiaRemision {
                     idUbigeoPartida = ?,
                     direccionLlegada = ?,
                     idUbigeoLlegada = ?,
-                    fecha = ?,
-                    hora = ?,
+                    numeroTicketSunat = '',
                     idUsuario = ?
                 WHERE
                     idGuiaRemision = ?`, [
@@ -337,8 +336,8 @@ class GuiaRemision {
                 req.body.idUbigeoPartida,
                 req.body.direccionLlegada,
                 req.body.idUbigeoLlegada,
-                currentDate(),
-                currentTime(),
+                // currentDate(),
+                // currentTime(),
                 req.body.idUsuario,
                 req.body.idGuiaRemision
             ]);
@@ -374,6 +373,7 @@ class GuiaRemision {
             await conec.commit(connection);
             return "update";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }

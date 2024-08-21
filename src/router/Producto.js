@@ -5,70 +5,41 @@ const { responseSSE } = require('../tools/Tools');
 
 const producto = new Producto();
 
-router.get('/list', async function (req, res) {
-    const result = await producto.list(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-})
+router.get('/list', async (req, res) => await producto.list(req, res));
 
-router.post('/', async function (req, res) {
-    const result = await producto.add(req)
-    if (result === "insert") {
-        res.status(200).send("Datos registrados correctamente.")
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.post('/', async (req, res) => await producto.create(req, res));
 
-router.get('/id', async function (req, res) {
-    const result = await producto.id(req)
-    if (typeof result === "object") {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.get('/id', async (req, res) => await producto.id(req, res));
 
-router.put('/', async function (req, res) {
-    const result = await producto.update(req)
-    if (result === "update") {
-        res.status(200).send("Los datos se actualizarón correctamente.");
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.put('/', async (req, res) => await producto.update(req, res));
 
-router.delete('/', async function (req, res) {
-    const result = await producto.delete(req);
-    if (result === "delete") {
-        res.status(200).send("Se eliminó correctamente el producto.");
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.delete('/', async (req, res) => await producto.delete(req, res));
 
-router.get('/detalle', async function (req, res) {
-    const result = await producto.detalle(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
-router.get('/combo', async function (req, res) {
-    const result = await producto.combo(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
+router.get('/combo', async (req, res) => await producto.combo(req, res));
 
-router.get('/filtrar/venta', async function (req, res) {
+router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta(req, res));
+
+router.get('/filter', async (req, res) => await producto.filter(req, res));
+
+router.get('/filter/almacen', async (req, res) => await producto.filterAlmacen(req, res));
+
+router.get('/preferidos', async (req, res) => await producto.preferidos(req, res));
+
+router.put('/establecer/preferido', async (req, res) => await producto.preferidoEstablecer(req, res));
+
+router.get('/lista/precios', async (req, res) => await producto.obtenerListPrecio(req, res));
+
+router.get('/filter/web/rangeprice', async (req, res) => await producto.rangePriceWeb(req, res));
+
+router.get('/filter/web', async (req, res) => await producto.filterWeb(req, res));
+
+router.get('/filter/web/pages', async (req, res) => await producto.filterWebPages(req, res));
+
+router.get('/filter/web/id', async (req, res) => await producto.filterWebId(req, res));
+
+// router.get('/filtrar/venta', async function (req, res) {
     // return responseSSE(req, res, async (sendEvent) => {
     //     const result = await producto.filtrarParaVenta(req)
     //     if (typeof result === 'object') {
@@ -81,58 +52,6 @@ router.get('/filtrar/venta', async function (req, res) {
 
     //     sendEvent('__END__')
     // });
-
-    const result = await producto.filtrarParaVenta(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.get('/filter', async function (req, res) {
-    const result = await producto.filter(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.get('/filter/almacen', async function (req, res) {
-    const result = await producto.filterAlmacen(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.get('/preferidos', async function (req, res) {
-    const result = await producto.preferidos(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.get('/lista/precios', async function (req, res) {
-    const result = await producto.obtenerListPrecio(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
-router.put('/establecer/preferido', async function (req, res) {
-    const result = await producto.preferidoEstablecer(req)
-    if (result === "update") {
-        res.status(200).send("Se estableció como preferido el producto.")
-    } else {
-        res.status(500).send(result)
-    }
-})
+// });
 
 module.exports = router;

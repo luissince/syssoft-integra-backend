@@ -116,7 +116,7 @@ class Acceso {
         }
     }
 
-    async updatedata(req, res) {
+    async update(req, res) {
         let connection = null;
         try {
 

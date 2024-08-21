@@ -98,6 +98,8 @@ app.use('/api/impuesto', require('./src/router/Impuesto'));
 
 app.use('/api/sucursal', require('./src/router/Sucursal'));
 app.use('/api/categoria', require('./src/router/Categoria'));
+app.use('/api/marca', require('./src/router/Marca'));
+app.use('/api/atributo', require('./src/router/Atributo'));
 app.use('/api/producto', require('./src/router/Producto'));
 app.use('/api/almacen', require('./src/router/Almacen'));
 
@@ -126,6 +128,7 @@ app.use('/api/notificacion', require('./src/router/Notificacion'));
 app.use('/api/kardex', require('./src/router/Kardex'));
 app.use('/api/metodopago', require('./src/router/MetodoPago'));
 app.use('/api/tipoajuste', require('./src/router/TipoAjuste'));
+app.use('/api/tipoatributo', require('./src/router/TipoAtributo'));
 app.use('/api/inventario', require('./src/router/Inventario'));
 app.use('/api/ajuste', require('./src/router/Ajuste'));
 app.use('/api/motivoajuste', require('./src/router/MotivoAjuste'));
