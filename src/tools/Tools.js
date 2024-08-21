@@ -198,6 +198,29 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
     }
 }
 
+async function processFile(fileDirectory, file, name, ext, existingFile) {
+    // Verificar si hay un archivo para procesar
+    if (file === '') {
+        // Si no hay archivo, devolver el nombre del archivo existente
+        return;
+    }
+
+    // Crear el nombre del nuevo archivo
+    const nameFile = `${name}.${ext}`;
+
+    try {
+        // Si hay un archivo existente, eliminarlo
+        if (existingFile) {
+            await removeFile(path.join(fileDirectory, existingFile));
+        }
+
+        // Escribir el archivo en el directorio especificado
+        await writeFileAsync(path.join(fileDirectory, nameFile), file, 'base64');
+    } catch (error) {
+        throw new Error(error.message);
+    }
+}
+
 function formatMoney(amount, decimalCount = 2, decimal = ".", thousands = "") {
     try {
         // Asegurarse de que decimalCount sea un número positivo
@@ -365,6 +388,7 @@ module.exports = {
     generateNumericCode,
     processImage,
     processFilePem,
+    processFile,
     rounded,
     registerLog,
     responseSSE,

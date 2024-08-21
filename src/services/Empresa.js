@@ -12,7 +12,8 @@ const {
     chmod,
     processImage,
     generateAlphanumericCode,
-    processFilePem
+    processFilePem,
+    processFile
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
@@ -50,7 +51,7 @@ class Empresa {
 
             return sendSuccess(res, respuesta);
         } catch (error) {
-            sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.","Empresa/load", error);
+            sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.", "Empresa/load", error);
         }
     }
 
@@ -87,7 +88,7 @@ class Empresa {
 
             return sendSuccess(res, respuesta)
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/id", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/id", error)
         }
     }
 
@@ -135,6 +136,14 @@ class Empresa {
                 empresa[0].certificadoSunat,
                 empresa[0].certificadoPem,
                 empresa[0].privatePem
+            );
+
+            await processFile(
+                fileCertificates,
+                req.body.fireBase,
+                'syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5',
+                req.body.extFireBase,
+                'syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5',
             );
 
             const rutaLogo = await processImage(
@@ -213,7 +222,7 @@ class Empresa {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, error ??  "Se produjo un error en el servidor, intente nuevamente.","Empresa/update", error);
+            return sendError(res, error ?? "Se produjo un error en el servidor, intente nuevamente.", "Empresa/update", error);
         }
     }
 
@@ -334,7 +343,7 @@ class Empresa {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/save", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/save", error);
         }
     }
 
@@ -348,7 +357,7 @@ class Empresa {
                 empresa`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Empresa/combo", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/combo", error);
         }
     }
 }
