@@ -24,6 +24,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
     
@@ -45,6 +53,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -72,6 +88,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
     
@@ -93,6 +117,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -119,6 +151,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
     
@@ -140,6 +180,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -209,6 +257,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
 
@@ -230,6 +286,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -256,6 +320,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
 
@@ -277,6 +349,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -303,6 +383,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
     
@@ -324,6 +412,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
@@ -350,6 +446,14 @@ jobs:
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_PORT: ${{ secrets.DB_PORT }}
 
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
+
+      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
+      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+
       TZ: ${{ secrets.TZ }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT }}
     
@@ -371,6 +475,14 @@ jobs:
           DB_PASSWORD="${{env.DB_PASSWORD}}"
           DB_NAME="${{env.DB_NAME}}"
           DB_PORT="${{env.DB_PORT}}"
+
+          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+
+          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}

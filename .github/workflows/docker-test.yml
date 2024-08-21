@@ -57,12 +57,6 @@ jobs:
       #     npm run build
 
       # Configurar el secreto como una variable de entorno para Docker Compose
-      # Configurar el secreto como un archivo temporal dentro del contenedor
-      - name: Create Firebase Config File
-        run: |
-          echo "${{ secrets.FIREBASE_CONFIG }}" > firebase-config.json
-          cat firebase-config.json
-
       - name: Crear archivo .env para el backend
         run: |
           cat > .env <<EOL
