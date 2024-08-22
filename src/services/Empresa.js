@@ -221,13 +221,12 @@ class Empresa {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, error ?? "Se produjo un error en el servidor, intente nuevamente.", "Empresa/update", error);
+            return sendError(res, error.message ?? "Se produjo un error en el servidor, intente nuevamente.", "Empresa/update", error);
         }
     }
 
     async config(req, res) {
         try {
-            console.log("asdasd")
             const [result] = await conec.query(`
             SELECT 
                 idEmpresa,
