@@ -198,7 +198,7 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
     }
 }
 
-async function processFile(fileDirectory, file, name, ext, existingFile) {
+async function processFile(fileDirectory, file, name, ext) {
     // Verificar si hay un archivo para procesar
     if (file === '') {
         // Si no hay archivo, devolver el nombre del archivo existente
@@ -207,15 +207,14 @@ async function processFile(fileDirectory, file, name, ext, existingFile) {
 
     // Crear el nombre del nuevo archivo
     const nameFile = `${name}.${ext}`;
+    const filePath = path.join(fileDirectory, nameFile);
 
     try {
         // Si hay un archivo existente, eliminarlo
-        if (existingFile) {
-            await removeFile(path.join(fileDirectory, existingFile));
-        }
+        await removeFile(filePath);
 
         // Escribir el archivo en el directorio especificado
-        await writeFileAsync(path.join(fileDirectory, nameFile), file, 'base64');
+        await writeFileAsync(filePath, file, 'base64');
     } catch (error) {
         throw new Error(error.message);
     }

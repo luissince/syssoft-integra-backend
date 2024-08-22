@@ -184,6 +184,12 @@ URL publica
 FIREBASE_URL_PUBLIC="replace_me"
 ```
 
+Nombre del archivo de configuración
+
+```bash
+FIREBASE_FILE_ACCOUNT_NAME="replace_me"
+```
+
 Configuración de la zona horaria
 
 ```bash

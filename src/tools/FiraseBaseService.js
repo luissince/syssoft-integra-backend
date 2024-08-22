@@ -11,7 +11,7 @@ class FirebaseService {
 
         try {
             // Intentar cargar el archivo de configuración
-            const serviceAccount = require('../path/certificates/syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5.json');
+            const serviceAccount = require(`../path/certificates/${process.env.FIREBASE_FILE_ACCOUNT_NAME}`);
 
             // Inicializar Firebase
             admin.initializeApp({

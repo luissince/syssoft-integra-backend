@@ -141,9 +141,8 @@ class Empresa {
             await processFile(
                 fileCertificates,
                 req.body.fireBase,
-                'syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5',
-                req.body.extFireBase,
-                'syssoftintegra-1215c-firebase-adminsdk-pk00w-578986bab5',
+                process.env.FIREBASE_FILE_ACCOUNT_NAME,
+                req.body.extFireBase
             );
 
             const rutaLogo = await processImage(

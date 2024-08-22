@@ -30,6 +30,7 @@ jobs:
 
       FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
       FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
+      FIREBASE_FILE_ACCOUNT_NAME: ${{ secrets.FIREBASE_FILE_ACCOUNT_NAME }}
 
       # VITE_APP_BACK_END: ${{ secrets.VITE_APP_BACK_END }}
       # VITE_APP_APIS_PERU: ${{ secrets.VITE_APP_APIS_PERU }}
@@ -79,6 +80,7 @@ jobs:
 
           FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
           FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
+          FIREBASE_FILE_ACCOUNT_NAME="${{env.FIREBASE_FILE_ACCOUNT_NAME}}"
 
           TZ="${{env.TZ}}"
           ENVIRONMENT=${{env.ENVIRONMENT}}
