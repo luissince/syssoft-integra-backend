@@ -1192,9 +1192,11 @@ class Producto {
             INNER JOIN 
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
-                (p.codigo LIKE CONCAT('%',?,'%')) 
-                OR 
-                (p.nombre LIKE CONCAT('%',?,'%'))`, [
+                p.estado = 1 AND (
+                    (p.codigo LIKE CONCAT('%',?,'%'))
+                    OR 
+                    (p.nombre LIKE CONCAT('%',?,'%'))
+                )`, [
                 req.query.filtrar,
                 req.query.filtrar,
             ])
@@ -1228,9 +1230,11 @@ class Producto {
             INNER JOIN 
                 inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?          
             WHERE 
-                (p.codigo LIKE CONCAT('%',?,'%'))
-                OR 
-                (p.nombre LIKE CONCAT('%',?,'%'))`, [
+                p.estado = 1 AND (
+                    (p.codigo LIKE CONCAT('%',?,'%'))
+                    OR 
+                    (p.nombre LIKE CONCAT('%',?,'%'))
+                )`, [
                 req.query.idAlmacen,
                 req.query.filtrar,
                 req.query.filtrar,
