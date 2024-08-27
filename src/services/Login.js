@@ -22,7 +22,6 @@ class Login {
                 return sendClient(res, "Datos incorrectos, intente nuevamente.");
             }
 
-
             const usuario = await conec.query(`SELECT 
                     u.idUsuario, 
                     u.nombres,
@@ -98,14 +97,15 @@ class Login {
             ]);
 
             const token = await create(user, 'userkeylogin');
-            console.log(subMenus)
+
             return sendSuccess(res, {
                 ...user,
+                idPerfil: usuario[0].idPerfil,
                 token,
                 menus: this.generateMenus(menus, subMenus, privilegios)
             });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Login/createSession", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Login/createSession", error);
         }
     }
 
@@ -193,7 +193,7 @@ class Login {
                 menus: this.generateMenus(menus, subMenus, privilegios)
             });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Login/validateToken", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Login/validateToken", error);
         }
     }
 

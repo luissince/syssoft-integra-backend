@@ -65,7 +65,7 @@ class Sucursal {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/list", error);
         }
     }
 
@@ -129,7 +129,7 @@ class Sucursal {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/add", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/add", error);
         }
     }
 
@@ -169,7 +169,7 @@ class Sucursal {
 
             return sendSuccess(res, respuesta);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/id", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/id", error);
         }
     }
 
@@ -231,7 +231,7 @@ class Sucursal {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/edit", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/edit", error);
         }
     }
 
@@ -289,7 +289,7 @@ class Sucursal {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/delete", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/delete", error);
         }
     }
 
@@ -304,7 +304,13 @@ class Sucursal {
                 p.ruta,
                 p.estado
             FROM 
-                sucursal AS p`);
+                sucursal AS p
+            INNER JOIN
+                perfilSucursal AS ps ON ps.idSucursal = p.idSucursal
+            WHERE
+                ps.idPerfil = ?`, [
+                req.query.idPerfil
+            ]);
 
             const newLista = lista.map(function (item, index) {
                 return {
@@ -315,7 +321,7 @@ class Sucursal {
 
             return sendSuccess(res, newLista);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/inicio", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/inicio", error);
         }
     }
 
@@ -344,7 +350,7 @@ class Sucursal {
 
             return sendSuccess(res, newLista[0]);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/idInicio", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/idInicio", error);
         }
     }
 
@@ -360,7 +366,7 @@ class Sucursal {
 
             return sendSuccess(res, sucursales);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Sucursal/combo", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/combo", error);
         }
     }
 

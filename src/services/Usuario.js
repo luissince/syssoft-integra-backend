@@ -174,11 +174,13 @@ class Usuario {
 
                 if (usuario.length > 0) {
                     await conec.rollback(connection);
-                    return sendClient(res, "Hay un usuario con el mismo valor.");
+                    return sendClient(res, "El nombre de usuario '"+req.body.usuario+"' ya existe.");
                 }
             }
 
-            await conec.execute(connection, `UPDATE usuario 
+            await conec.execute(connection, `
+            UPDATE 
+                usuario 
             SET 
                 nombres=?, 
                 apellidos=?, 
