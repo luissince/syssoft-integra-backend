@@ -143,9 +143,6 @@ app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
 app.use('/api/tipopeso', require('./src/router/TipoPeso'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 
-app.use('/api/salida', require('./src/router/Salida'));
-app.use('/api/ingreso', require('./src/router/Ingreso'));
-
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));
 

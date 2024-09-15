@@ -1,10 +1,11 @@
 const { currentDate, currentTime, generateNumericCode, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const { sendSuccess, sendError, sendSave, sendClient } = require('../tools/Message');
 const conec = new Conexion();
 
 class Gasto {
 
-    async list(req) {
+    async list(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Gastos(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -28,13 +29,13 @@ class Gasto {
                 req.query.idSucursal
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
 
-    async create(req) {
+    async create(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -47,8 +48,10 @@ class Gasto {
                 idComprobante,
                 estado,
                 observacion,
-                detalles,
-                metodoPago
+                idConcepto,
+                monto,
+                notaTransacion,
+                bancosAgregados
             } = req.body;
 
             /**
@@ -121,95 +124,81 @@ class Gasto {
             let idGastoDetalle = generateNumericCode(1, listaGastoDetalle, 'idGastoDetalle');
 
             // Proceso de registro  
-            for (const item of detalles) {
-                await await conec.execute(connection, `INSERT INTO gastoDetalle(
+            await await conec.execute(connection, `INSERT INTO gastoDetalle(
                     idGastoDetalle,
                     idGasto,
                     idConcepto,
                     cantidad,
-                    precio
+                    monto
                 ) VALUES(?,?,?,?,?)`, [
-                    idGastoDetalle,
-                    idGasto,
-                    item.idConcepto,
-                    item.cantidad,
-                    item.precio,
-                ])
-
-                idGastoDetalle++;
-            }
+                idGastoDetalle,
+                idGasto,
+                idConcepto,
+                1,
+                monto,
+            ])
 
             /**
              * Proceso para registrar la lista de salidas con sus método de pagos
              */
-            // Generar el Id único
-            const listaSalidasId = await conec.execute(connection, 'SELECT idSalida FROM salida');
-            let idSalida = generateNumericCode(1, listaSalidasId, 'idSalida');
 
-            const listaBancoDetalle = await conec.execute(connection, 'SELECT idBancoDetalle FROM bancoDetalle');
-            let idBancoDetalle = generateNumericCode(1, listaBancoDetalle, 'idBancoDetalle');
+            const listaTransaccion = await conec.execute(connection, 'SELECT idTransaccion FROM transaccion');
+            let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
 
-            // Proceso de registro  
-            for (const item of metodoPago) {
-                await conec.execute(connection, `INSERT INTO salida(
-                    idSalida,
-                    idCompra,
-                    idGasto,
-                    idBancoDetalle,
-                    monto,
-                    descripcion,
-                    estado,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
-                    idSalida,
-                    null,
-                    idGasto,
-                    idBancoDetalle,
-                    item.monto,
-                    item.descripcion,
-                    1,
-                    currentDate(),
-                    currentTime(),
-                    idUsuario
-                ]);
+            await conec.execute(connection, `
+                    INSERT INTO transaccion(
+                        idTransaccion,
+                        idConcepto,
+                        idReferencia,
+                        nota,
+                        estado,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+                idTransaccion,
+                idConcepto,
+                idGasto,
+                notaTransacion,
+                1,
+                currentDate(),
+                currentTime(),
+                idUsuario
+            ]);
 
-                await conec.execute(connection, `INSERT INTO bancoDetalle(
-                    idBancoDetalle,
-                    idBanco,
-                    tipo,
-                    monto,
-                    estado,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?)`, [
-                    idBancoDetalle,
+            const listaTransaccionDetalle = await conec.execute(connection, 'SELECT idTransaccionDetalle FROM transaccionDetalle');
+            let idTransaccionDetalle = generateNumericCode(1, listaTransaccionDetalle, 'idTransaccionDetalle');
+
+            for (const item of bancosAgregados) {
+                await conec.execute(connection, `
+                    INSERT INTO transaccionDetalle(
+                        idTransaccionDetalle,
+                        idTransaccion,
+                        idBanco,
+                        monto,
+                        observacion
+                    ) VALUES(?,?,?,?,?)`, [
+                    idTransaccionDetalle,
+                    idTransaccion,
                     item.idBanco,
-                    2,
                     item.monto,
-                    1,
-                    currentDate(),
-                    currentTime(),
-                    idUsuario
+                    item.observacion
                 ]);
 
-                idSalida++;
-                idBancoDetalle++;
+                idTransaccionDetalle++;
             }
 
             await conec.commit(connection);
-            return 'create';
+            return sendSave(res, "Se completo el proceso correctamente.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
 
-    async detail(req) {
+    async detail(req, res) {
         try {
             const gasto = await conec.query(`
             SELECT 
@@ -219,6 +208,7 @@ class Gasto {
                 g.numeracion,
                 DATE_FORMAT(g.fecha,'%d/%m/%Y') AS fecha,
                 g.hora,
+                g.observacion,
                 cn.documento,
                 cn.informacion,
                 g.estado,
@@ -238,13 +228,13 @@ class Gasto {
             WHERE 
                 g.idGasto = ?`, [
                 req.query.idGasto
-            ])
+            ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 cp.nombre,
                 gd.cantidad,
-                gd.precio
+                gd.monto
             FROM 
                 gastoDetalle as gd
             INNER JOIN 
@@ -252,78 +242,101 @@ class Gasto {
             WHERE 
                 gd.idGasto = ?`, [
                 req.query.idGasto
-            ])
+            ]);
 
-            const salidas = await conec.query(`
-            SELECT 
-                mp.nombre,
-                s.descripcion,
-                s.monto,
-                DATE_FORMAT(s.fecha,'%d/%m/%Y') AS fecha,
-                s.hora
+            const transaccion = await conec.query(`
+                SELECT 
+                t.idTransaccion,
+                DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
+                t.hora,
+                c.nombre AS concepto,
+                t.nota,
+                CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
-                salida AS s 
+                transaccion t            
+            INNER JOIN
+                concepto c ON c.idConcepto = t.idConcepto
             INNER JOIN 
-                bancoDetalle AS bd ON bd.idBancoDetalle = s.idBancoDetalle
-            INNER JOIN 
-                banco as mp on mp.idBanco = bd.idBanco
+                usuario AS us ON us.idUsuario = t.idUsuario
             WHERE 
-                s.idGasto = ?`, [
+                t.idReferencia = ?`, [
                 req.query.idGasto
-            ])
+            ]);
 
-            return { "cabecera": gasto[0], "detalle": detalle, "salidas": salidas };
+            for (const item of transaccion) {
+                const transacciones = await conec.query(`
+                    SELECT 
+                        b.nombre,
+                        td.monto,
+                        td.observacion
+                    FROM
+                        transaccionDetalle td
+                    INNER JOIN 
+                        banco b on td.idBanco = b.idBanco     
+                    WHERE 
+                        td.idTransaccion = ?`, [
+                    item.idTransaccion
+                ]);
+
+                item.detalles = transacciones;
+            }
+
+            return sendSuccess(res, { "cabecera": gasto[0], detalles, transaccion });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
 
-    async cancel(req) {
+    async cancel(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
-            const exists = await conec.execute(connection, `SELECT estado FROM gasto WHERE idGasto = ? AND estado = 0`, [
+            const exists = await conec.execute(connection, `
+            SELECT 
+                estado 
+            FROM 
+                gasto 
+            WHERE 
+                idGasto = ? AND estado = 0`, [
                 req.query.idGasto
             ]);
 
             if (exists.length !== 0) {
                 await conec.rollback(connection);
-                return "El gasto ya se encuentra anulado.";
+                return sendClient(res, "El gasto ya se encuentra anulado.");
             }
 
-            await conec.execute(connection, `UPDATE gasto SET estado = 0 WHERE idGasto = ?`, [
+            await conec.execute(connection, `
+            UPDATE 
+                gasto 
+            SET 
+                estado = 0 
+            WHERE 
+                idGasto = ?`, [
                 req.query.idGasto
-            ])
+            ]);
 
-            const salidas = await conec.execute(connection, `SELECT idBancoDetalle FROM salida WHERE idGasto = ?`, [
+            await conec.execute(connection, `
+            UPDATE 
+                transaccion 
+            SET 
+                estado = 0 
+            WHERE 
+                idReferencia = ?`, [
                 req.query.idGasto
-            ])
-
-            for (const item of salidas) {
-                await conec.execute(connection, `UPDATE bancoDetalle 
-                SET 
-                    estado = 0 
-                WHERE 
-                    idBancoDetalle = ?`, [
-                    item.idBancoDetalle
-                ])
-            }
-
-            await conec.execute(connection, `UPDATE salida SET estado = 0 WHERE idGasto = ?`, [
-                req.query.idGasto
-            ])
+            ]);
 
             await conec.commit(connection);
-            return "cancel";
+            return sendSave(res, "Se anuló correctamente el gasto.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
 
 }
 
-module.exports = Gasto;
+module.exports = new Gasto();

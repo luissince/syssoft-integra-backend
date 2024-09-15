@@ -4,6 +4,7 @@ const { sendPdf, sendError, sendClient, sendSuccess } = require('../tools/Messag
 require('dotenv').config();
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 
 class Reporte {
@@ -91,13 +92,13 @@ class Reporte {
                 req.params.idVenta
             ])
 
-            const plazos = await conec.query(`
+            const cuotas = await conec.query(`
             SELECT 
                 cuota,
                 DATE_FORMAT(fecha,'%Y-%m-%d') as fecha,
                 monto
             FROM 
-                plazo 
+                cuota 
             WHERE 
                 idVenta = ?`, [
                 req.params.idVenta
@@ -164,7 +165,7 @@ class Reporte {
                     empresa: newEmpresa,
                     sucursal: sucursal[0],
                     ventaDetalle: detalle,
-                    plazos: plazos,
+                    cuotas: cuotas,
                     bancos: bancos
                 },
                 responseType: 'arraybuffer'
@@ -372,7 +373,7 @@ class Reporte {
                     "empresa": newEmpresa,
                     "sucursal": sucursal[0],
                     "ventaDetalle": detalles,
-                    "plazos": [],
+                    "cuotas": [],
                     "bancos": bancos
                 },
                 responseType: 'arraybuffer'
@@ -568,6 +569,8 @@ class Reporte {
 
     async generarPedidoCotizacion(req, res) {
         try {
+            const firebaseService = new FirebaseService();
+            const bucket = firebaseService.getBucket();
 
             const cotizacion = await conec.query(`
             SELECT 
@@ -691,7 +694,7 @@ class Reporte {
                     "idImpuesto": item.idImpuesto,
                     "producto": {
                         "codigo": item.codigo,
-                        "imagen": !item.imagen ? `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                        "imagen": !item.imagen ? `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                         "nombre": item.producto
                     },
                     "medida": {

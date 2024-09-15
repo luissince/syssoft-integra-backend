@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+// const amqp = require('amqplib');
 const { create } = require('../tools/Jwt');
 const { sendSuccess, sendError, sendClient, sendExpired } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
@@ -8,8 +9,14 @@ class Login {
 
     async createSession(req, res) {
         try {
-            const validate = await conec.query(`SELECT idUsuario, clave FROM usuario 
-            WHERE usuario = ?`, [
+            const validate = await conec.query(`
+                SELECT 
+                    idUsuario, 
+                    clave 
+                FROM 
+                    usuario 
+                WHERE 
+                    usuario = ?`, [
                 req.query.usuario,
             ]);
 
@@ -22,7 +29,8 @@ class Login {
                 return sendClient(res, "Datos incorrectos, intente nuevamente.");
             }
 
-            const usuario = await conec.query(`SELECT 
+            const usuario = await conec.query(`
+                SELECT 
                     u.idUsuario, 
                     u.nombres,
                     u.apellidos,
@@ -30,9 +38,12 @@ class Login {
                     u.estado,
                     u.login,
                     p.descripcion AS rol
-                    FROM usuario AS u
-                    INNER JOIN perfil AS p ON u.idPerfil = p.idPerfil
-                    WHERE u.idUsuario = ?`, [
+                FROM 
+                    usuario AS u
+                INNER JOIN 
+                    perfil AS p ON u.idPerfil = p.idPerfil
+                WHERE 
+                    u.idUsuario = ?`, [
                 validate[0].idUsuario
             ]);
 
@@ -53,37 +64,46 @@ class Login {
             }
 
             const menus = await conec.query(`
-                    SELECT 
+                SELECT 
                     m.idMenu,
                     m.nombre,
                     m.ruta,
                     pm.estado,
                     m.icon 
-                    FROM permisoMenu as pm 
-                    INNER JOIN perfil as p on pm.idPerfil = p.idPerfil
-                    INNER JOIN menu as m on pm.idMenu = m.idMenu
-                    WHERE p.idPerfil = ?
-                    `, [
+                FROM 
+                    permisoMenu as pm 
+                INNER JOIN 
+                    perfil as p on pm.idPerfil = p.idPerfil
+                INNER JOIN 
+                    menu as m on pm.idMenu = m.idMenu
+                WHERE 
+                    p.idPerfil = ?`, [
                 usuario[0].idPerfil,
             ]);
 
             const subMenus = await conec.query(`
-                    SELECT 
+                SELECT 
                     sm.idMenu,
                     sm.idSubMenu,
                     sm.nombre,
                     sm.ruta,
                     sm.icon,
                     psm.estado
-                    FROM permisoSubMenu as psm
-                    INNER JOIN perfil AS p ON psm.idPerfil = p.idPerfil
-                    INNER JOIN subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
-                    WHERE psm.idPerfil = ?
-                    `, [
+                FROM 
+                    permisoSubMenu as psm
+                INNER JOIN 
+                    perfil AS p ON psm.idPerfil = p.idPerfil
+                INNER JOIN 
+                    subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
+                WHERE 
+                    psm.idPerfil = ?
+                ORDER BY 
+                    idSubMenu`, [
                 usuario[0].idPerfil,
             ]);
 
-            const privilegios = await conec.query(`SELECT
+            const privilegios = await conec.query(`
+                SELECT
                     pp.idPrivilegio,
                     pp.idSubMenu,
                     pp.idMenu,
@@ -97,6 +117,19 @@ class Login {
             ]);
 
             const token = await create(user, 'userkeylogin');
+
+            // const connection = await amqp.connect({
+            //     protocol: 'amqp',
+            //     hostname: 'localhost', // Usa una variable de entorno o un valor por defecto
+            //     port: 5672,
+            //     username: 'user',
+            //     password: 'password',
+            //     vhost: '/',
+            //     connectionTimeout: 10000,
+            // });
+            // const channel = await connection.createChannel();
+            // channel.assertQueue('facturas_por_declarar', { durable: true });
+            // channel.assertQueue('facturas_por_declarar', Buffer.from(JSON.stringify({ facturaId: 12345 })));
 
             return sendSuccess(res, {
                 ...user,

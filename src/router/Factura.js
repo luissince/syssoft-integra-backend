@@ -20,8 +20,10 @@ router.get("/detail/venta", async (req, res) => await factura.detailVenta(req, r
 
 router.get("/list/accounts/receivable", async (req, res) => await factura.listAccountsReceivable(req, res));
 
-router.post("/collet/accounts/receivable", async (req, res) => await factura.colletAccountsReceivable(req, res));
-
 router.get("/detail/accounts/receivable", async (req, res) => await factura.detailAccountsReceivable(req, res));
+
+router.post("/create/accounts/receivable", async (req, res) => await factura.createAccountsReceivable(req, res));
+
+router.delete("/cancel/accounts/receivable", async (req, res) => await factura.cancelAccountsReceivable(req, res));
 
 module.exports = router;

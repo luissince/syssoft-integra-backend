@@ -110,14 +110,14 @@ class Sunat {
                 req.params.idVenta
             ]);
 
-            const plazos = await conec.query(`
+            const cuotas = await conec.query(`
             SELECT 
                 cuota,
                 DATE_FORMAT(fecha,'%Y-%m-%d') AS fecha,
                 hora,
                 monto
             FROM 
-                plazo 
+                cuota 
             WHERE 
                 idVenta = ?`, [
                 req.params.idVenta
@@ -152,7 +152,7 @@ class Sunat {
                         "publicKey": publicKey
                     },
                     "detalle": detalles,
-                    "plazos": plazos
+                    "cuotas": cuotas
                 },
             };
 
