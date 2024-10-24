@@ -6,8 +6,9 @@ const {
     generateAlphanumericCode,
     generateNumericCode,
 } = require('../tools/Tools');
-const { sendSuccess, sendError, sendClient, sendSave } = require("../tools/Message");
+const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const FirebaseService = require('../tools/FiraseBaseService');
+const { default: axios } = require("axios");
 const conec = new Conexion();
 
 require('dotenv').config();
@@ -1602,6 +1603,42 @@ class Producto {
     //         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
     //     }
     // }
+
+    async documentsPdfReports(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/product/pdf/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfReports", error);
+        }
+    }
+
+    async documentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/product/excel`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfExcel", error);
+        }
+    }
 
 }
 

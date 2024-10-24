@@ -1,6 +1,7 @@
 const { currentDate, currentTime, generateNumericCode, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
-const { sendSuccess, sendError, sendSave, sendClient } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendClient, sendFile } = require('../tools/Message');
+const { default: axios } = require('axios');
 const conec = new Conexion();
 
 class Cobro {
@@ -31,7 +32,7 @@ class Cobro {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/list", error);
         }
     }
 
@@ -48,6 +49,7 @@ class Cobro {
                 idComprobante,
                 estado,
                 observacion,
+                nota,
                 idConcepto,
                 monto,
                 notaTransacion,
@@ -105,9 +107,10 @@ class Cobro {
                 numeracion,
                 estado,
                 observacion,
+                nota,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idCobro,
                 idPersona,
                 idUsuario,
@@ -118,6 +121,7 @@ class Cobro {
                 numeracion,
                 estado,
                 observacion,
+                nota,
                 currentDate(),
                 currentTime(),
             ]);
@@ -131,13 +135,14 @@ class Cobro {
             let idCobroDetalle = generateNumericCode(1, listaCobroDetalle, 'idCobroDetalle');
 
             // Proceso de registro  
-            await await conec.execute(connection, `INSERT INTO cobroDetalle(
-                    idCobroDetalle,
-                    idCobro,
-                    idConcepto,
-                    cantidad,
-                    monto
-                ) VALUES(?,?,?,?,?)`, [
+            await await conec.execute(connection, `
+            INSERT INTO cobroDetalle(
+                idCobroDetalle,
+                idCobro,
+                idConcepto,
+                cantidad,
+                monto
+            ) VALUES(?,?,?,?,?)`, [
                 idCobroDetalle,
                 idCobro,
                 idConcepto,
@@ -153,19 +158,21 @@ class Cobro {
             let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
 
             await conec.execute(connection, `
-                    INSERT INTO transaccion(
-                        idTransaccion,
-                        idConcepto,
-                        idReferencia,
-                        nota,
-                        estado,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+            INSERT INTO transaccion(
+                idTransaccion,
+                idConcepto,
+                idReferencia,
+                idSucursal,
+                nota,
+                estado,
+                fecha,
+                hora,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?)`, [
                 idTransaccion,
                 idConcepto,
                 idCobro,
+                idSucursal,
                 notaTransacion,
                 1,
                 currentDate(),
@@ -178,13 +185,13 @@ class Cobro {
 
             for (const item of bancosAgregados) {
                 await conec.execute(connection, `
-                    INSERT INTO transaccionDetalle(
-                        idTransaccionDetalle,
-                        idTransaccion,
-                        idBanco,
-                        monto,
-                        observacion
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO transaccionDetalle(
+                    idTransaccionDetalle,
+                    idTransaccion,
+                    idBanco,
+                    monto,
+                    observacion
+                ) VALUES(?,?,?,?,?)`, [
                     idTransaccionDetalle,
                     idTransaccion,
                     item.idBanco,
@@ -196,12 +203,15 @@ class Cobro {
             }
 
             await conec.commit(connection);
-            return sendSave(res, "Se completo el proceso correctamente.");
+            return sendSave(res, {
+                idCobro: idCobro,
+                message: "Se completo el proceso correctamente."
+            });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/list", error);
         }
     }
 
@@ -216,6 +226,7 @@ class Cobro {
                 DATE_FORMAT(c.fecha,'%d/%m/%Y') AS fecha,
                 c.hora,
                 c.observacion,
+                c.nota,
                 cn.documento,
                 cn.informacion,
                 c.estado,
@@ -290,7 +301,7 @@ class Cobro {
 
             return sendSuccess(res, { "cabecera": cobro[0], "detalles": detalles, transaccion });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/list", error);
         }
     }
 
@@ -340,10 +351,195 @@ class Cobro {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/list", error);
+        }
+    }
+
+    async documentsPdfInvoices(req, res) {
+        try {
+            const { idCobro, size } = req.params;
+
+            const empresa = await conec.query(`
+            SELECT
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa`);
+
+            const cobro = await conec.query(`
+            SELECT 
+                DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
+                p.hora,
+                p.idSucursal,
+                p.nota,
+--
+                c.nombre AS comprobante,
+                p.serie,
+                p.numeracion,
+--
+                cp.documento,
+                cp.informacion,
+                cp.direccion,
+--
+                m.nombre AS moneda,
+                m.simbolo,
+                m.codiso,
+--
+                u.apellidos,
+                u.nombres
+            FROM 
+                cobro AS p
+            INNER JOIN
+                comprobante AS c ON c.idComprobante = p.idComprobante
+            INNER JOIN
+                persona AS cp ON cp.idPersona = p.idPersona
+            INNER JOIN
+                moneda AS m ON m.idMoneda = p.idMoneda
+            INNER JOIN
+                usuario AS u ON u.idUsuario = p.idUsuario
+            WHERE 
+                p.idCobro = ?`, [
+                idCobro
+            ]);
+
+            const sucursal = await conec.query(`
+            SELECT 
+                s.nombre,
+                s.telefono,
+                s.celular,
+                s.email,
+                s.paginaWeb,
+                s.direccion,
+
+                ub.departamento,
+                ub.provincia,
+                ub.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+            WHERE 
+                s.idSucursal = ?`, [
+                cobro[0].idSucursal
+            ]);
+
+            const detalles = await conec.query(` 
+            SELECT 
+                ROW_NUMBER() OVER (ORDER BY gd.idCobroDetalle ASC) AS id,
+                p.codigo AS codigo,
+                p.nombre AS concepto,
+                gd.cantidad,
+                gd.monto
+            FROM 
+                cobroDetalle AS gd
+            INNER JOIN 
+                concepto AS p ON gd.idConcepto = p.idConcepto
+            WHERE 
+                gd.idCobro = ?
+            ORDER BY 
+                gd.idCobroDetalle ASC`, [
+                idCobro
+            ]);
+
+            return {
+                "size": size,
+                "company": {
+                    ...empresa[0],
+                    rutaLogo: empresa[0].rutaLogo ? `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}` : null,
+                },
+                "branch": {
+                    "nombre": sucursal[0].nombre,
+                    "telefono": sucursal[0].telefono,
+                    "celular": sucursal[0].celular,
+                    "email": sucursal[0].email,
+                    "paginaWeb": sucursal[0].paginaWeb,
+                    "direccion": sucursal[0].direccion,
+                    "ubigeo": {
+                        "departamento": sucursal[0].departamento,
+                        "provincia": sucursal[0].provincia,
+                        "distrito": sucursal[0].distrito
+                    }
+                },
+                "collection": {
+                    "fecha": cobro[0].fecha,
+                    "hora": cobro[0].hora,
+                    "nota": cobro[0].nota,
+                    "comprobante": {
+                        "nombre": cobro[0].comprobante,
+                        "serie": cobro[0].serie,
+                        "numeracion": cobro[0].numeracion
+                    },
+                    "cliente": {
+                        "documento": cobro[0].documento,
+                        "informacion": cobro[0].informacion,
+                        "direccion": cobro[0].direccion
+                    },
+                    "moneda": {
+                        "nombre": cobro[0].moneda,
+                        "simbolo": cobro[0].simbolo,
+                        "codiso": cobro[0].codiso
+                    },
+                    "usuario": {
+                        "apellidos": cobro[0].apellidos,
+                        "nombres": cobro[0].nombres
+                    },
+                    "cobroDetalles": detalles.map(item => {
+                        return {
+                            "id": item.id,
+                            "cantidad": item.cantidad,
+                            "monto": item.monto,
+                            "concepto": {
+                                "codigo": item.codigo,
+                                "nombre": item.concepto,
+                            },
+                        }
+                    }),
+                },
+            };
+        } catch (error) {
+            throw new Error(error.message);
+        }
+    }
+
+    async documentsPdfReports(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/collection/pdf/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/documentsPdfReports", error);
+        }
+    }
+
+    async documentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/collection/excel`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendSuccess(res, response.data);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/documentsPdfExcel", error);
         }
     }
 
 }
 
-module.exports = new Cobro();
+module.exports = Cobro;

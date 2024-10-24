@@ -2,11 +2,8 @@ const express = require('express');
 const app = express();
 const router = express.Router();
 const path = require('path');
-const fs = require('fs');
 const cors = require('cors');
 const morgan = require('morgan');
-const swaggerUi = require('swagger-ui-express');
-const swagger = require('./src/swagger');
 const { currentDate, currentTime } = require('./src/tools/Tools');
 
 require('dotenv').config();
@@ -15,12 +12,13 @@ require('dotenv').config();
 app.use(morgan('dev'));
 
 // Middleware para permitir solicitudes CORS
-app.use(cors());
+app.use(cors({
+    exposedHeaders: ['Content-Disposition'] // Importante para que el cliente pueda leer este header
+}));
 
 // Middleware para servir archivos estáticos desde diferentes carpetas
 router.use('/company', express.static(path.join(__dirname, 'src', 'path', 'company')));
 router.use('/proyect', express.static(path.join(__dirname, 'src', 'path', 'proyect')));
-router.use('/product', express.static(path.join(__dirname, 'src', 'path', 'product')));
 router.use('/to', express.static(path.join(__dirname, 'src', 'path', 'to')));
 
 // Montar el router en la ruta 'imagenes, archivos entre otros'
@@ -32,9 +30,6 @@ app.set('port', process.env.PORT || 5000);
 // Configuración de middleware para manejar JSON y datos codificados en URL
 app.use(express.json({ limit: '1024mb' }));
 app.use(express.urlencoded({ extended: false }));
-
-// Middleware para servir la documentación de Swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swagger));
 
 // Cargar la app estatica compilada
 // app.use(express.static(path.join(__dirname, "app", "dist")));
@@ -48,38 +43,6 @@ app.get('/', (_, res) => {
     });
 });
 
-// Ruta para obtener las imagene por nombre
-app.get('/imagen/:nombreImagen', (req, res) => {
-    const nombreImagen = req.params.nombreImagen;
-
-    if (!nombreImagen) {
-        return res.status(404).json({ error: 'El parámetro de nombre de imagen está incompleto.' });
-    }
-
-    const noImange = path.join(__dirname, 'src', 'path', 'to', 'noimage.jpg');
-
-    const rutas = [
-        path.join(__dirname, 'src', 'path', 'to', nombreImagen),
-        path.join(__dirname, 'src', 'path', 'company', nombreImagen),
-        path.join(__dirname, 'src', 'path', 'proyect', nombreImagen),
-        path.join(__dirname, 'src', 'path', 'product', nombreImagen)
-    ];
-
-    let imagenEncontrada = false;
-
-    for (const ruta of rutas) {
-        if (fs.existsSync(ruta)) {
-            res.sendFile(ruta);
-            imagenEncontrada = true;
-            break;
-        }
-    }
-
-    if (!imagenEncontrada) {
-        res.sendFile(noImange)
-    }
-});
-
 // Middleware para registrar las solicitudes
 app.use((req, res, next) => {
     console.log('Solicitud recibida:');
@@ -87,6 +50,8 @@ app.use((req, res, next) => {
     console.log('Método:', req.method);
     console.log('URL:', req.url);
     console.log('Cuerpo:', req.body);
+    console.log('Parametro:', req.params);
+    console.log('Consulta:', req.query);
     next();
 });
 
@@ -94,6 +59,7 @@ app.use((req, res, next) => {
 app.use('/api/comprobante', require('./src/router/Comprobante'));
 app.use('/api/moneda', require('./src/router/Moneda'));
 app.use('/api/banco', require('./src/router/Banco'));
+app.use('/api/transaccion', require('./src/router/Transaccion'));
 app.use('/api/impuesto', require('./src/router/Impuesto'));
 
 app.use('/api/sucursal', require('./src/router/Sucursal'));
@@ -105,7 +71,6 @@ app.use('/api/almacen', require('./src/router/Almacen'));
 
 app.use('/api/persona', require('./src/router/Persona'));
 app.use('/api/factura', require('./src/router/Factura'));
-app.use('/api/login', require('./src/router/Login'));
 
 app.use('/api/perfil', require('./src/router/Perfil'));
 app.use('/api/usuario', require('./src/router/Usuario'));
@@ -142,6 +107,7 @@ app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
 app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
 app.use('/api/tipopeso', require('./src/router/TipoPeso'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
+app.use('/api/pedido', require('./src/router/Pedido'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));

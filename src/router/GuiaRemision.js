@@ -1,72 +1,49 @@
 const express = require('express');
 const router = express.Router();
-
 const GuiaRemision = require('../services/GuiaRemision');
+const { default: axios } = require('axios');
+const { sendFile, sendError } = require('../tools/Message');
 
+require('dotenv').config();
 const guiaRemision = new GuiaRemision();
 
-router.get('/list', async function (req, res) {
-    const result = await guiaRemision.list(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
+router.get('/list', async (req, res) => await guiaRemision.list(req, res));
+
+router.get('/id', async (req, res) => await guiaRemision.id(req, res));
+
+router.get('/detail', async (req, res) => await guiaRemision.detail(req, res));
+
+router.get('/detail/update', async (req, res) => await guiaRemision.detailUpdate(req, res));
+
+router.post('/create', async (req, res) => await guiaRemision.create(req, res));
+
+router.put('/update', async (req, res) => await guiaRemision.update(req, res));
+
+router.delete('/cancel', async (req, res) => await guiaRemision.cancel(req, res));
+
+router.get("/documents/pdf/invoices/:idGuiaRemision/:size", async (req, res) => {
+    try {
+        const data = await guiaRemision.documentsPdfInvoices(req, res);
+
+        const options = {
+            method: 'POST',
+            url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            data: data,
+            responseType: 'arraybuffer'
+        };
+
+        const response = await axios.request(options);
+        return sendFile(res, response);
+    } catch (error) {
+        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/documentsPdfInvoices", error);
     }
 });
 
-router.get('/id', async function (req, res) {
-    const result = await guiaRemision.id(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get("/documents/pdf/reports", async (req, res) => await guiaRemision.documentsPdfReports(req, res));
 
-router.get('/detail', async function (req, res) {
-    const result = await guiaRemision.detail(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.get('/detail/update', async function (req, res) {
-    const result = await guiaRemision.detailUpdate(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.post('/create', async function (req, res) {
-    const result = await guiaRemision.create(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.put('/update', async function (req, res) {
-    const result = await guiaRemision.update(req)
-    if (result === 'update') {
-        res.status(200).send("Se actualizón correctamente la guían de remisión.");
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.delete('/cancel', async function (req, res) {
-    const result = await guiaRemision.cancel(req)
-    if (result === 'cancel') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
+router.get("/documents/excel", async (req, res) => await guiaRemision.documentsPdfExcel(req, res));
 
 module.exports = router;

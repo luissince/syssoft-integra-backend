@@ -4,106 +4,34 @@ const Persona = require('../services/Persona');
 
 const persona = new Persona();
 
-router.get('/list', async function (req, res) {
-    const result = await persona.list(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/list', async (req, res) => await persona.list(req, res));
 
-router.get('/list/clientes', async function (req, res) {
-    const result = await persona.listClientes(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/list/clientes', async (req, res) => await persona.listClientes(req, res));
 
-router.get('/list/proveedores', async function (req, res) {
-    const result = await persona.listProveedores(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/list/proveedores', async (req, res) => await persona.listProveedores(req, res));
 
-router.get('/list/conductores', async function (req, res) {
-    const result = await persona.listConductores(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/list/conductores', async (req, res) => await persona.listConductores(req, res));
 
-router.post('/create', async function (req, res) {
-    const result = await persona.create(req)
-    if (result === 'create') {
-        res.status(201).send("Se registró correctamente la persona.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.post('/create', async (req, res) => await persona.create(req, res));
 
-router.get('/id', async function (req, res) {
-    const result = await persona.id(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/id', async (req, res) => await persona.id(req, res));
 
-router.post('/update', async function (req, res) {
-    const result = await persona.update(req)
-    if (result === 'update') {
-        res.status(201).send("Se actualizó correctamente la persona.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.post('/update', async (req, res) => await persona.update(req, res));
 
-router.delete('/', async function (req, res) {
-    const result = await persona.delete(req)
-    if (result === 'delete') {
-        res.status(201).send("Se eliminó correctamente la persona.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.delete('/', async (req, res) => await persona.delete(req, res));
 
-router.get('/combo', async function (req, res) {
-    const result = await persona.combo(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/combo', async (req, res) => await persona.combo(req, res));
 
-router.get('/filtrar', async function (req, res) {
-    const result = await persona.filtrar(req)
-    if (Array.isArray(result)) {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/filtrar', async (req, res) => await persona.filtrar(req, res));
 
-router.get('/predeterminado', async function (req, res) {
-    const result = await persona.predeterminado(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else if (result === "") {
-        res.status(200).send("");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get('/predeterminado', async (req, res) => await persona.predeterminado(req, res));
 
+router.get("/cliente/documents/pdf/reports", async (req, res) => await persona.clienteDocumentsPdfReports(req, res));
+
+router.get("/cliente/documents/excel", async (req, res) => await persona.clienteDocumentsPdfExcel(req, res));
+
+router.get("/proveedor/documents/pdf/reports", async (req, res) => await persona.proveedorDocumentsPdfReports(req, res));
+
+router.get("/proveedor/documents/excel", async (req, res) => await persona.proveedorDocumentsPdfExcel(req, res));
 
 module.exports = router;

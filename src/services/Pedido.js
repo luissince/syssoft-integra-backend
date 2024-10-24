@@ -1,27 +1,26 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile } = require('../tools/Message');
-require('dotenv').config();
+
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 
-class Cotizacion {
+class Pedido {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
-                parseInt(req.query.ligado),
                 parseInt(req.query.estado),
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -30,19 +29,18 @@ class Cotizacion {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Pedidos_Count(?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
-                parseInt(req.query.ligado),
                 parseInt(req.query.estado),
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
         }
     }
 
@@ -61,17 +59,17 @@ class Cotizacion {
                 c.observacion,
                 c.nota
             FROM 
-                cotizacion AS c
+                pedido AS c
             INNER JOIN 
-                persona AS p ON p.idPersona = c.idCliente
+                persona AS p ON p.idPersona = c.idProveedor
             WHERE 
-                c.idCotizacion = ?`, [
-                req.query.idCotizacion,
+                c.idPedido = ?`, [
+                req.query.idPedido,
             ]);
 
             const detalle = await conec.query(`
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
                 cd.cantidad,
                 cd.idImpuesto,
                 p.idMedida,
@@ -80,11 +78,11 @@ class Cotizacion {
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
-                cd.precio,
+                cd.costo,
                 tp.nombre as tipoProducto,
                 p.idTipoTratamientoProducto
             from 
-                cotizacionDetalle AS cd
+                pedidoDetalle AS cd
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto
             INNER JOIN 
@@ -94,10 +92,10 @@ class Cotizacion {
             INNER JOIN 
                 impuesto AS i ON cd.idImpuesto = i.idImpuesto
             WHERE 
-                cd.idCotizacion = ?
+                cd.idPedido = ?
             ORDER BY 
-                cd.idCotizacionDetalle ASC`, [
-                req.query.idCotizacion,
+                cd.idPedidoDetalle ASC`, [
+                req.query.idPedido,
             ]);
 
             const idImpuesto = detalle[0]?.idImpuesto ?? '';
@@ -105,14 +103,14 @@ class Cotizacion {
 
             return sendSuccess(res, { cabecera: cabecera[0], detalle });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/id", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/id", error)
         }
     }
 
     async detail(req, res) {
         try {
             // Consulta la información principal de la compra
-            const cotizacion = await conec.query(`
+            const pedido = await conec.query(`
             SELECT 
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
                 c.hora,
@@ -131,35 +129,35 @@ class Cotizacion {
                 mo.codiso,
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
-                cotizacion AS c
+                pedido AS c
             INNER JOIN 
                 comprobante AS co ON co.idComprobante = c.idComprobante
             INNER JOIN 
                 moneda AS mo ON mo.idMoneda = c.idMoneda
             INNER JOIN 
-                persona AS cn ON cn.idPersona = c.idCliente
+                persona AS cn ON cn.idPersona = c.idProveedor
             INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
-                c.idCotizacion = ?`, [
-                req.query.idCotizacion,
+                c.idPedido = ?`, [
+                req.query.idPedido,
             ]);
 
             // Consulta los detalles de la compra
             const detalles = await conec.query(`
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
                 p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
-                cd.precio,
+                cd.costo,
                 cd.cantidad,
                 cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
             FROM 
-                cotizacionDetalle AS cd 
+                pedidoDetalle AS cd 
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto 
             INNER JOIN 
@@ -169,47 +167,21 @@ class Cotizacion {
             INNER JOIN 
                 impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
             WHERE
-                cd.idCotizacion = ?
+                cd.idPedido = ?
             ORDER BY 
-                cd.idCotizacionDetalle ASC`, [
-                req.query.idCotizacion,
+                cd.idPedidoDetalle ASC`, [
+                req.query.idPedido,
             ]);
 
-            // Consulta los ventas asociadas
-            const ventas = await conec.query(`
-                SELECT 
-                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
-                    v.idVenta,
-                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
-                    v.hora,
-                    co.nombre AS comprobante,
-                    v.serie,
-                    v.numeracion,
-                    v.estado
-                FROM 
-                    ventaCotizacion AS vc 
-                INNER JOIN 
-                    cotizacion AS c ON c.idCotizacion = vc.idCotizacion
-                INNER JOIN 
-                    venta AS v ON v.idVenta = vc.idVenta
-                INNER JOIN 
-                    comprobante AS co ON co.idComprobante = v.idComprobante
-                WHERE 
-                    vc.idCotizacion = ?
-                ORDER BY 
-                    v.fecha DESC, v.hora DESC`, [
-                req.query.idCotizacion,
-            ]);
-
-            // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cabecera: cotizacion[0], detalles, ventas });
+            // Devuelve un objeto con la información del pedido, los detalles y las salidas
+            return sendSuccess(res, { cabecera: pedido[0], detalles });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detail", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
         }
     }
 
-    async forSale(req, res) {
+    async forPurchase(req, res) {
         try {
             const cliente = await conec.query(`
             SELECT                 
@@ -224,89 +196,89 @@ class Cotizacion {
             FROM 
                 cotizacion AS c
             INNER JOIN 
-                persona AS p ON p.idPersona = c.idCliente
+                persona AS p ON p.idPersona = c.idProveedor
             WHERE 
-                c.idCotizacion = ?`, [
-                req.query.idCotizacion
+                c.idPedido = ?`, [
+                req.query.idPedido
             ]);
 
-            const detalles = await conec.query(`
-            SELECT 
-                cd.idProducto,
-                cd.precio,
-                cd.cantidad
-            FROM
-                cotizacionDetalle AS cd
-            WHERE
-                cd.idCotizacion = ?
-            ORDER BY 
-                cd.idCotizacionDetalle ASC`, [
-                req.query.idCotizacion
-            ]);
+            // const detalles = await conec.query(`
+            // SELECT 
+            //     cd.idProducto,
+            //     cd.precio,
+            //     cd.cantidad
+            // FROM
+            //     cotizacionDetalle AS cd
+            // WHERE
+            //     cd.idCotizacion = ?
+            // ORDER BY 
+            //     cd.idCotizacionDetalle ASC`, [
+            //     req.query.idCotizacion
+            // ]);
 
-            let productos = [];
+            // let productos = [];
 
-            for (const item of detalles) {
-                const producto = await conec.query(`
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    a.nombre AS almacen,
-                    i.idInventario,
-                    'PRODUCTO' AS tipo
-                FROM 
-                    producto AS p
-                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                    INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                    INNER JOIN medida AS m ON m.idMedida = p.idMedida
-                    INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
-                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
-                WHERE 
-                    p.idProducto = ? AND a.idAlmacen = ?
-                UNION
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    'SIN ALMACEN' AS almacen,
-                    0 AS idInventario,
-                    'SERVICIO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN medida AS m ON m.idMedida = p.idMedida
-                WHERE 
-                    p.idProducto = ?`, [
-                    item.idProducto,
-                    req.query.idAlmacen,
-                    item.idProducto
-                ]);
+            // for (const item of detalles) {
+            //     const producto = await conec.query(`
+            //     SELECT 
+            //         p.idProducto, 
+            //         p.codigo,
+            //         p.nombre AS nombreProducto, 
+            //         p.preferido,
+            //         p.negativo,
+            //         c.nombre AS categoria, 
+            //         m.nombre AS medida,
+            //         p.idTipoTratamientoProducto,
+            //         p.imagen,
+            //         a.nombre AS almacen,
+            //         i.idInventario,
+            //         'PRODUCTO' AS tipo
+            //     FROM 
+            //         producto AS p
+            //         INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+            //         INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+            //         INNER JOIN medida AS m ON m.idMedida = p.idMedida
+            //         INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
+            //         INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
+            //     WHERE 
+            //         p.idProducto = ? AND a.idAlmacen = ?
+            //     UNION
+            //     SELECT 
+            //         p.idProducto, 
+            //         p.codigo,
+            //         p.nombre AS nombreProducto, 
+            //         p.preferido,
+            //         p.negativo,
+            //         c.nombre AS categoria, 
+            //         m.nombre AS medida,
+            //         p.idTipoTratamientoProducto,
+            //         p.imagen,
+            //         'SIN ALMACEN' AS almacen,
+            //         0 AS idInventario,
+            //         'SERVICIO' AS tipo
+            //     FROM 
+            //         producto AS p
+            //     INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+            //     INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
+            //     INNER JOIN medida AS m ON m.idMedida = p.idMedida
+            //     WHERE 
+            //         p.idProducto = ?`, [
+            //         item.idProducto,
+            //         req.query.idAlmacen,
+            //         item.idProducto
+            //     ]);
 
-                const newProducto = {
-                    ...producto[0],
-                    precio: item.precio,
-                    cantidad: item.cantidad
-                }
+            //     const newProducto = {
+            //         ...producto[0],
+            //         precio: item.precio,
+            //         cantidad: item.cantidad
+            //     }
 
-                productos.push(newProducto);
-            }
+            //     productos.push(newProducto);
+            // }
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cliente: cliente[0], productos });
+            return sendSuccess(res, { cliente: cliente[0], });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detailVenta", error)
@@ -318,9 +290,9 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
-            // Genera un nuevo ID para la cotización
-            const result = await conec.execute(connection, 'SELECT idCotizacion FROM cotizacion');
-            const idCotizacion = generateAlphanumericCode("CT0001", result, 'idCotizacion');
+            // Genera un nuevo ID para el pedido
+            const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
+            const idPedido = generateAlphanumericCode("PD0001", result, 'idPedido');
 
             // Consulta datos del comprobante para generar la numeración
             const comprobante = await conec.execute(connection, `
@@ -334,23 +306,23 @@ class Cotizacion {
                 req.body.idComprobante
             ]);
 
-            // Consulta numeraciones de cotización asociadas al mismo comprobante
-            const cotizaciones = await conec.execute(connection, `
+            // Consulta numeraciones de pedidos asociadas al mismo comprobante
+            const pedidos = await conec.execute(connection, `
             SELECT 
                 numeracion  
             FROM 
-                cotizacion 
+                pedido 
             WHERE 
                 idComprobante = ?`, [
                 req.body.idComprobante
             ]);
 
             // Genera una nueva numeración para la compra
-            const numeracion = generateNumericCode(comprobante[0].numeracion, cotizaciones, "numeracion");
+            const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
 
-            await conec.execute(connection, `INSERT INTO cotizacion(
-                idCotizacion,
-                idCliente,
+            await conec.execute(connection, `INSERT INTO pedido(
+                idPedido,
+                idProveedor,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -363,8 +335,8 @@ class Cotizacion {
                 fecha,
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                idCotizacion,
-                req.body.idCliente,
+                idPedido,
+                req.body.idProveedor,
                 req.body.idUsuario,
                 req.body.idComprobante,
                 req.body.idSucursal,
@@ -378,43 +350,43 @@ class Cotizacion {
                 currentTime(),
             ]);
 
-            // Genera un nuevo ID para los detalles de cotización
-            const listaCotizacionDetalle = await conec.execute(connection, 'SELECT idCotizacionDetalle FROM cotizacionDetalle');
-            let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
+            // Genera un nuevo ID para los detalles del pedido
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalle) {
-                await await conec.execute(connection, `INSERT INTO cotizacionDetalle(
-                    idCotizacionDetalle,
-                    idCotizacion,
+                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
                     idProducto,
                     idMedida,
-                    precio,
+                    costo,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
-                    idCotizacionDetalle,
-                    idCotizacion,
+                    idPedidoDetalle,
+                    idPedido,
                     item.idProducto,
                     item.idMedida,
-                    item.precio,
+                    item.costo,
                     item.cantidad,
                     item.idImpuesto
                 ]);
 
-                idCotizacionDetalle++;
+                idPedidoDetalle++;
             }
 
             await conec.commit(connection);
             return sendSave(res, {
-                idCotizacion: idCotizacion,
-                message: "Se registró correctamente la cotización."
+                idPedido: idPedido,
+                message: "Se registró correctamente el pedido."
             });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/create", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/create", error)
         }
     }
 
@@ -425,9 +397,9 @@ class Cotizacion {
 
             await conec.execute(connection, `
             UPDATE 
-                cotizacion 
+                pedido 
             SET
-                idCliente = ?,
+                idProveedor = ?,
                 idUsuario = ?,
                 idSucursal = ?,
                 idMoneda = ?,
@@ -437,8 +409,8 @@ class Cotizacion {
                 fecha = ?,
                 hora = ?
             WHERE 
-                idCotizacion = ?`, [
-                req.body.idCliente,
+                idPedido = ?`, [
+                req.body.idProveedor,
                 req.body.idUsuario,
                 req.body.idSucursal,
                 req.body.idMoneda,
@@ -447,54 +419,54 @@ class Cotizacion {
                 req.body.estado,
                 currentDate(),
                 currentTime(),
-                req.body.idCotizacion,
+                req.body.idPedido,
             ]);
 
             await conec.execute(connection, `
             DELETE FROM 
-                cotizacionDetalle
+                pedidoDetalle
             WHERE 
-                idCotizacion = ?`, [
-                req.body.idCotizacion,
+                idPedido = ?`, [
+                req.body.idPedido,
             ]);
 
-            const listaCotizacionDetalle = await conec.execute(connection, 'SELECT idCotizacionDetalle FROM cotizacionDetalle');
-            let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalle) {
                 await await conec.execute(connection, `
-                INSERT INTO cotizacionDetalle(
-                    idCotizacionDetalle,
-                    idCotizacion,
+                INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
                     idProducto,
                     idMedida,
-                    precio,
+                    costo,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
-                    idCotizacionDetalle,
-                    req.body.idCotizacion,
+                    idPedidoDetalle,
+                    req.body.idPedido,
                     item.idProducto,
                     item.idMedida,
-                    item.precio,
+                    item.costo,
                     item.cantidad,
                     item.idImpuesto
                 ]);
 
-                idCotizacionDetalle++;
+                idPedidoDetalle++;
             }
 
             await conec.commit(connection);
             return sendSave(res, {
-                idCotizacion: req.body.idCotizacion,
-                message: "Se actualizó correctamente la cotización."
+                idPedido: req.body.idPedido,
+                message: "Se actualizó correctamente el pedido."
             });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/update", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/update", error)
         }
     }
 
@@ -503,51 +475,50 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
-            const cotizacion = await conec.execute(connection, `
+            const pedido = await conec.execute(connection, `
             SELECT
                 estado
             FROM
-                cotizacion
+                pedido
             WHERE
-                idCotizacion = ?
+                idPedido = ?
             `, [
-                req.query.idCotizacion
+                req.query.idPedido
             ]);
 
-            if (cotizacion.length === 0) {
+            if (pedido.length === 0) {
                 await conec.rollback(connection);
-                return "No se encontro registros de la cotización.";
+                return "No se encontro registros del pedido.";
             }
 
-            if (cotizacion[0].estado === 0) {
+            if (pedido[0].estado === 0) {
                 await conec.rollback(connection);
-                return "La cotización ya se encuentra anulado.";
+                return "El pedido ya se encuentra anulado.";
             }
 
             await conec.execute(connection, `
             UPDATE 
-                cotizacion
+                pedido
             SET 
                 estado = 0
             WHERE
-                idCotizacion = ?
-            `, [
-                req.query.idCotizacion
+                idPedido = ?`, [
+                req.query.idPedido
             ]);
 
             await conec.commit(connection);
-            return sendSave(res, "Se anuló correctamente la cotización.");
+            return sendSave(res, "Se anuló correctamente le pedido.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/cancel", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/cancel", error)
         }
     }
 
     async documentsPdfInvoicesOrList(req, res) {
         try {
-            const { idCotizacion, size } = req.params;
+            const { idPedido, size } = req.params;
 
             const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
@@ -562,7 +533,7 @@ class Cotizacion {
             FROM 
                 empresa`);
 
-            const cotizacion = await conec.query(`
+            const pedido = await conec.query(`
             SELECT 
                 DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
                 p.hora,
@@ -584,18 +555,18 @@ class Cotizacion {
                 u.apellidos,
                 u.nombres
             FROM 
-                cotizacion AS p
+                pedido AS p
             INNER JOIN
                 comprobante AS c ON c.idComprobante = p.idComprobante
             INNER JOIN
-                persona AS cp ON cp.idPersona = p.idCliente
+                persona AS cp ON cp.idPersona = p.idProveedor
             INNER JOIN
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
             WHERE 
-                p.idCotizacion = ?`, [
-                idCotizacion
+                p.idPedido = ?`, [
+                idPedido
             ]);
 
             const sucursal = await conec.query(`
@@ -616,23 +587,23 @@ class Cotizacion {
                 ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
             WHERE 
                 s.idSucursal = ?`, [
-                cotizacion[0].idSucursal
+                pedido[0].idSucursal
             ]);
 
             const detalles = await conec.query(` 
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY gd.idCotizacionDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY gd.idPedidoDetalle ASC) AS id,
                 p.codigo,
                 p.nombre,
                 p.imagen,
                 gd.cantidad,
-                gd.precio,
+                gd.costo,
                 m.nombre AS medida,
                 i.idImpuesto,
                 i.nombre AS impuesto,
                 i.porcentaje
             FROM 
-                cotizacionDetalle AS gd
+                pedidoDetalle AS gd
             INNER JOIN 
                 producto AS p ON gd.idProducto = p.idProducto
             INNER JOIN 
@@ -640,10 +611,10 @@ class Cotizacion {
             INNER JOIN
                 impuesto AS i ON i.idImpuesto = gd.idImpuesto
             WHERE 
-                gd.idCotizacion = ?
+                gd.idPedido = ?
             ORDER BY 
-                gd.idCotizacionDetalle ASC`, [
-                idCotizacion
+                gd.idPedidoDetalle ASC`, [
+                idPedido
             ]);
 
             const bancos = await conec.query(`
@@ -655,7 +626,7 @@ class Cotizacion {
                     banco
                 WHERE 
                     reporte = 1 AND idSucursal = ?`, [
-                cotizacion[0].idSucursal
+                pedido[0].idSucursal
             ]);
 
             return {
@@ -677,34 +648,34 @@ class Cotizacion {
                         "distrito": sucursal[0].distrito
                     }
                 },
-                "quotation": {
-                    "fecha": cotizacion[0].fecha,
-                    "hora": cotizacion[0].hora,
-                    "nota": cotizacion[0].nota,
+                "order": {
+                    "fecha": pedido[0].fecha,
+                    "hora": pedido[0].hora,
+                    "nota": pedido[0].nota,
                     "comprobante": {
-                        "nombre": cotizacion[0].comprobante,
-                        "serie": cotizacion[0].serie,
-                        "numeracion": cotizacion[0].numeracion
+                        "nombre": pedido[0].comprobante,
+                        "serie": pedido[0].serie,
+                        "numeracion": pedido[0].numeracion
                     },
-                    "cliente": {
-                        "documento": cotizacion[0].documento,
-                        "informacion": cotizacion[0].informacion,
-                        "direccion": cotizacion[0].direccion
+                    "proveedor": {
+                        "documento": pedido[0].documento,
+                        "informacion": pedido[0].informacion,
+                        "direccion": pedido[0].direccion
                     },
                     "moneda": {
-                        "nombre": cotizacion[0].moneda,
-                        "simbolo": cotizacion[0].simbolo,
-                        "codiso": cotizacion[0].codiso
+                        "nombre": pedido[0].moneda,
+                        "simbolo": pedido[0].simbolo,
+                        "codiso": pedido[0].codiso
                     },
                     "usuario": {
-                        "apellidos": cotizacion[0].apellidos,
-                        "nombres": cotizacion[0].nombres
+                        "apellidos": pedido[0].apellidos,
+                        "nombres": pedido[0].nombres
                     },
-                    "cotizacionDetalles": detalles.map(item => {
+                    "pedidoDetalles": detalles.map(item => {
                         return {
                             "id": item.id,
                             "cantidad": item.cantidad,
-                            "precio": item.precio,
+                            "costo": item.costo,
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
@@ -733,7 +704,28 @@ class Cotizacion {
         try {
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/quotation/pdf/reports`,
+                url: `${process.env.APP_PDF}/order/pdf/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfReports", error);
+        }
+    }
+
+    async documentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/order/excel`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -743,27 +735,9 @@ class Cotizacion {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/documentsPdfReports", error);
-        }
-    }
-
-    async documentsPdfExcel(req, res) {
-        try {
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/quotation/excel`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },                
-                responseType: 'arraybuffer'
-            };
-
-            const response = await axios.request(options);
-            return sendSuccess(res, response.data);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/documentsPdfExcel", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfExcel", error);
         }
     }
 }
 
-module.exports = Cotizacion;
+module.exports = Pedido;

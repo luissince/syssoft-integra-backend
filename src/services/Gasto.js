@@ -1,6 +1,7 @@
 const { currentDate, currentTime, generateNumericCode, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
-const { sendSuccess, sendError, sendSave, sendClient } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendClient, sendFile } = require('../tools/Message');
+const { default: axios } = require('axios');
 const conec = new Conexion();
 
 class Gasto {
@@ -31,7 +32,7 @@ class Gasto {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/list", error);
         }
     }
 
@@ -48,6 +49,7 @@ class Gasto {
                 idComprobante,
                 estado,
                 observacion,
+                nota,
                 idConcepto,
                 monto,
                 notaTransacion,
@@ -98,9 +100,10 @@ class Gasto {
                 numeracion,
                 estado,
                 observacion,
+                nota,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idGasto,
                 idPersona,
                 idUsuario,
@@ -111,6 +114,7 @@ class Gasto {
                 numeracion,
                 estado,
                 observacion,
+                nota,
                 currentDate(),
                 currentTime(),
             ]);
@@ -146,19 +150,21 @@ class Gasto {
             let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
 
             await conec.execute(connection, `
-                    INSERT INTO transaccion(
-                        idTransaccion,
-                        idConcepto,
-                        idReferencia,
-                        nota,
-                        estado,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?)`, [
+            INSERT INTO transaccion(
+                idTransaccion,
+                idConcepto,
+                idReferencia,
+                idSucursal,
+                nota,
+                estado,
+                fecha,
+                hora,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?)`, [
                 idTransaccion,
                 idConcepto,
                 idGasto,
+                idSucursal,
                 notaTransacion,
                 1,
                 currentDate(),
@@ -189,12 +195,15 @@ class Gasto {
             }
 
             await conec.commit(connection);
-            return sendSave(res, "Se completo el proceso correctamente.");
+            return sendSave(res, {
+                idGasto: idGasto,
+                message: "Se completo el proceso correctamente."
+            });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/create", error);
         }
     }
 
@@ -209,6 +218,7 @@ class Gasto {
                 DATE_FORMAT(g.fecha,'%d/%m/%Y') AS fecha,
                 g.hora,
                 g.observacion,
+                g.nota,
                 cn.documento,
                 cn.informacion,
                 g.estado,
@@ -283,7 +293,7 @@ class Gasto {
 
             return sendSuccess(res, { "cabecera": gasto[0], detalles, transaccion });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/list", error);
         }
     }
 
@@ -333,10 +343,195 @@ class Gasto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/cancel", error);
+        }
+    }
+
+    async documentsPdfInvoices(req, res) {
+        try {
+            const { idGasto, size } = req.params;
+
+            const empresa = await conec.query(`
+            SELECT
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                tipoEnvio
+            FROM 
+                empresa`);
+
+            const gasto = await conec.query(`
+            SELECT 
+                DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
+                p.hora,
+                p.idSucursal,
+                p.nota,
+
+                c.nombre AS comprobante,
+                p.serie,
+                p.numeracion,
+
+                cp.documento,
+                cp.informacion,
+                cp.direccion,
+
+                m.nombre AS moneda,
+                m.simbolo,
+                m.codiso,
+
+                u.apellidos,
+                u.nombres
+            FROM 
+                gasto AS p
+            INNER JOIN
+                comprobante AS c ON c.idComprobante = p.idComprobante
+            INNER JOIN
+                persona AS cp ON cp.idPersona = p.idPersona
+            INNER JOIN
+                moneda AS m ON m.idMoneda = p.idMoneda
+            INNER JOIN
+                usuario AS u ON u.idUsuario = p.idUsuario
+            WHERE 
+                p.idGasto = ?`, [
+                idGasto
+            ]);
+
+            const sucursal = await conec.query(`
+            SELECT 
+                s.nombre,
+                s.telefono,
+                s.celular,
+                s.email,
+                s.paginaWeb,
+                s.direccion,
+
+                ub.departamento,
+                ub.provincia,
+                ub.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+            WHERE 
+                s.idSucursal = ?`, [
+                gasto[0].idSucursal
+            ]);
+
+            const detalles = await conec.query(` 
+            SELECT 
+                ROW_NUMBER() OVER (ORDER BY gd.idGastoDetalle ASC) AS id,
+                p.codigo AS codigo,
+                p.nombre AS concepto,
+                gd.cantidad,
+                gd.monto
+            FROM 
+                gastoDetalle AS gd
+            INNER JOIN 
+                concepto AS p ON gd.idConcepto = p.idConcepto
+            WHERE 
+                gd.idGasto = ?
+            ORDER BY 
+                gd.idGastoDetalle ASC`, [
+                idGasto
+            ]);
+
+            return {
+                "size": size,
+                "company": {
+                    ...empresa[0],
+                    rutaLogo: empresa[0].rutaLogo ? `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}` : null,
+                },
+                "branch": {
+                    "nombre": sucursal[0].nombre,
+                    "telefono": sucursal[0].telefono,
+                    "celular": sucursal[0].celular,
+                    "email": sucursal[0].email,
+                    "paginaWeb": sucursal[0].paginaWeb,
+                    "direccion": sucursal[0].direccion,
+                    "ubigeo": {
+                        "departamento": sucursal[0].departamento,
+                        "provincia": sucursal[0].provincia,
+                        "distrito": sucursal[0].distrito
+                    }
+                },
+                "expense": {
+                    "fecha": gasto[0].fecha,
+                    "hora": gasto[0].hora,
+                    "nota": gasto[0].nota,
+                    "comprobante": {
+                        "nombre": gasto[0].comprobante,
+                        "serie": gasto[0].serie,
+                        "numeracion": gasto[0].numeracion
+                    },
+                    "proveedor": {
+                        "documento": gasto[0].documento,
+                        "informacion": gasto[0].informacion,
+                        "direccion": gasto[0].direccion
+                    },
+                    "moneda": {
+                        "nombre": gasto[0].moneda,
+                        "simbolo": gasto[0].simbolo,
+                        "codiso": gasto[0].codiso
+                    },
+                    "usuario": {
+                        "apellidos": gasto[0].apellidos,
+                        "nombres": gasto[0].nombres
+                    },
+                    "gastoDetalles": detalles.map(item => {
+                        return {
+                            "id": item.id,
+                            "cantidad": item.cantidad,
+                            "monto": item.monto,
+                            "concepto": {
+                                "codigo": item.codigo,
+                                "nombre": item.concepto,
+                            },
+                        }
+                    }),
+                },
+            };
+        } catch (error) {
+            throw new Error(error.message);
+        }
+    }
+
+    async documentsPdfReports(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/expense/pdf/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/documentsPdfReports", error);
+        }
+    }
+
+    async documentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/expense/excel`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },                
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendSuccess(res, response.data);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Gasto/documentsPdfExcel", error);
         }
     }
 
 }
 
-module.exports = new Gasto();
+module.exports = Gasto;

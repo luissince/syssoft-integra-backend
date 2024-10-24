@@ -3,7 +3,7 @@ const { currentDate, currentTime } = require('../tools/Tools');
 const conec = new Conexion();
 
 class TipoTraslado {
-   
+
     async combo(req) {
         try {
             const lista = await conec.query(`SELECT 

@@ -3,7 +3,7 @@ const { currentDate, currentTime } = require('../tools/Tools');
 const conec = new Conexion();
 
 class MotivoAjuste {
-   
+
     async combo(req) {
         try {
             const lista = await conec.query(`SELECT 
