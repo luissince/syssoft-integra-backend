@@ -1,17 +1,19 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const { sendClient, sendSuccess, sendError, sendFile } = require('../tools/Message');
+const { default: axios } = require('axios');
 const conec = new Conexion();
 
 class Persona {
 
-    async list(req) {
+    async list(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Personas(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -25,20 +27,20 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/list", error);
         }
     }
 
-    async listClientes(req) {
+    async listClientes(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Clientes(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -52,20 +54,20 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listClientes", error);
         }
     }
 
-    async listProveedores(req) {
+    async listProveedores(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Proveedores(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -79,20 +81,20 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listProveedores", error);
         }
     }
 
-    async listConductores(req) {
+    async listConductores(req, res) {
         try {
             const lista = await conec.procedure(`CALL Listar_Conductores(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -106,24 +108,30 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return { "result": resultLista, "total": total[0].Total };
+            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listConductores", error);
         }
     }
 
-    async create(req) {
+    async create(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
-            const validate = await conec.execute(connection, `SELECT informacion FROM persona WHERE documento = ?`, [
+            const validate = await conec.execute(connection, `
+                SELECT 
+                    informacion 
+                FROM 
+                    persona 
+                WHERE 
+                    documento = ?`, [
                 req.body.documento,
             ]);
 
             if (validate.length > 0) {
                 await conec.rollback(connection);
-                return `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`;
+                return sendClient(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
             }
 
             const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
@@ -188,16 +196,16 @@ class Persona {
             ]);
 
             await conec.commit(connection);
-            return "create";
+            return sendSuccess(res, "Se registró correctamente la persona.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/create", error);
         }
     }
 
-    async id(req) {
+    async id(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -235,16 +243,16 @@ class Persona {
             ]);
 
             if (result.length > 0) {
-                return result[0];
+                return sendSuccess(res, result[0]);
             } else {
-                return "Datos no encontrados";
+                return sendSuccess(res, "Datos no encontrados");
             }
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/id", error);
         }
     }
 
-    async update(req) {
+    async update(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -256,14 +264,16 @@ class Persona {
 
             if (validate.length > 0) {
                 await conec.rollback(connection);
-                return `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`;
+                return sendSuccess(res,`El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
             }
 
             if (req.body.predeterminado) {
                 await conec.execute(connection, `UPDATE persona SET predeterminado = 0`);
             }
 
-            await conec.execute(connection, `UPDATE persona
+            await conec.execute(connection, `
+            UPDATE 
+                persona
             SET
                 idTipoCliente=?,
                 idTipoDocumento=?, 
@@ -317,16 +327,16 @@ class Persona {
             ]);
 
             await conec.commit(connection)
-            return "update";
+            return sendSuccess(res, "Se actualizó correctamente la persona.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }      
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/update", error);
         }
     }
 
-    async delete(req) {
+    async delete(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -337,7 +347,7 @@ class Persona {
 
             if (cobro.length > 0) {
                 await conec.rollback(connection);
-                return 'No se puede eliminar el cliente ya que esta ligada a un cobro.';
+                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a un cobro.");
             }
 
             const gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idPersona = ?`, [
@@ -346,7 +356,7 @@ class Persona {
 
             if (gasto.length > 0) {
                 await conec.rollback(connection);
-                return 'No se puede eliminar el cliente ya que esta ligada a un gasto.';
+                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a un gasto.");
             }
 
             const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idCliente = ?`, [
@@ -355,7 +365,7 @@ class Persona {
 
             if (venta.length > 0) {
                 await conec.rollback(connection);
-                return 'No se puede eliminar el cliente ya que esta ligada a una venta.';
+                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a una venta.");
             }
 
             await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
@@ -363,16 +373,16 @@ class Persona {
             ]);
 
             await conec.commit(connection);
-            return "delete";
+            return sendSuccess(res, "Se eliminó correctamente la persona.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/delete", error);
         }
     }
 
-    async combo(req) {
+    async combo(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -381,13 +391,13 @@ class Persona {
                 informacion 
             FROM 
                 persona`);
-            return result;
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/combo", error);
         }
     }
 
-    async filtrar(req) {
+    async filtrar(req, res) {
         try {   
             const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
@@ -396,13 +406,13 @@ class Persona {
                 Boolean(req.query.proveedor),
                 Boolean(req.query.conductor),
             ]); 
-            return result;
+            return sendSuccess(res, result);
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/filtrar", error);;
         }
     }
 
-    async predeterminado(req) {
+    async predeterminado(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -419,15 +429,86 @@ class Persona {
             WHERE 
                 predeterminado = 1`);
             if (result.length !== 0) {
-                return result[0];
+                return sendSuccess(res, result[0]);
             }
-            return "";
+            return sendSuccess(res, "");
         } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);;
+        }
+    }
+
+    async clienteDocumentsPdfReports(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/person/pdf/customer/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfReports", error);
+        }
+    }
+
+    async clienteDocumentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/person/excel/customer`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfExcel", error);
+        }
+    }
+
+    async proveedorDocumentsPdfReports(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/person/pdf/supplier/reports`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfReports", error);
+        }
+    }
+
+    async proveedorDocumentsPdfExcel(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/person/excel/supplier`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfExcel", error);
         }
     }
 
 }
-
 
 module.exports = Persona;

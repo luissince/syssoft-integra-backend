@@ -1,44 +1,43 @@
 const express = require('express');
 const router = express.Router();
 const Cobro = require('../services/Cobro');
+const { default: axios } = require('axios');
+const { sendFile, sendError } = require('../tools/Message');
 
+require('dotenv').config();
 const cobro = new Cobro();
 
-router.get('/list', async function (req, res) {
-    const result = await cobro.list(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
+router.get("/list", async (req, res) => await cobro.list(req, res));
+
+router.post("/create", async (req, res) => await cobro.create(req, res));
+
+router.get("/detail", async (req, res) => await cobro.detail(req, res));
+
+router.delete("/cancel", async (req, res) => await cobro.cancel(req, res));
+
+router.get("/documents/pdf/invoices/:idCobro/:size", async (req, res) => {
+    try {
+        const data = await cobro.documentsPdfInvoices(req, res);
+
+        const options = {
+            method: 'POST',
+            url: `${process.env.APP_PDF}/collection/pdf/invoices`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            data: data,
+            responseType: 'arraybuffer'
+        };
+
+        const response = await axios.request(options);
+        return sendFile(res, response);
+    } catch (error) {
+        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cobro/documentsPdfInvoices", error);
     }
 });
 
-router.post('/create', async function (req, res) {
-    const result = await cobro.create(req)
-    if (result === 'create') {
-        res.status(201).send("Se registró correctamente el cobro.");
-    } else {
-        res.status(500).send(result);
-    }
-});
+router.get("/documents/pdf/reports", async (req, res) => await cobro.documentsPdfReports(req, res));
 
-router.get('/detail', async function (req, res) {
-    const result = await cobro.detail(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result);
-    } else {
-        res.status(500).send(result);
-    }
-});
-
-router.delete('/cancel', async function (req, res) {
-    const result = await cobro.cancel(req, res)
-    if (result === 'cancel') {
-        res.status(201).send("Se anualo correctamente el cobro.");
-    } else {
-        res.status(500).send(result);
-    }
-});
-
+router.get("/documents/excel", async (req, res) => await cobro.documentsPdfExcel(req, res));
 
 module.exports = router;

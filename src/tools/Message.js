@@ -20,17 +20,47 @@ function sendSuccess(res, result) {
  * Envía un archivo PDF como respuesta a una solicitud HTTP.
  * 
  * @param {import('express').Response} res - El objeto de respuesta de Express.
- * @param {Buffer} data - Los datos del PDF que se enviarán como respuesta.
+ * @param {Buffer} buffer - Los datos del PDF que se enviarán como respuesta.
  * @returns {import('express').Response} - El objeto de respuesta modificado con el PDF adjunto.
  * 
  * @example
  * // Envia los datos del PDF como respuesta
  * sendPdf(res, data);
  */
-function sendPdf(res, data, fileName = "reporte") {
-    res.setHeader('Content-Disposition', 'inline; filename="' + fileName + '.pdf"');
+function sendPdf(res, buffer, fileName = "reporte") {
     res.setHeader('Content-Type', 'application/pdf');
-    return res.send(data);
+    res.setHeader('Content-Disposition', 'inline; filename="' + fileName + '.pdf"');
+    res.setHeader('Content-Length', buffer.length);
+    return res.end(buffer);
+}
+
+/**
+ * Envía un archivo PDF como respuesta a una solicitud HTTP.
+ * 
+ * @param {import('express').Response} res - El objeto de respuesta de Express.
+ * @param {Response} response - Objeto responde
+ * @param {string} [fileName="reporte"] - El nombre del archivo que se enviará como respuesta.
+ * @returns {import('express').Response} - El objeto de respuesta modificado con el PDF adjunto.
+ * 
+ * @example
+ * // Envia los datos del PDF como respuesta
+ * sendFile(res, response);
+ */
+function sendFile(res, response, fileName) {
+    // Extraer el tipo de archivo (MIME type) de la respuesta
+    const contentType = response.headers['content-type'];
+
+    // Extraer el nombre del archivo de la cabecera Content-Disposition
+    const contentDisposition = response.headers['content-disposition'];
+    const filename = fileName ?? contentDisposition.match(/filename=([^;]+)/)[1].trim();
+
+    // Configurar las cabeceras de respuesta
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Length', response.data.length);
+
+    // Enviar el archivo al cliente
+    return res.end(response.data);
 }
 
 /**
@@ -76,7 +106,7 @@ function sendNoContent(res, result) {
  * @returns {import('express').Response} - La respuesta HTTP 500 con el mensaje de error.
  */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
-    if(process.env.ENVIRONMENT === 'development'){
+    if (process.env.ENVIRONMENT === 'development') {
         console.error(error)
     }
     if (!error || !error.message) {
@@ -155,6 +185,7 @@ function sendNotFound(res, result) {
 module.exports = {
     sendSuccess,
     sendPdf,
+    sendFile,
     sendSave,
     sendError,
     sendClient,

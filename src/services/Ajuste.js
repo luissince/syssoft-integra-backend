@@ -15,7 +15,7 @@ class Ajuste {
                 req.query.idTipoAjuste,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {

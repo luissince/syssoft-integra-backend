@@ -1,4 +1,4 @@
-const { currentDate, currentTime } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const conec = new Conexion();
@@ -7,19 +7,22 @@ class Concepto {
 
     async list(req, res) {
         try {
-            let lista = await conec.query(`SELECT 
-                idConcepto,
-                nombre,
-                tipo,
-                sistema,
-                DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
-                hora 
-                FROM concepto
+            const lista = await conec.query(`
+                SELECT 
+                    idConcepto,
+                    nombre,
+                    tipo,
+                    sistema,
+                    DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
+                    hora 
+                FROM 
+                    concepto
                 WHERE 
-                ? = 0
-                OR
-                ? = 1 and nombre like concat(?,'%')
-                LIMIT ?,?`, [
+                    (? = 0)
+                    OR
+                    (? = 1 AND nombre LIKE concat(?,'%'))
+                LIMIT 
+                    ?,?`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -29,18 +32,22 @@ class Concepto {
                 parseInt(req.query.filasPorPagina)
             ])
 
-            let resultLista = lista.map(function (item, index) {
+            const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
 
-            let total = await conec.query(`SELECT COUNT(*) AS Total FROM concepto
+            const total = await conec.query(`
+                SELECT 
+                    COUNT(*) AS Total 
+                FROM 
+                    concepto
                 WHERE 
-                ? = 0
-                OR
-                ? = 1 and nombre like concat(?,'%')`, [
+                    (? = 0)
+                    OR
+                    (? = 1 AND nombre LIKE concat(?,'%'))`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -50,7 +57,7 @@ class Concepto {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/list", error);
         }
     }
 
@@ -59,33 +66,11 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
-            let result = await conec.execute(connection, 'SELECT idConcepto FROM concepto');
-            let idConcepto = "";
-            if (result.length != 0) {
+            const listConceptos = await conec.execute(connection, 'SELECT idConcepto FROM concepto');
+            const idConcepto = generateAlphanumericCode("CP0001", listConceptos, 'idConcepto');
 
-                let quitarValor = result.map(function (item) {
-                    return parseInt(item.idConcepto.replace("CP", ''));
-                });
-
-                let valorActual = Math.max(...quitarValor);
-                let incremental = valorActual + 1;
-                let codigoGenerado = "";
-                if (incremental <= 9) {
-                    codigoGenerado = 'CP000' + incremental;
-                } else if (incremental >= 10 && incremental <= 99) {
-                    codigoGenerado = 'CP00' + incremental;
-                } else if (incremental >= 100 && incremental <= 999) {
-                    codigoGenerado = 'CP0' + incremental;
-                } else {
-                    codigoGenerado = 'CP' + incremental;
-                }
-
-                idConcepto = codigoGenerado;
-            } else {
-                idConcepto = "CP0001";
-            }
-
-            await conec.execute(connection, `INSERT INTO concepto(
+            await conec.execute(connection, `
+            INSERT INTO concepto(
                 idConcepto, 
                 nombre, 
                 tipo,
@@ -95,8 +80,8 @@ class Concepto {
                 hora,
                 fupdate,
                 hupdate,
-                idUsuario) 
-                VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
                 idConcepto,
                 req.body.nombre,
                 req.body.tipo,
@@ -115,7 +100,7 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/add", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/add", error);
         }
     }
 
@@ -131,7 +116,7 @@ class Concepto {
                 return sendClient(res, 'Datos no encontados.');
             }
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/id", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/id", error);
         }
     }
 
@@ -163,7 +148,7 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/update", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/update", error);
         }
     }
 
@@ -176,7 +161,7 @@ class Concepto {
                 req.query.idConcepto
             ]);
 
-            if(sistem.length > 0){
+            if (sistem.length > 0) {
                 await conec.rollback(connection);
                 return sendClient(res, 'El concepto es del propio sistema, puede ser eliminado.');
             }
@@ -218,55 +203,43 @@ class Concepto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/delete", error);
-        }
-    }
-
-    async listcombo(req, res) {
-        try {
-            const result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 2');
-            return sendSuccess(res,result);;
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/listcombo", error);
-        }
-    }
-
-    async listcombogasto(req, res) {
-        try {
-            let result = await conec.query('SELECT idConcepto, nombre FROM concepto WHERE tipo = 1');
-            return sendSuccess(res, result);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/listcombogasto", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/delete", error);
         }
     }
 
     async filtrarCobro(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idConcepto, 
-            nombre 
-            FROM concepto 
-            WHERE tipo = 2 AND nombre LIKE concat(?,'%') AND sistema <> 1`,[
+            const result = await conec.query(`
+            SELECT 
+                idConcepto, 
+                nombre 
+            FROM 
+                concepto 
+            WHERE 
+                tipo = 1 AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
                 req.query.filtrar,
             ]);
-            return sendSuccess(res,result);
+            return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/filtrarCobro", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarCobro", error);
         }
     }
 
     async filtrarGasto(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idConcepto, 
-            nombre 
-            FROM concepto 
-            WHERE tipo = 1 AND nombre LIKE concat(?,'%') AND sistema <> 1`,[
+            const result = await conec.query(`
+            SELECT 
+                idConcepto, 
+                nombre 
+            FROM 
+                concepto 
+            WHERE 
+                tipo = 2 AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
                 req.query.filtrar,
             ]);
-            return sendSuccess(res,result);;
+            return sendSuccess(res, result);;
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Concepto/Gasto", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarGasto", error);
         }
     }
 }

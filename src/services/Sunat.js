@@ -1,13 +1,52 @@
-const { sendSuccess, sendError } = require('../tools/Message');
+const { sendSuccess, sendError, sendFile } = require('../tools/Message');
 const { currentDate } = require('../tools/Tools');
 
 require('dotenv').config();
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
 const ErrorResponse = require('../tools/ErrorAxios');
+const { head } = require('axios');
 const conec = new Conexion();
 
 class Sunat {
+
+    async listCpeSunat(req, res) {
+        try {
+            const lista = await conec.procedure(`CALL Listar_CPE_Sunat(?,?,?,?,?,?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
+                req.query.idSucursal,
+
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ])
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_CPE_Sunat_Count(?,?,?,?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idComprobante,
+                parseInt(req.query.estado),
+                req.query.idSucursal
+            ]);
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/listCpeSunat", error);
+        }
+    }
 
     async facturar(req, res) {
         try {
@@ -110,14 +149,14 @@ class Sunat {
                 req.params.idVenta
             ]);
 
-            const plazos = await conec.query(`
+            const cuotas = await conec.query(`
             SELECT 
                 cuota,
                 DATE_FORMAT(fecha,'%Y-%m-%d') AS fecha,
                 hora,
                 monto
             FROM 
-                plazo 
+                cuota 
             WHERE 
                 idVenta = ?`, [
                 req.params.idVenta
@@ -152,7 +191,7 @@ class Sunat {
                         "publicKey": publicKey
                     },
                     "detalle": detalles,
-                    "plazos": plazos
+                    "cuotas": cuotas
                 },
             };
 
@@ -613,6 +652,86 @@ class Sunat {
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
             sendError(res, errorResponse.getMessage(),"Sunat/consultar", error)
+        }
+    }
+
+    async generarXmlSunat(req, res) {
+        try {
+            const empresa = await conec.query(`
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const xml = await conec.query(`
+            SELECT 
+                v.xmlGenerado,
+                co.nombre,
+                v.serie,
+                v.numeracion
+            FROM 
+                venta AS v 
+            INNER JOIN 
+                comprobante AS co ON v.idComprobante = co.idComprobante
+            WHERE 
+                v.idVenta = ?
+    
+            UNION
+            
+            SELECT 
+                gu.xmlGenerado,
+                co.nombre,
+                gu.serie,
+                gu.numeracion
+            FROM 
+                guiaRemision AS gu 
+            INNER JOIN 
+                comprobante AS co ON gu.idComprobante = co.idComprobante
+            WHERE 
+                gu.idGuiaRemision = ?`, [
+                req.params.idComprobante,
+                req.params.idComprobante,
+            ]);
+
+            if (xml.length === 0) {
+                return sendClient(res, "No hay información del comprobante.");
+            }
+
+            if (xml[0].xmlGenerado === null || xml[0].xmlGenerado === "") {
+                return sendClient(res, "El comprobante no tiene generado ningún xml.");
+            }
+
+            const responde = {
+                data: Buffer.from(xml[0].xmlGenerado, 'utf-8'),
+                headers: {
+                    'content-type': 'application/xml',
+                    'content-disposition': `attachment; filename="${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml"`
+                }
+            }
+            sendFile(res, responde);
+        } catch (error) {
+            sendError(res, "Error al obtener el PDF", "Sunat/generarXmlSunat", error)
+        }
+    }
+
+    async dashboard(req, res) {
+        try {
+            const result = await conec.procedureAll(`CALL Dashboard_CPESunat(?,?,?)`, [
+                req.query.month,
+                req.query.year,
+                req.query.idSucursal,
+            ]);
+
+            return sendSuccess(res, {
+                "ventas": result[0] ?? [],
+                "ventasCompras": result[1] ?? [],
+            });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sunat/dashboard", error);
         }
     }
 
