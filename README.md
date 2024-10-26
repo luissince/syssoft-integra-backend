@@ -1,4 +1,4 @@
-# SOFTWARE DE PUNTO DE VENTA
+# Microservicio encargado de la gestión de puntos de ventas
 
 <img src="src/path/to/logo.png" alt="Imagen SysSoft Integra" width="200" />
 
