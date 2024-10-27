@@ -29,6 +29,8 @@ jobs:
             service: ferreteria-rym-services
           - environment: asiaticos-pcl
             service: asiaticos-pcl-services
+          - environment: principal
+            service: principal-services
 
     environment: ${{ matrix.environment }}
     
