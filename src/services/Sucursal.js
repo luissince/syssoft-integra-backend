@@ -300,6 +300,8 @@ class Sucursal {
                 ROW_NUMBER() OVER (ORDER BY p.idSucursal ASC) AS id,
                 p.idSucursal,
                 p.nombre,
+                p.email,
+                p.paginaWeb,
                 p.direccion,
                 p.ruta,
                 p.estado

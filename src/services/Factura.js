@@ -569,6 +569,8 @@ class Factura {
                 c.documento,
                 c.informacion,
                 c.direccion,
+                c.celular,
+                c.email,
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario,
                 DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
                 v.hora, 
