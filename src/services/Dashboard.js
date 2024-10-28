@@ -4,42 +4,24 @@ const conec = new Conexion();
 
 class Dashboard {
 
-    async totales(req, res) {
+    async init(req, res) {
         try {
-
-            let totalCategorias = await conec.query(`SELECT
-                IFNULL(COUNT(*), 0) AS total
-                FROM categoria AS m
-                INNER JOIN sucursal as p ON m.idSucursal=p.idSucursal
-                WHERE p.idSucursal=?`, [
+            const result = await conec.procedureAll(`CALL Dashboard_Init(?)`, [
                 req.query.idSucursal,
-            ])
+            ]);
 
-            let totalProductos = await conec.query(`SELECT
-                IFNULL(COUNT(*), 0) AS total
-                FROM producto AS l
-                INNER JOIN categoria AS m ON l.idCategoria=m.idCategoria
-                INNER JOIN sucursal as p ON m.idSucursal=p.idSucursal
-                WHERE p.idSucursal=?`, [
-                req.query.idSucursal,
-            ])
-
-            let totalClientes = await conec.query(`SELECT IFNULL(COUNT(*), 0) AS total FROM persona`)
-
-            let totalVentas = await conec.query(`SELECT 
-                IFNULL(SUM(vd.precio*vd.cantidad),0) AS total
-                FROM venta AS v 
-                LEFT JOIN ventaDetalle AS vd ON vd.idVenta = v.idVenta
-                WHERE 
-                MONTH(v.fecha)=MONTH(CURRENT_DATE()) AND YEAR(v.fecha)=YEAR(CURRENT_DATE())
-                AND v.idSucursal = ? 
-                AND v.estado <> 3`, [
-                req.query.idSucursal,
-            ])
-
-            return sendSuccess(res, { "totalCategorias": totalCategorias[0].total, "totalProductos": totalProductos[0].total, "totalClientes": totalClientes[0].total, "totalVentas": totalVentas[0].total });
+            return sendSuccess(res, {
+                "totalVentas": result[0][0].total ?? 0,
+                "totalCompras": result[1][0].total ?? 0,
+                "totalCuentasPorCobrar": result[2][0].total ?? 0,
+                "totalCuentasPorPagar": result[3][0].total ?? 0,
+                "totalComprobantes": result[4][0].total ?? 0,
+                "totalInventario": result[5][0].total ?? 0,
+                "totalSucursales": result[6][0].total ?? 0,
+                "inventarios": result[7] ?? [],
+            });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Dashboard/totales", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Dashboard/init", error);
         }
     }
 
