@@ -627,7 +627,7 @@ class Sunat {
         }
     }
 
-    async consultar(req, res) {
+    async status(req, res) {
         try {
             const options = {
                 method: 'POST',
@@ -648,6 +648,32 @@ class Sunat {
 
             const response = await axios.request(options);
 
+            sendSuccess(res, response.data);
+        } catch (error) {
+            const errorResponse = new ErrorResponse(error);
+            sendError(res, errorResponse.getMessage(),"Sunat/consultar", error)
+        }
+    }
+
+    async cdr(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_CPE_SUNAT}/api/v1/cdr`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "ruc": req.params.ruc,
+                    "usuarioSol": req.params.usuario,
+                    "claveSol": req.params.clave,
+                    "tipoComprobante": req.params.tipoComprobante,
+                    "serie": req.params.serie,
+                    "numeracion": req.params.numeracion,
+                },
+            };
+
+            const response = await axios.request(options);
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);

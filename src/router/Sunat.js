@@ -14,7 +14,9 @@ router.get('/anular/factura/:idVenta', async (req, res) => await sunat.anularFac
 
 router.get('/guia/remision/:idGuiaRemision', async (req, res) => await sunat.guiaRemision(req, res));
 
-router.get('/consultar/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.consultar(req, res));
+router.get('/consultar/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.status(req, res));
+
+router.get('/cdr/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.cdr(req, res));
 
 router.get('/xml/:idComprobante', async (req, res) => await sunat.generarXmlSunat(req, res));
 
