@@ -5,6 +5,7 @@ const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Cotizacion {
 
@@ -151,6 +152,7 @@ class Cotizacion {
                 ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
                 p.codigo,
                 p.nombre AS producto,
+                p.imagen,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
                 cd.precio,
@@ -174,6 +176,19 @@ class Cotizacion {
                 cd.idCotizacionDetalle ASC`, [
                 req.query.idCotizacion,
             ]);
+
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if(bucket && item.imagen){
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
 
             // Consulta los ventas asociadas
             const ventas = await conec.query(`
@@ -202,7 +217,7 @@ class Cotizacion {
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cabecera: cotizacion[0], detalles, ventas });
+            return sendSuccess(res, { cabecera: cotizacion[0], detalles: listaDetalles, ventas });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detail", error)
@@ -549,7 +564,6 @@ class Cotizacion {
         try {
             const { idCotizacion, size } = req.params;
 
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const empresa = await conec.query(`
@@ -708,7 +722,7 @@ class Cotizacion {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg`,
+                                "imagen": item.imagen ? bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.APP_URL}/files/to/noimage.jpg`,
                             },
                             "medida": {
                                 "nombre": item.medida,
@@ -754,7 +768,7 @@ class Cotizacion {
                 url: `${process.env.APP_PDF}/quotation/excel`,
                 headers: {
                     'Content-Type': 'application/json',
-                },                
+                },
                 responseType: 'arraybuffer'
             };
 

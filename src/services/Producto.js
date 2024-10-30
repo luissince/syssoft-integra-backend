@@ -10,6 +10,7 @@ const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../t
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 require('dotenv').config();
 
@@ -17,7 +18,7 @@ class Producto {
 
     async list(req, res) {
         try {
-            const firebaseService = new FirebaseService();
+
             const bucket = firebaseService.getBucket();
 
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
@@ -28,10 +29,17 @@ class Producto {
             ])
 
             const resultLista = lista.map(function (item, index) {
+                if (bucket) {
+                    return {
+                        ...item,
+                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                        id: (index + 1) + parseInt(req.query.posicionPagina)
+                    }
+                }
+
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -52,7 +60,6 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const {
@@ -114,21 +121,23 @@ class Producto {
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                if (bucket) {
+                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
 
-                const timestamp = Date.now();
-                const uniqueId = Math.random().toString(36).substring(2, 9);
-                const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
 
-                const file = bucket.file(fileName);
-                await file.save(buffer, {
-                    metadata: {
-                        contentType: 'image/' + req.body.imagen.extension,
-                    }
-                });
-                await file.makePublic();
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
 
-                imagen = fileName;
+                    imagen = fileName;
+                }
             }
 
             const resultProducto = await conec.execute(connection, 'SELECT idProducto FROM producto');
@@ -473,7 +482,6 @@ class Producto {
 
     async id(req, res) {
         try {
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const producto = await conec.query(`
@@ -505,16 +513,19 @@ class Producto {
                 req.query.idProducto
             ]);
 
-            const respuesta = {
-                ...producto[0],
-                // imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
-                imagen: !producto[0].imagen
-                    ? null
-                    : {
-                        nombre: producto[0].imagen,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
-                    }
-            };
+            let respuesta = { ...producto[0] };
+            if (bucket) {
+                respuesta = {
+                    ...producto[0],
+                    // imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
+                    imagen: !producto[0].imagen
+                        ? null
+                        : {
+                            nombre: producto[0].imagen,
+                            url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
+                        }
+                };
+            }
 
             const precios = await conec.query(`
             SELECT
@@ -545,17 +556,19 @@ class Producto {
             const newImagenes = [];
             let countImage = 0;
 
-            for (const image of imagenes) {
-                newImagenes.push({
-                    "index": countImage,
-                    "idImagen": image.idImagen,
-                    "idProducto": image.idProducto,
-                    "nombre": image.nombre,
-                    "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
-                    "remover": false
-                });
+            if (bucket) {
+                for (const image of imagenes) {
+                    newImagenes.push({
+                        "index": countImage,
+                        "idImagen": image.idImagen,
+                        "idProducto": image.idProducto,
+                        "nombre": image.nombre,
+                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                        "remover": false
+                    });
 
-                countImage++;
+                    countImage++;
+                }
             }
 
             const detalles = await conec.query(`
@@ -636,7 +649,6 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const validateCodigo = await conec.execute(connection, `
@@ -695,27 +707,31 @@ class Producto {
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-                if (producto[0].imagen) {
-                    const file = bucket.file(producto[0].imagen);
-                    await file.delete();
+                if (bucket) {
+                    if (producto[0].imagen) {
+                        const file = bucket.file(producto[0].imagen);
+                        await file.delete();
+                    }
                 }
 
             } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                if (bucket) {
+                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
 
-                const timestamp = Date.now();
-                const uniqueId = Math.random().toString(36).substring(2, 9);
-                const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
 
-                const file = bucket.file(fileName);
-                await file.save(buffer, {
-                    metadata: {
-                        contentType: 'image/' + req.body.imagen.extension,
-                    }
-                });
-                await file.makePublic();
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
 
-                imagen = fileName;
+                    imagen = fileName;
+                }
             } else {
                 imagen = req.body.imagen.nombre;
             }
@@ -1040,7 +1056,6 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const { idProducto } = req.query;
@@ -1091,8 +1106,10 @@ class Producto {
             ]);
 
             if (producto[0].imagen) {
-                const file = bucket.file(producto[0].imagen);
-                await file.delete();
+                if (bucket) {
+                    const file = bucket.file(producto[0].imagen);
+                    await file.delete();
+                }
             }
 
             const cacheImagenes = await conec.execute(connection, `
@@ -1249,7 +1266,6 @@ class Producto {
 
     async filtrarParaVenta(req, res) {
         try {
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?,?)", [
@@ -1262,10 +1278,16 @@ class Producto {
             ]);
 
             const resultLista = result.map(function (item, index) {
+                if (bucket) {
+                    return {
+                        ...item,
+                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        id: (index + 1) + parseInt(req.query.posicionPagina)
+                    }
+                }
                 return {
                     ...item,
-                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -1285,7 +1307,6 @@ class Producto {
 
     async preferidos(req, res) {
         try {
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const result = await conec.procedure("CALL Listar_Productos_Preferidos(?,?)", [
@@ -1294,10 +1315,15 @@ class Producto {
             ])
 
             const resultLista = result.map(function (item) {
+                if (bucket) {
+                    return {
+                        ...item,
+                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
+                    }
+                }
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                 }
             });
 
@@ -1352,7 +1378,7 @@ class Producto {
         }
     }
 
-    async rangePriceWeb(req, res){
+    async rangePriceWeb(req, res) {
         try {
             const data = await conec.query(`
             SELECT 
@@ -1374,10 +1400,8 @@ class Producto {
 
     async filterWeb(req, res) {
         try {
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
-            console.log(req.query)
             const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?)`, [
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
@@ -1385,9 +1409,15 @@ class Producto {
             ]);
 
             const resultLista = lista.map(function (item, index) {
+                if (bucket) {
+                    return {
+                        ...item,
+                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        id: (index + 1) + parseInt(req.query.posicionPagina)
+                    }
+                }
                 return {
                     ...item,
-                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -1411,9 +1441,8 @@ class Producto {
 
     async filterWebId(req, res) {
         try {
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
-            
+
             const producto = await conec.query(`
             SELECT 
                 p.idProducto,
@@ -1469,13 +1498,15 @@ class Producto {
 
             const newImagenes = [];
 
-            for (const image of imagenes) {
-                newImagenes.push({
-                    "idImagen": image.id,
-                    "nombre": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
-                    "ancho": image.ancho,
-                    "alto": image.alto,
-                });
+            if (bucket) {
+                for (const image of imagenes) {
+                    newImagenes.push({
+                        "idImagen": image.id,
+                        "nombre": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                        "ancho": image.ancho,
+                        "alto": image.alto,
+                    });
+                }
             }
 
             const colores = await conec.query(`
@@ -1585,7 +1616,7 @@ class Producto {
     //         ORDER BY 
     //             p.fecha DESC, p.hora DESC
     //         LIMIT 
-                
+
     //             posicionPagina, filasPorPagina`, [
     //             req.query.idCategoria
     //         ]);

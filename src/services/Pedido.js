@@ -5,6 +5,7 @@ const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Pedido {
 
@@ -147,6 +148,7 @@ class Pedido {
             const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                p.imagen,
                 p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
@@ -173,8 +175,21 @@ class Pedido {
                 req.query.idPedido,
             ]);
 
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
             // Devuelve un objeto con la información del pedido, los detalles y las salidas
-            return sendSuccess(res, { cabecera: pedido[0], detalles });
+            return sendSuccess(res, { cabecera: pedido[0], detalles: listaDetalles });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -520,7 +535,6 @@ class Pedido {
         try {
             const { idPedido, size } = req.params;
 
-            const firebaseService = new FirebaseService();
             const bucket = firebaseService.getBucket();
 
             const empresa = await conec.query(`
@@ -679,7 +693,7 @@ class Pedido {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg`,
+                                "imagen": item.imagen ? bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.APP_URL}/files/to/noimage.jpg`,
                             },
                             "medida": {
                                 "nombre": item.medida,

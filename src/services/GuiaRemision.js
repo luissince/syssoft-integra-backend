@@ -2,7 +2,9 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode 
 const Conexion = require('../database/Conexion');
 const { sendSuccess, sendError, sendSave } = require('../tools/Message');
 const { default: axios } = require('axios');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class GuiaRemision {
 
@@ -91,7 +93,7 @@ class GuiaRemision {
 
             return sendSuccess(res, { cabecera: ajuste[0], detalle });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/id", error)
         }
     }
 
@@ -99,15 +101,28 @@ class GuiaRemision {
         try {
             const guiaRemision = await conec.procedure(`CALL Guia_Remision_Por_Id(?)`, [
                 req.query.idGuiaRemision,
-            ])
+            ]);
 
-            const detalle = await conec.procedure(`CALL Guia_Remision_Detalle_Por_Id(?)`, [
+            const detalles = await conec.procedure(`CALL Guia_Remision_Detalle_Por_Id(?)`, [
                 req.query.idGuiaRemision,
-            ])
+            ]);
 
-            return sendSuccess(res, { cabecera: guiaRemision[0], detalle });
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
+            return sendSuccess(res, { cabecera: guiaRemision[0], detalles: listaDetalles });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/detail", error)
         }
     }
 
@@ -167,7 +182,7 @@ class GuiaRemision {
 
             return sendSuccess(res, { cabecera: guiaRemision[0] });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/detailUpdate", error)
         }
     }
 
@@ -297,7 +312,7 @@ class GuiaRemision {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/create", error)
         }
     }
 
@@ -382,7 +397,7 @@ class GuiaRemision {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/update", error)
         }
     }
 
@@ -399,7 +414,7 @@ class GuiaRemision {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/cancel", error)
         }
     }
 
@@ -499,7 +514,6 @@ class GuiaRemision {
                 gui.idGuiaRemision = ?`, [
                 idGuiaRemision
             ]);
-            console.log(guiaRemision[0])
 
             const sucursal = await conec.query(`
             SELECT 

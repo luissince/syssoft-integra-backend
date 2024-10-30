@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const logger = require('./Logger');
 require('dotenv').config();
 
 class FirebaseService {
@@ -9,6 +10,11 @@ class FirebaseService {
             return FirebaseService.instance;
         }
 
+        this.initializeFirebase();
+        FirebaseService.instance = this;
+    }
+
+    initializeFirebase() {
         try {
             // Intentar cargar el archivo de configuración
             const serviceAccount = require(`../path/certificates/${process.env.FIREBASE_FILE_ACCOUNT_NAME}`);
@@ -21,13 +27,22 @@ class FirebaseService {
 
             this.bucket = admin.storage().bucket();
         } catch (error) {
-            throw new Error('Firebase no está inicializado correctamente.');
-        }
+            if (process.env.ENVIRONMENT === 'development') {
+                console.error('Firebase no se inicializo correctamente.')
+            }
 
-        FirebaseService.instance = this;
+            logger.error('FirebaseService', 'Firebase no se inicializo correctamente.');
+            this.bucket = null;  // Asegurarse de que bucket esté null si falla
+        }
     }
 
     getBucket() {
+        // Intentar inicializar de nuevo si no se ha hecho
+        if (!this.bucket) {
+            logger.warn('Intentando reinicializar Firebase...');
+            this.initializeFirebase();
+        }
+
         return this.bucket;
     }
 }

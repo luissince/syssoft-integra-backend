@@ -2,7 +2,9 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode,
 const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Compra {
 
@@ -395,6 +397,8 @@ class Compra {
             // Consulta los detalles de la compra
             const detalles = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
+                p.imagen,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -414,9 +418,24 @@ class Compra {
             INNER JOIN 
                 impuesto AS imp ON cd.idImpuesto = imp.idImpuesto  
             WHERE 
-                cd.idCompra = ?`, [
+                cd.idCompra = ?
+            ORDER BY 
+                cd.idCompraDetalle ASC`, [
                 req.query.idCompra,
             ]);
+
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
 
             // Obtener información de transaccion asociados a la compra
             const transaccion = await conec.query(`
@@ -457,7 +476,7 @@ class Compra {
             }
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSave(res, { cabecera: compra[0], detalles, transaccion });
+            return sendSave(res, { cabecera: compra[0], detalles: listaDetalles, transaccion });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/detail", error);
         }
@@ -719,6 +738,8 @@ class Compra {
 
             const detalles = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY vd.idCompraDetalle ASC) AS id,
+                p.imagen,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -743,6 +764,19 @@ class Compra {
                 vd.idCompraDetalle ASC`, [
                 req.query.idCompra
             ]);
+
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
 
             const resumen = await conec.query(`
             SELECT 
@@ -825,7 +859,7 @@ class Compra {
                 plazo.transacciones = transacciones;
             }
 
-            return sendSuccess(res, { "cabecera": result[0], detalles, resumen, plazos });
+            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, plazos });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountsPayable", error);
         }

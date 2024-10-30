@@ -2,7 +2,9 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode 
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Factura {
 
@@ -24,7 +26,7 @@ class Factura {
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                    id: (index + 1) + parseInt(req.query.posicionPagina),
                 }
             });
 
@@ -601,8 +603,10 @@ class Factura {
             // Obtener detalles de productos vendidos en la venta
             const detalles = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY vd.idVentaDetalle ASC) AS id,
                 p.codigo,
                 p.nombre AS producto,
+                p.imagen,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
                 vd.precio,
@@ -626,6 +630,19 @@ class Factura {
                 vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
+
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
 
             // Obtener información de transaccion asociados a la venta
             const transaccion = await conec.query(`
@@ -666,7 +683,7 @@ class Factura {
             }
 
             // Enviar respuesta exitosa con la información recopilada
-            return sendSuccess(res, { "cabecera": result[0], detalles, transaccion });
+            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, transaccion });
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detail", error);
@@ -1090,6 +1107,8 @@ class Factura {
 
             const detalles = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY vd.idVentaDetalle ASC) AS id,
+                p.imagen,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -1114,6 +1133,18 @@ class Factura {
                 vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
 
             const resumen = await conec.query(`
             SELECT 
@@ -1196,7 +1227,7 @@ class Factura {
                 cuota.transacciones = transacciones;
             }
 
-            return sendSuccess(res, { "cabecera": result[0], detalles, resumen, cuotas });
+            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, cuotas });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountReceivable", error);
         }
@@ -1667,7 +1698,7 @@ class Factura {
                         "informacion": venta[0].informacion,
                         "direccion": venta[0].direccion
                     },
-                    "formaPago":{
+                    "formaPago": {
                         "nombre": venta[0].formaPago
                     },
                     "moneda": {
@@ -1755,7 +1786,7 @@ class Factura {
                 url: `${process.env.APP_PDF}/sale/excel`,
                 headers: {
                     'Content-Type': 'application/json',
-                },                
+                },
                 responseType: 'arraybuffer'
             };
 
