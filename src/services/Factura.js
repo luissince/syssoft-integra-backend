@@ -1576,6 +1576,7 @@ class Factura {
                 c.nombre AS comprobante,
                 p.serie,
                 p.numeracion,
+                c.facturado,
                 --
                 cp.documento,
                 cp.informacion,
@@ -1691,7 +1692,8 @@ class Factura {
                     "comprobante": {
                         "nombre": venta[0].comprobante,
                         "serie": venta[0].serie,
-                        "numeracion": venta[0].numeracion
+                        "numeracion": venta[0].numeracion,
+                        "facturado": venta[0].facturado
                     },
                     "cliente": {
                         "documento": venta[0].documento,

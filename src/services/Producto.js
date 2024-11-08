@@ -18,21 +18,19 @@ class Producto {
 
     async list(req, res) {
         try {
-
-            const bucket = firebaseService.getBucket();
-
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
+            const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
-                if (bucket) {
+                if (bucket && item.imagen) {
                     return {
                         ...item,
-                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                         // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
                         id: (index + 1) + parseInt(req.query.posicionPagina)
                     }
@@ -1190,6 +1188,7 @@ class Producto {
             const result = await conec.query(`
             SELECT 
                 p.idProducto,
+                p.imagen,
                 p.codigo,
                 p.nombre,
                 p.costo,
@@ -1217,9 +1216,21 @@ class Producto {
                 )`, [
                 req.query.filtrar,
                 req.query.filtrar,
-            ])
+            ]);
 
-            return sendSuccess(res, result);
+            const bucket = firebaseService.getBucket();
+            const newData = result.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return item;
+            });
+
+
+            return sendSuccess(res, newData);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filter", error);
         }

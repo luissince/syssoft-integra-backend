@@ -16,9 +16,13 @@ class Dashboard {
                 "totalCuentasPorCobrar": result[2][0].total ?? 0,
                 "totalCuentasPorPagar": result[3][0].total ?? 0,
                 "totalComprobantes": result[4][0].total ?? 0,
-                "totalInventario": result[5][0].total ?? 0,
-                "totalSucursales": result[6][0].total ?? 0,
-                "inventarios": result[7] ?? [],
+                "totalComprobantesPorDeclarar": result[5][0].total ?? 0,
+                "totalCotizaciones": result[6][0].total ?? 0,
+                "totalCotizacionesLigadas": result[7][0].total ?? 0,
+                "sucursales": result[8] ?? [],
+                // "totalInventario": result[5][0].total ?? 0,
+                // "totalSucursales": result[6][0].total ?? 0,
+                // "inventarios": result[7] ?? [],
             });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Dashboard/init", error);

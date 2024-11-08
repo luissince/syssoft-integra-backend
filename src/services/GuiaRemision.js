@@ -441,6 +441,7 @@ class GuiaRemision {
                 cgui.nombre AS comprobante,
                 gui.serie,
                 gui.numeracion,
+                cgui.facturado,
                 --
                 mdt.nombre AS modalidadTraslado,
                 --
@@ -581,7 +582,8 @@ class GuiaRemision {
                     "comprobante": {
                         "nombre": guiaRemision[0].comprobante,
                         "serie": guiaRemision[0].serie,
-                        "numeracion": guiaRemision[0].numeracion
+                        "numeracion": guiaRemision[0].numeracion,
+                        "facturado": guiaRemision[0].facturado
                     },
                     "modalidadTraslado": {
                         "nombre": guiaRemision[0].modalidadTraslado
