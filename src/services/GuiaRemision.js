@@ -1,6 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
-const { sendSuccess, sendError, sendSave } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendClient } = require('../tools/Message');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
@@ -304,7 +304,7 @@ class GuiaRemision {
             }
 
             await conec.commit(connection);
-            return sendSave(res,{
+            return sendSave(res, {
                 message: "Se registró correctamente la guían de remisión.",
                 idGuiaRemision: idGuiaRemision
             });
@@ -320,6 +320,27 @@ class GuiaRemision {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const guiaRemision = await conec.execute(connection, `
+                SELECT 
+                    idGuiaRemision,
+                    estado
+                FROM 
+                    guiaRemision 
+                WHERE 
+                    idGuiaRemision = ?`, [
+                req.body.idGuiaRemision
+            ]);
+
+            if (guiaRemision.length === 0) {
+                await conec.rollback(connection);
+                return sendClient(res, `La guía de remisión no existe.`);
+            }
+
+            if (guiaRemision[0].estado === 0) {
+                await conec.rollback(connection);
+                return sendClient(res, `Por el momento la guía de remisión ya se encuentra en estado anulado.`);
+            }
 
             await conec.execute(connection, `
                 UPDATE 
@@ -388,12 +409,11 @@ class GuiaRemision {
             }
 
             await conec.commit(connection);
-            return sendSave(res,{
+            return sendSave(res, {
                 message: "Se actualizón correctamente la guían de remisión.",
                 idGuiaRemision: req.body.idGuiaRemision
             });
         } catch (error) {
-            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -406,10 +426,39 @@ class GuiaRemision {
         try {
             connection = await conec.beginTransaction();
 
+            const guiaRemision = await conec.execute(connection, `
+                SELECT 
+                    idGuiaRemision,
+                    estado
+                FROM 
+                    guiaRemision 
+                WHERE 
+                    idGuiaRemision = ?`, [
+                req.query.idGuiaRemision
+            ]);
 
+            if (guiaRemision.length === 0) {
+                await conec.rollback(connection);
+                return sendClient(res, `La guía de remisión no existe.`);
+            }
+
+            if (guiaRemision[0].estado === 0) {
+                await conec.rollback(connection);
+                return sendClient(res, `La guía de remisión ya se encuentra en estado anulado.`);
+            }
+
+            await conec.execute(connection, `
+                UPDATE 
+                    guiaRemision 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idGuiaRemision = ?`, [
+                req.query.idGuiaRemision
+            ]);
 
             await conec.commit(connection);
-            return sendSave(res, "Se anuló correctamente la guían de remisión.");
+            return sendSave(res, "La guía de remisión se anuló correctamente. Si ya fue informada a SUNAT, deberá anularla manualmente ingresando al portal de SUNAT.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
@@ -680,7 +729,7 @@ class GuiaRemision {
                 url: `${process.env.APP_PDF}/dispatch-guide/excel`,
                 headers: {
                     'Content-Type': 'application/json',
-                },                
+                },
                 responseType: 'arraybuffer'
             };
 

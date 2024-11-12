@@ -49,9 +49,9 @@ app.use((req, res, next) => {
     console.log('Fecha:', currentDate() + " " + currentTime());
     console.log('Método:', req.method);
     console.log('URL:', req.url);
-    console.log('Cuerpo:', req.body);
-    console.log('Parametro:', req.params);
-    console.log('Consulta:', req.query);
+    console.log('Cuerpo(req.body):', req.body);
+    console.log('Parametro(req.params):', req.params);
+    console.log('Consulta(req.query):', req.query);
     next();
 });
 
