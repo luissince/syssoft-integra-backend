@@ -13,22 +13,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - environment: legrand-tiquepos
-            service: legrand-tiquepos-services
-          - environment: raices
-            service: raices-services 
-          - environment: felicitygirls-tiquepos
-            service: felicitygirls-tiquepos-services 
-          - environment: bodega-modelo
-            service: bodega-modelo-services
-          - environment: unnagro
-            service: unnagro-services
           - environment: leatsac
             service: leatsac-services
           - environment: ferreteria-rym
             service: ferreteria-rym-services
-          - environment: asiaticos-pcl
-            service: asiaticos-pcl-services
           - environment: principal
             service: principal-services
 
