@@ -337,7 +337,7 @@ class GuiaRemision {
                 return sendClient(res, `La guía de remisión no existe.`);
             }
 
-            if (guiaRemision[0].estado === 0) {
+            if (guiaRemision[0].estado === 3) {
                 await conec.rollback(connection);
                 return sendClient(res, `Por el momento la guía de remisión ya se encuentra en estado anulado.`);
             }
@@ -442,7 +442,7 @@ class GuiaRemision {
                 return sendClient(res, `La guía de remisión no existe.`);
             }
 
-            if (guiaRemision[0].estado === 0) {
+            if (guiaRemision[0].estado === 3) {
                 await conec.rollback(connection);
                 return sendClient(res, `La guía de remisión ya se encuentra en estado anulado.`);
             }
@@ -451,7 +451,7 @@ class GuiaRemision {
                 UPDATE 
                     guiaRemision 
                 SET 
-                    estado = 0 
+                    estado = 3 
                 WHERE 
                     idGuiaRemision = ?`, [
                 req.query.idGuiaRemision
