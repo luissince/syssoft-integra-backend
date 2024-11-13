@@ -159,6 +159,31 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
+                // Calcular es costo actual en base a la formula de costo promedio ponderado
+                const valorTotalInventarioInicial = await conec.execute(connection, `
+                SELECT 
+                    i.cantidad,
+                    IFNULL(SUM(i.cantidad * p.costo), 0) AS total
+                FROM 
+                    inventario as i
+                JOIN
+                    producto as p ON i.idProducto = p.idProducto
+                WHERE 
+                    i.idProducto = ? and i.idAlmacen = ?`, [
+                    item.idProducto,
+                    idAlmacen
+                ]);
+
+                let costo = 0;
+
+                if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
+                    const valorTotalNuevaCompra = item.costo * item.cantidad;
+                    const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
+                    const sumaCantidades = item.cantidad + valorTotalInventarioInicial[0].cantidad;
+                    const costoPromedio = sumaTotales / sumaCantidades;
+                    costo = costoPromedio;
+                }
+
                 // Obtener inventario
                 const inventario = await conec.execute(connection, `
                 SELECT 
@@ -232,6 +257,21 @@ class Compra {
                     item.cantidad,
                     inventario[0].idInventario
                 ]);
+
+                // Actualizar el costo del producto
+                if (costo > 0) {
+                    await conec.execute(connection, `
+                        UPDATE 
+                            producto 
+                        SET 
+                            costo = ?
+                        WHERE 
+                            idProducto = ?`, [
+                        costo,
+                        item.idProducto
+                    ]);
+
+                }
 
                 idCompraDetalle++;
             }
