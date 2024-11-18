@@ -22,7 +22,8 @@ class Sucursal {
                 p.idSucursal,
                 p.nombre,
                 p.direccion,
-                p.estado
+                p.estado,
+                p.principal
             FROM 
                 sucursal AS p
             WHERE 
@@ -99,12 +100,13 @@ class Sucursal {
                 idUbigeo,
                 ruta,
                 estado,
+                principal,
                 fecha,
                 hora,
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
                 //datos
                 req.body.nombre,
@@ -116,6 +118,7 @@ class Sucursal {
                 req.body.idUbigeo,
                 imagen,
                 req.body.estado,
+                req.body.principal,
                 currentDate(),
                 currentTime(),
                 currentDate(),
@@ -145,6 +148,7 @@ class Sucursal {
                 IFNULL(p.paginaWeb, '') AS paginaWeb,
                 IFNULL(p.direccion, '') AS direccion,
                 p.ruta,
+                p.estado,
                 p.estado,
                 --
                 p.idUbigeo,
@@ -192,6 +196,10 @@ class Sucursal {
 
             const imagen = await processImage(fileDirectory, req.body.imagen, req.body.extension, sucursal[0].ruta);
 
+            if(req.body.principal === 1){
+                await conec.execute(connection, `UPDATE sucursal SET principal = 0`);
+            }
+
             await conec.execute(connection, `
             UPDATE 
                 sucursal 
@@ -205,6 +213,7 @@ class Sucursal {
                 idUbigeo = ?,
                 ruta = ?,
                 estado = ?,   
+                principal = ?,
                 fupdate = ?,
                 hupdate = ? ,
                 idUsuario = ?
@@ -219,6 +228,7 @@ class Sucursal {
                 req.body.idUbigeo,
                 imagen,
                 req.body.estado,
+                req.body.principal,
                 currentDate(),
                 currentTime(),
                 req.body.idUsuario,
