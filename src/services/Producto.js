@@ -1450,6 +1450,28 @@ class Producto {
         }
     }
 
+    async filterWebIndex(req, res) {
+        try {
+            const bucket = firebaseService.getBucket();
+
+            const lista = await conec.procedure(`CALL Listar_Productos_Web_Index(?)`, [parseInt(req.query.limit)]);
+            const resultLista = lista.map(function (item, _) {
+                if (bucket) {
+                    return {
+                        ...item,
+                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+            return sendSuccess(res, resultLista);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebIndex", error);
+        }
+    }
+
     async filterWebId(req, res) {
         try {
             const bucket = firebaseService.getBucket();
@@ -1565,6 +1587,28 @@ class Producto {
                 producto[0].idProducto
             ]);
 
+            const relacionados = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.codigo,
+                p.nombre,
+                pc.valor AS precio,
+                p.imagen,
+                c.nombre AS categoria
+            FROM 
+                producto AS p 
+            INNER JOIN 
+                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+            INNER JOIN 
+                categoria AS c ON p.idCategoria = c.idCategoria    
+            WHERE
+                p.publicar = 1
+            ORDER BY 
+                p.fecha DESC, p.hora DESC
+            LIMIT 4`, [
+                producto[0].idCategoria
+            ])
+
             const respuesta = {
                 ...producto[0],
                 imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
@@ -1580,7 +1624,8 @@ class Producto {
                 imagenes: newImagenes,
                 colores,
                 tallas,
-                sabores
+                sabores,
+                relacionados
             };
 
             // const r2 = new S3Client({
@@ -1601,6 +1646,52 @@ class Producto {
             // );
 
             return sendSuccess(res, respuesta);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
+        }
+    }
+
+    async filterWebRelatedId(req, res) {
+        try {
+            const bucket = firebaseService.getBucket();
+
+            const list = await conec.query(`
+            SELECT 
+                p.idProducto,
+                p.codigo,
+                p.nombre,
+                pc.valor AS precio,
+                p.imagen,
+                c.nombre AS categoria
+            FROM 
+                producto AS p 
+            INNER JOIN 
+                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+            INNER JOIN 
+                categoria AS c ON p.idCategoria = c.idCategoria    
+            WHERE
+                p.publicar = 1 AND p.idCategoria = ?
+            ORDER BY 
+                p.fecha DESC, p.hora DESC
+            LIMIT 4`, [
+                req.query.idCategoria
+            ])
+
+            const resultLista = list.map(function (item, index) {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
+            console.log(resultLista)
+
+            return sendSuccess(res, resultLista);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
         }

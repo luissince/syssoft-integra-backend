@@ -63,6 +63,8 @@ class Empresa {
                 documento,
                 razonSocial,
                 nombreEmpresa,
+                email,
+                paginaWeb,
                 rutaLogo,
                 rutaImage,
                 usuarioEmail,
@@ -72,7 +74,11 @@ class Empresa {
                 certificadoSunat,
                 claveCertificadoSunat,
                 idApiSunat,
-                claveApiSunat
+                claveApiSunat,
+                horarioAtencion,
+                acercaNosotros,
+                politicasPrivacidad,
+                terminosCondiciones
             FROM 
                 empresa
             WHERE 
@@ -165,6 +171,8 @@ class Empresa {
                 documento = ?,
                 razonSocial = ?,
                 nombreEmpresa = ?,
+                email = ?,
+                paginaWeb = ?,
 
                 rutaLogo=?,
                 rutaImage=?,
@@ -183,6 +191,11 @@ class Empresa {
                 idApiSunat=?,
                 claveApiSunat=?,
 
+                horarioAtencion=?,
+                acercaNosotros=?,
+                politicasPrivacidad=?,
+                terminosCondiciones=?,
+
                 fupdate= ?,
                 hupdate=?,
                 idUsuario=?
@@ -191,6 +204,8 @@ class Empresa {
                 req.body.documento,
                 req.body.razonSocial,
                 req.body.nombreEmpresa,
+                req.body.email,
+                req.body.paginaWeb,
 
                 rutaLogo,
                 rutaImage,
@@ -208,6 +223,11 @@ class Empresa {
 
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
+
+                req.body.horarioAtencion,
+                req.body.acercaNosotros,
+                req.body.politicasPrivacidad,
+                req.body.terminosCondiciones,
 
                 currentDate(),
                 currentTime(),
@@ -356,6 +376,28 @@ class Empresa {
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/combo", error);
+        }
+    }
+
+    async loadForWeb(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT
+                nombreEmpresa,
+                email,
+                paginaWeb,
+                horarioAtencion,
+                acercaNosotros,
+                politicasPrivacidad,
+                terminosCondiciones
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
         }
     }
 }

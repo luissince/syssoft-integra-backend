@@ -1,12 +1,16 @@
-const { sendSuccess, sendError, sendFile } = require('../tools/Message');
+const { sendSuccess, sendError, sendFile, sendClient } = require('../tools/Message');
 const { currentDate } = require('../tools/Tools');
-
-require('dotenv').config();
-const axios = require('axios').default;
+const Factura = require('./Factura');
+const GuiaRemision = require('./GuiaRemision');
+const { default: axios } = require('axios');
 const Conexion = require('../database/Conexion');
 const ErrorResponse = require('../tools/ErrorAxios');
-const { head } = require('axios');
+
+require('dotenv').config();
+
 const conec = new Conexion();
+const factura = new Factura();
+const guiaRemision = new GuiaRemision();
 
 class Sunat {
 
@@ -168,13 +172,11 @@ class Sunat {
 
             const privateKey = Buffer.from(flattenedPrivateKey, 'base64').toString('utf-8');
 
-
             const publicKeyBase64 = Buffer.from(empresa[0].certificadoPem).toString('base64');
 
             const flattenedPublicKey = publicKeyBase64.replace(/\s+/g, '');
 
             const publicKey = Buffer.from(flattenedPublicKey, 'base64').toString('utf-8');
-
 
             const options = {
                 method: 'POST',
@@ -197,7 +199,6 @@ class Sunat {
 
             const response = await axios.request(options);
 
-
             await conec.update(response.data.update, "venta", "idVenta", req.params.idVenta);
 
             delete response.data.update;
@@ -205,7 +206,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/factura", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/factura", error)
         }
     }
 
@@ -346,7 +347,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/anularBoleta", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/anularBoleta", error)
         }
     }
 
@@ -463,7 +464,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/anularFactura", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/anularFactura", error)
         }
     }
 
@@ -623,7 +624,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/guiaRemision", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/guiaRemision", error)
         }
     }
 
@@ -651,7 +652,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/consultar", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/consultar", error)
         }
     }
 
@@ -677,7 +678,7 @@ class Sunat {
             sendSuccess(res, response.data);
         } catch (error) {
             const errorResponse = new ErrorResponse(error);
-            sendError(res, errorResponse.getMessage(),"Sunat/consultar", error)
+            sendError(res, errorResponse.getMessage(), "Sunat/consultar", error)
         }
     }
 
@@ -741,6 +742,178 @@ class Sunat {
             sendFile(res, responde);
         } catch (error) {
             sendError(res, "Error al obtener el PDF", "Sunat/generarXmlSunat", error)
+        }
+    }
+
+    async enviarEmail(req, res) {
+        try {
+            let responseInvoices;
+
+            if (req.params.tipo === "fac") {
+                const params = {
+                    idVenta: req.params.idComprobante,
+                    size: "A4"
+                }
+
+                const data = await factura.documentsPdfInvoices({
+                    params: params
+                });
+
+                const optionsInvoices = {
+                    method: 'POST',
+                    url: `${process.env.APP_PDF}/sale/pdf/invoices`,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    data: data,
+                    responseType: 'arraybuffer'
+                };
+
+                responseInvoices = await axios.request(optionsInvoices);
+            } else {
+                const params = {
+                    idGuiaRemision: req.params.idComprobante,
+                    size: "A4"
+                }
+
+                const data = await guiaRemision.documentsPdfInvoices({
+                    params: params
+                });
+
+                const optionsInvoices = {
+                    method: 'POST',
+                    url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    data: data,
+                    responseType: 'arraybuffer'
+                };
+
+                responseInvoices = await axios.request(optionsInvoices);
+            }
+
+            const empresa = await conec.query(`
+                SELECT 
+                    documento,
+                    razonSocial,
+                    nombreEmpresa,
+                    usuarioEmail,
+                    claveEmail
+                FROM 
+                    empresa
+                LIMIT 
+                    1`);
+
+            const xml = await conec.query(`
+                SELECT 
+                    v.xmlGenerado,
+                    co.nombre,
+                    v.serie,
+                    v.numeracion,
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
+                    cn.documento, 
+                    cn.informacion,
+                    cn.email
+                FROM 
+                    venta AS v 
+                INNER JOIN 
+                    comprobante AS co ON v.idComprobante = co.idComprobante
+                INNER JOIN
+                    persona AS cn ON v.idCliente = cn.idPersona
+                WHERE 
+                    v.idVenta = ?
+        
+                UNION
+                
+                SELECT 
+                    gu.xmlGenerado,
+                    co.nombre,
+                    gu.serie,
+                    gu.numeracion,
+                    DATE_FORMAT(gu.fecha, '%d/%m/%Y') AS fecha,
+                    cn.documento, 
+                    cn.informacion,
+                    cn.email
+                FROM 
+                    guiaRemision AS gu 
+                INNER JOIN 
+                    comprobante AS co ON gu.idComprobante = co.idComprobante
+                INNER JOIN 
+                    venta AS v ON v.idVenta = gu.idVenta
+                INNER JOIN 
+                    persona AS cn ON v.idCliente = cn.idPersona
+                WHERE 
+                    gu.idGuiaRemision = ?`, [
+                req.params.idComprobante,
+                req.params.idComprobante,
+            ]);
+
+            if (xml.length === 0) {
+                return sendClient(res, "No hay información del comprobante.");
+            }
+
+            if (xml[0].xmlGenerado === null || xml[0].xmlGenerado === "") {
+                return sendClient(res, "El comprobante no tiene generado ningún xml.");
+            }
+
+            if (xml[0].email === null || xml[0].email === "") {
+                return sendClient(res, "El cliente no tiene configurado un email.");
+            }
+
+            if (empresa[0].usuarioEmail === null || empresa[0].usuarioEmail === "") {
+                return sendClient(res, "No se ha configurado el email de envío.");
+            }
+
+            if (empresa[0].claveEmail === null || empresa[0].claveEmail === "") {
+                return sendClient(res, "No se ha configurado la clave de envío.");
+            }
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_EMAIL}/send/google`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    from: {
+                        name: empresa[0].nombreEmpresa ?? empresa[0].razonSocial,
+                        address: empresa[0].usuarioEmail
+                    },
+                    password: empresa[0].claveEmail,
+                    to: xml[0].email,
+                    subject: "Comprobante Electrónico",
+                    html: `
+                        <p>Estimado Cliente <b>${xml[0].informacion}</b>.</p>
+                        <p>Le envíamos la información de su comprobante electrónico.</p>
+                        <span>N° RUC del Emisor: <b>${empresa[0].documento}</b></span><br/>
+                        <span>Tipo de Comprobante: <b>${xml[0].nombre}</b></span><br/>
+                        <span>Serie del Comprobante: <b>${xml[0].serie}</b></span><br/>
+                        <span>Número del Comprobante : <b>${xml[0].numeracion}</b></span><br/>
+                        <span>N° RUC/DNI del Cliente: <b>${xml[0].documento}</b></span><br/>
+                        <span>Fecha de Emisión: <b>${xml[0].fecha}</b></span><br/>
+                        <p>Atentamente ,</p>
+                        `,
+                    attachments: [
+                        {
+                            filename: `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml`,
+                            content: xml[0].xmlGenerado,
+                            contentType: 'application/xml'
+                        },
+                        {
+                            filename: `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.pdf`,
+                            content: responseInvoices.data,
+                            contentType: 'application/pdf'
+                        }
+                    ],
+                },
+            };
+
+            const response = await axios.request(options);
+            sendSuccess(res, response.data);
+        } catch (error) {
+            const errorResponse = new ErrorResponse(error);
+            sendError(res, errorResponse.getMessage(), "Sunat/consultar", error)
         }
     }
 

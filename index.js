@@ -107,7 +107,7 @@ app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
 app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
 app.use('/api/tipopeso', require('./src/router/TipoPeso'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
-app.use('/api/pedido', require('./src/router/Pedido'));
+app.use('/api/ordencompra', require('./src/router/OrdenCompra'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));

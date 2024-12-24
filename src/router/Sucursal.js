@@ -18,4 +18,6 @@ router.get('/id/inicio', async (req, res) => await sucursal.idInicio(req, res));
 
 router.get('/combo',async (req, res)=> await sucursal.combo(req, res));
 
+router.get('/list/web', async (req, res) => await sucursal.listForWeb(req, res));
+
 module.exports = router;

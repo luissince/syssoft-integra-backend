@@ -42,7 +42,7 @@ router.get("/documents/pdf/invoices/:idCompra/:size", async (req, res) => {
         const response = await axios.request(options);
         return sendFile(res, response);
     } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfInvoices", error);
+        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/documentsPdfInvoices", error);
     }
 });
 

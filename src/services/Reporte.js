@@ -1,6 +1,6 @@
 const { dateFormat, currentTime, currentDate, formatNumberWithZeros } = require('../tools/Tools');
 const xl = require('excel4node');
-const { sendPdf, sendError, sendClient, sendSuccess } = require('../tools/Message');
+const { sendPdf, sendError, sendSuccess } = require('../tools/Message');
 
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');

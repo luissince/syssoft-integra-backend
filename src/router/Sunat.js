@@ -18,6 +18,8 @@ router.get('/consultar/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion'
 
 router.get('/cdr/:ruc/:usuario/:clave/:tipoComprobante/:serie/:numeracion', async (req, res) => await sunat.cdr(req, res));
 
+router.get('/email/:idComprobante/:tipo', async (req, res) => await sunat.enviarEmail(req, res));
+
 router.get('/xml/:idComprobante', async (req, res) => await sunat.generarXmlSunat(req, res));
 
 router.get('/dashboard', async (req, res) => await sunat.dashboard(req, res));

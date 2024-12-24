@@ -1552,7 +1552,7 @@ class Factura {
         }
     }
 
-    async documentsPdfInvoices(req, res) {
+    async documentsPdfInvoices(req, _) {
         try {
             const { idVenta, size } = req.params;
 
@@ -1742,8 +1742,6 @@ class Factura {
 
     async documentsPdfAccountsReceivable(req, res) {
         try {
-            console.log(req.params.idCuota);
-            console.log(req.params.idVenta);
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_PDF}/sale/pdf/account/receivable`,
@@ -1801,4 +1799,4 @@ class Factura {
 
 }
 
-module.exports = new Factura();
+module.exports = Factura;

@@ -39,7 +39,7 @@ class Sucursal {
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
-            ])
+            ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
@@ -98,6 +98,7 @@ class Sucursal {
                 paginaWeb,
                 direccion,
                 idUbigeo,
+                googleMaps,
                 ruta,
                 estado,
                 principal,
@@ -106,7 +107,7 @@ class Sucursal {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
                 //datos
                 req.body.nombre,
@@ -116,6 +117,7 @@ class Sucursal {
                 req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
+                req.body.googleMaps,
                 imagen,
                 req.body.estado,
                 req.body.principal,
@@ -147,8 +149,9 @@ class Sucursal {
                 IFNULL(p.email, '') AS email,
                 IFNULL(p.paginaWeb, '') AS paginaWeb,
                 IFNULL(p.direccion, '') AS direccion,
+                IFNULL(p.googleMaps, '') AS googleMaps,
                 p.ruta,
-                p.estado,
+                p.principal,
                 p.estado,
                 --
                 p.idUbigeo,
@@ -211,6 +214,7 @@ class Sucursal {
                 paginaWeb = ?,
                 direccion = ?,
                 idUbigeo = ?,
+                googleMaps = ?,
                 ruta = ?,
                 estado = ?,   
                 principal = ?,
@@ -226,6 +230,7 @@ class Sucursal {
                 req.body.paginaWeb,
                 req.body.direccion,
                 req.body.idUbigeo,
+                req.body.googleMaps,
                 imagen,
                 req.body.estado,
                 req.body.principal,
@@ -379,6 +384,32 @@ class Sucursal {
             return sendSuccess(res, sucursales);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/combo", error);
+        }
+    }
+
+    async listForWeb(req, res) { 
+        try {
+            const list = await conec.query(`
+            SELECT  
+                p.idSucursal,
+                p.nombre,
+                p.email,
+                p.telefono,
+                p.celular,
+                p.email,
+                p.paginaWeb,
+                p.direccion,
+                p.googleMaps,
+                p.estado,
+                p.principal
+            FROM 
+                sucursal AS p
+            WHERE 
+                p.estado = 1`);
+
+            return sendSuccess(res, list);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/listForWeb", error);
         }
     }
 

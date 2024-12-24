@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const factura = require('../services/Factura');
+const Factura = require('../services/Factura');
 const { default: axios } = require('axios');
 const { sendFile, sendError } = require('../tools/Message');
+
+const factura = new Factura();
 
 router.get("/list", async (req, res) => await factura.list(req, res));
 

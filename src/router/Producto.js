@@ -37,7 +37,11 @@ router.get('/filter/web', async (req, res) => await producto.filterWeb(req, res)
 
 router.get('/filter/web/pages', async (req, res) => await producto.filterWebPages(req, res));
 
+router.get('/filter/web/index', async (req, res) => await producto.filterWebIndex(req, res));
+
 router.get('/filter/web/id', async (req, res) => await producto.filterWebId(req, res));
+
+router.get('/filter/web/related/id', async (req, res) => await producto.filterWebRelatedId(req, res));
 
 router.get("/documents/pdf/reports", async (req, res) => await producto.documentsPdfReports(req, res));
 
