@@ -7,11 +7,11 @@ const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
-class OrdenCompra {
+class Pedido {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Ordenes_Compra(?,?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
@@ -30,7 +30,7 @@ class OrdenCompra {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Ordenes_Compra_Count(?,?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Pedidos_Count(?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
                 req.query.fechaInicio,
@@ -41,7 +41,7 @@ class OrdenCompra {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
         }
     }
 
@@ -60,17 +60,17 @@ class OrdenCompra {
                 c.observacion,
                 c.nota
             FROM 
-                ordenCompra AS c
+                pedido AS c
             INNER JOIN 
-                persona AS p ON p.idPersona = c.idProveedor
+                persona AS p ON p.idPersona = c.idCliente
             WHERE 
-                c.idOrdenCompra = ?`, [
-                req.query.idOrdenCompra,
+                c.idPedido = ?`, [
+                req.query.idPedido,
             ]);
 
             const detalle = await conec.query(`
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY cd.idOrdenCompraDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
                 cd.cantidad,
                 cd.idImpuesto,
                 p.idMedida,
@@ -93,10 +93,10 @@ class OrdenCompra {
             INNER JOIN 
                 impuesto AS i ON cd.idImpuesto = i.idImpuesto
             WHERE 
-                cd.idOrdenCompra = ?
+                cd.idPedido = ?
             ORDER BY 
-                cd.idOrdenCompraDetalle ASC`, [
-                req.query.idOrdenCompra,
+                cd.idPedidoDetalle ASC`, [
+                req.query.idPedido,
             ]);
 
             const idImpuesto = detalle[0]?.idImpuesto ?? '';
@@ -104,13 +104,13 @@ class OrdenCompra {
 
             return sendSuccess(res, { cabecera: cabecera[0], detalle });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/id", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/id", error)
         }
     }
 
     async detail(req, res) {
         try {
-            // Consulta la información principal de la orden de compra
+            // Consulta la información principal del pedido
             const ordenCompra = await conec.query(`
             SELECT 
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
@@ -136,7 +136,7 @@ class OrdenCompra {
             INNER JOIN 
                 moneda AS mo ON mo.idMoneda = c.idMoneda
             INNER JOIN 
-                persona AS cn ON cn.idPersona = c.idProveedor
+                persona AS cn ON cn.idPersona = c.idCliente
             INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
@@ -144,10 +144,10 @@ class OrdenCompra {
                 req.query.idOrdenCompra,
             ]);
 
-            // Consulta los detalles de la orden de compra
+            // Consulta los detalles del pedido
             const detalles = await conec.query(`
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY cd.idOrdenCompraDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
                 p.imagen,
                 p.codigo,
                 p.nombre AS producto,
@@ -169,10 +169,10 @@ class OrdenCompra {
             INNER JOIN 
                 impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
             WHERE
-                cd.idOrdenCompra = ?
+                cd.idPedido = ?
             ORDER BY 
-                cd.idOrdenCompraDetalle ASC`, [
-                req.query.idOrdenCompra,
+                cd.idPedidoDetalle ASC`, [
+                req.query.idPedido,
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -188,11 +188,11 @@ class OrdenCompra {
                 }
             });
 
-            // Devuelve un objeto con la información del ordenCompra, los detalles y las salidas
+            // Devuelve un objeto con la información del pedido y los detalles 
             return sendSuccess(res, { cabecera: ordenCompra[0], detalles: listaDetalles });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/detail", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
         }
     }
 
@@ -209,12 +209,12 @@ class OrdenCompra {
                 IFNULL(p.email,'') AS email,
                 IFNULL(p.direccion,'') AS direccion
             FROM 
-                ordenCompra AS c
+                pedido AS c
             INNER JOIN 
-                persona AS p ON p.idPersona = c.idProveedor
+                persona AS p ON p.idPersona = c.idCliente
             WHERE 
-                c.idOrdenCompra = ?`, [
-                req.query.idOrdenCompra
+                c.idPedido = ?`, [
+                req.query.idPedido
             ]);
 
             // const detalles = await conec.query(`
@@ -305,9 +305,9 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
-            // Genera un nuevo ID para ela orden de compra
-            const result = await conec.execute(connection, 'SELECT idOrdenCompra FROM ordenCompra');
-            const idOrdenCompra = generateAlphanumericCode("OC0001", result, 'idOrdenCompra');
+            // Genera un nuevo ID para el pedido
+            const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
+            const idPedido = generateAlphanumericCode("PD0001", result, 'idPedido');
 
             // Consulta datos del comprobante para generar la numeración
             const comprobante = await conec.execute(connection, `
@@ -321,23 +321,23 @@ class OrdenCompra {
                 req.body.idComprobante
             ]);
 
-            // Consulta numeraciones de las ordenes de compra asociadas al mismo comprobante
-            const ordenCompras = await conec.execute(connection, `
+            // Consulta numeraciones de los pedidos  asociadas al mismo comprobante
+            const pedidos = await conec.execute(connection, `
             SELECT 
                 numeracion  
             FROM 
-                ordenCompra 
+                pedido 
             WHERE 
                 idComprobante = ?`, [
                 req.body.idComprobante
             ]);
 
-            // Genera una nueva numeración para la orden de compra
-            const numeracion = generateNumericCode(comprobante[0].numeracion, ordenCompras, "numeracion");
+            // Genera una nueva numeración para el pedido
+            const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
 
-            await conec.execute(connection, `INSERT INTO ordenCompra(
-                idOrdenCompra,
-                idProveedor,
+            await conec.execute(connection, `INSERT INTO pedido(
+                idPedido,
+                idCliente,
                 idUsuario,
                 idComprobante,
                 idSucursal,
@@ -350,8 +350,8 @@ class OrdenCompra {
                 fecha,
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                idOrdenCompra,
-                req.body.idProveedor,
+                idPedido,
+                req.body.idCliente,
                 req.body.idUsuario,
                 req.body.idComprobante,
                 req.body.idSucursal,
@@ -365,23 +365,23 @@ class OrdenCompra {
                 currentTime(),
             ]);
 
-            // Genera un nuevo ID para los detalles del ordenCompra
-            const listaOrdenCompraDetalle = await conec.execute(connection, 'SELECT idOrdenCompraDetalle FROM ordenCompraDetalle');
-            let idOrdenCompraDetalle = generateNumericCode(1, listaOrdenCompraDetalle, 'idOrdenCompraDetalle');
+            // Genera un nuevo ID para los detalles del pedido
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalle) {
-                await await conec.execute(connection, `INSERT INTO ordenCompraDetalle(
-                    idOrdenCompraDetalle,
-                    idOrdenCompra,
+                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
                     idProducto,
                     idMedida,
                     costo,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
-                    idOrdenCompraDetalle,
-                    idOrdenCompra,
+                    idPedidoDetalle,
+                    idPedido,
                     item.idProducto,
                     item.idMedida,
                     item.costo,
@@ -389,19 +389,19 @@ class OrdenCompra {
                     item.idImpuesto
                 ]);
 
-                idOrdenCompraDetalle++;
+                idPedidoDetalle++;
             }
 
             await conec.commit(connection);
             return sendSave(res, {
-                idOrdenCompra: idOrdenCompra,
-                message: "Se registró correctamente la orden de compra."
+                idPedidoDetalle: idPedidoDetalle,
+                message: "Se registró correctamente el pedido."
             });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/create", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/create", error)
         }
     }
 
@@ -412,9 +412,9 @@ class OrdenCompra {
 
             await conec.execute(connection, `
             UPDATE 
-                ordenCompra 
+                pedido 
             SET
-                idProveedor = ?,
+                idCliente = ?,
                 idUsuario = ?,
                 idSucursal = ?,
                 idMoneda = ?,
@@ -424,8 +424,8 @@ class OrdenCompra {
                 fecha = ?,
                 hora = ?
             WHERE 
-                idOrdenCompra = ?`, [
-                req.body.idProveedor,
+                idPedido = ?`, [
+                req.body.idCliente,
                 req.body.idUsuario,
                 req.body.idSucursal,
                 req.body.idMoneda,
@@ -434,34 +434,34 @@ class OrdenCompra {
                 req.body.estado,
                 currentDate(),
                 currentTime(),
-                req.body.idOrdenCompra,
+                req.body.idPedido,
             ]);
 
             await conec.execute(connection, `
             DELETE FROM 
-                ordenCompraDetalle
+                pedidoDetalle
             WHERE 
-                idOrdenCompra = ?`, [
-                req.body.idOrdenCompra,
+                idPedido = ?`, [
+                req.body.idPedido,
             ]);
 
-            const listaOrdenCompraDetalle = await conec.execute(connection, 'SELECT idOrdenCompraDetalle FROM ordenCompraDetalle');
-            let idOrdenCompraDetalle = generateNumericCode(1, listaOrdenCompraDetalle, 'idOrdenCompraDetalle');
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
-            // Inserta los detalles de la orden de compra en la base de datos
+            // Inserta los detalles del pedido en la base de datos
             for (const item of req.body.detalle) {
                 await await conec.execute(connection, `
-                INSERT INTO ordenCompraDetalle(
-                    idOrdenCompraDetalle,
-                    idOrdenCompra,
+                INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
                     idProducto,
                     idMedida,
                     costo,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
-                    idOrdenCompraDetalle,
-                    req.body.idOrdenCompra,
+                    idPedidoDetalle,
+                    req.body.idPedido,
                     item.idProducto,
                     item.idMedida,
                     item.costo,
@@ -469,19 +469,19 @@ class OrdenCompra {
                     item.idImpuesto
                 ]);
 
-                idOrdenCompraDetalle++;
+                idPedidoDetalle++;
             }
 
             await conec.commit(connection);
             return sendSave(res, {
-                idOrdenCompra: req.body.idOrdenCompra,
-                message: "Se actualizó correctamente la orden de compra."
+                idPedido: req.body.idPedido,
+                message: "Se actualizó correctamente el pedido."
             });
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/update", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido /update", error)
         }
     }
 
@@ -490,50 +490,50 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
-            const ordenCompra = await conec.execute(connection, `
+            const pedido = await conec.execute(connection, `
             SELECT
                 estado
             FROM
-                ordenCompra
+                pedido
             WHERE
-                idOrdenCompra = ?
+                idPedido = ?
             `, [
-                req.query.idOrdenCompra
+                req.query.idPedido
             ]);
 
-            if (ordenCompra.length === 0) {
+            if (pedido.length === 0) {
                 await conec.rollback(connection);
-                return "No se encontro registros de la orden de compra.";
+                return "No se encontro registros del pedido.";
             }
 
-            if (ordenCompra[0].estado === 0) {
+            if (pedido[0].estado === 0) {
                 await conec.rollback(connection);
-                return "La orden de compra ya se encuentra anulado.";
+                return "El pedido ya se encuentra anulado.";
             }
 
             await conec.execute(connection, `
             UPDATE 
-                ordenCompra
+                pedido
             SET 
                 estado = 0
             WHERE
-                idOrdenCompra = ?`, [
-                req.query.idOrdenCompra
+                idPedido = ?`, [
+                req.query.idPedido
             ]);
 
             await conec.commit(connection);
-            return sendSave(res, "Se anuló correctamente la orden de compra.");
+            return sendSave(res, "Se anuló correctamente el pedido.");
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/cancel", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/cancel", error)
         }
     }
 
     async documentsPdfInvoicesOrList(req, res) {
         try {
-            const { idOrdenCompra, size } = req.params;
+            const { idPedido, size } = req.params;
 
             const bucket = firebaseService.getBucket();
 
@@ -547,7 +547,7 @@ class OrdenCompra {
             FROM 
                 empresa`);
 
-            const ordenCompra = await conec.query(`
+            const pedido = await conec.query(`
             SELECT 
                 DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
                 p.hora,
@@ -569,18 +569,18 @@ class OrdenCompra {
                 u.apellidos,
                 u.nombres
             FROM 
-                ordenCompra AS p
+                pedido AS p
             INNER JOIN
                 comprobante AS c ON c.idComprobante = p.idComprobante
             INNER JOIN
-                persona AS cp ON cp.idPersona = p.idProveedor
+                persona AS cp ON cp.idPersona = p.idCliente
             INNER JOIN
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
             WHERE 
-                p.idOrdenCompra = ?`, [
-                    idOrdenCompra
+                p.idPedido = ?`, [
+                idPedido
             ]);
 
             const sucursal = await conec.query(`
@@ -601,12 +601,12 @@ class OrdenCompra {
                 ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
             WHERE 
                 s.idSucursal = ?`, [
-                ordenCompra[0].idSucursal
+                pedido[0].idSucursal
             ]);
 
             const detalles = await conec.query(` 
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY gd.idOrdenCompraDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY gd.idPedidoDetalle ASC) AS id,
                 p.codigo,
                 p.nombre,
                 p.imagen,
@@ -617,7 +617,7 @@ class OrdenCompra {
                 i.nombre AS impuesto,
                 i.porcentaje
             FROM 
-                ordenCompraDetalle AS gd
+                pedidoDetalle AS gd
             INNER JOIN 
                 producto AS p ON gd.idProducto = p.idProducto
             INNER JOIN 
@@ -625,10 +625,10 @@ class OrdenCompra {
             INNER JOIN
                 impuesto AS i ON i.idImpuesto = gd.idImpuesto
             WHERE 
-                gd.idOrdenCompra = ?
+                gd.idPedido = ?
             ORDER BY 
-                gd.idOrdenCompraDetalle ASC`, [
-                idOrdenCompra
+                gd.idPedidoDetalle ASC`, [
+                idPedido
             ]);
 
             const bancos = await conec.query(`
@@ -662,30 +662,30 @@ class OrdenCompra {
                         "distrito": sucursal[0].distrito
                     }
                 },
-                "purchaseOrder": {
-                    "fecha": ordenCompra[0].fecha,
-                    "hora": ordenCompra[0].hora,
-                    "nota": ordenCompra[0].nota,
+                "order": {
+                    "fecha": pedido[0].fecha,
+                    "hora": pedido[0].hora,
+                    "nota": pedido[0].nota,
                     "comprobante": {
-                        "nombre": ordenCompra[0].comprobante,
-                        "serie": ordenCompra[0].serie,
-                        "numeracion": ordenCompra[0].numeracion
+                        "nombre": pedido[0].comprobante,
+                        "serie": pedido[0].serie,
+                        "numeracion": pedido[0].numeracion
                     },
                     "proveedor": {
-                        "documento": ordenCompra[0].documento,
-                        "informacion": ordenCompra[0].informacion,
-                        "direccion": ordenCompra[0].direccion
+                        "documento": pedido[0].documento,
+                        "informacion": pedido[0].informacion,
+                        "direccion": pedido[0].direccion
                     },
                     "moneda": {
-                        "nombre": ordenCompra[0].moneda,
-                        "simbolo": ordenCompra[0].simbolo,
-                        "codiso": ordenCompra[0].codiso
+                        "nombre": pedido[0].moneda,
+                        "simbolo": pedido[0].simbolo,
+                        "codiso": pedido[0].codiso
                     },
                     "usuario": {
-                        "apellidos": ordenCompra[0].apellidos,
-                        "nombres": ordenCompra[0].nombres
+                        "apellidos": pedido[0].apellidos,
+                        "nombres": pedido[0].nombres
                     },
-                    "ordenCompraDetalles": detalles.map(item => {
+                    "pedidoDetalles": detalles.map(item => {
                         return {
                             "id": item.id,
                             "cantidad": item.cantidad,
@@ -731,7 +731,7 @@ class OrdenCompra {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/documentsPdfReports", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfReports", error);
         }
     }
 
@@ -749,9 +749,9 @@ class OrdenCompra {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/documentsPdfExcel", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfExcel", error);
         }
     }
 }
 
-module.exports = OrdenCompra;
+module.exports = Pedido;

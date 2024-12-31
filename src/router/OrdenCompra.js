@@ -27,7 +27,7 @@ router.get("/documents/pdf/invoices/:idOrdenCompra/:size", async (req, res) => {
 
         const options = {
             method: 'POST',
-            url: `${process.env.APP_PDF}/order/pdf/invoices`,
+            url: `${process.env.APP_PDF}/purchase-order/pdf/invoices`,
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -48,7 +48,7 @@ router.get("/documents/pdf/lists/:idOrdenCompra", async (req, res) => {
 
         const options = {
             method: 'POST',
-            url: `${process.env.APP_PDF}/order/pdf/lists`,
+            url: `${process.env.APP_PDF}/purchase-order/pdf/lists`,
             headers: {
                 'Content-Type': 'application/json',
             },
