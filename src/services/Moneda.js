@@ -224,6 +224,7 @@ class Moneda {
 
     async nacional(req, res) {
         try {
+            console.log(conec)
             const result = await conec.query(`SELECT 
             idMoneda,
             nombre, 
