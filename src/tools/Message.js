@@ -106,9 +106,8 @@ function sendNoContent(res, result) {
  * @returns {import('express').Response} - La respuesta HTTP 500 con el mensaje de error.
  */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
-    if (process.env.ENVIRONMENT === 'development') {
-        console.error(error)
-    }
+    console.log(error)
+
     if (!error || !error.message) {
         logger.error(`${title}: ${error}`);
     } else {
