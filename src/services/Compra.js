@@ -6,6 +6,8 @@ const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
+require('dotenv').config();
+
 class Compra {
 
     async list(req, res) {
@@ -1227,6 +1229,8 @@ class Compra {
         try {
             const { idCompra, size } = req.params;
 
+            const bucket = firebaseService.getBucket();
+
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -1337,7 +1341,7 @@ class Compra {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,

@@ -2,7 +2,11 @@ const { currentDate, currentTime, generateNumericCode, generateAlphanumericCode 
 const Conexion = require('../database/Conexion');
 const { sendSuccess, sendError, sendSave, sendClient, sendFile } = require('../tools/Message');
 const { default: axios } = require('axios');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
+
+require('dotenv').config();
 
 class Gasto {
 
@@ -351,6 +355,8 @@ class Gasto {
         try {
             const { idGasto, size } = req.params;
 
+            const bucket = firebaseService.getBucket();
+
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -440,7 +446,7 @@ class Gasto {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,

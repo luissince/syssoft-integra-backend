@@ -1,11 +1,12 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile } = require('../tools/Message');
-require('dotenv').config();
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
+
+require('dotenv').config();
 
 class Cotizacion {
 
@@ -676,7 +677,7 @@ class Cotizacion {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,
@@ -722,7 +723,7 @@ class Cotizacion {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen ? bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg` : `${process.env.APP_URL}/files/to/noimage.jpg`,
+                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.jpg`,
                             },
                             "medida": {
                                 "nombre": item.medida,

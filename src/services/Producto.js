@@ -714,6 +714,13 @@ class Producto {
 
             } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
                 if (bucket) {
+                    if(producto[0].imagen){
+                        const file = bucket.file(producto[0].imagen);
+                        if(file.exists()){
+                            await file.delete();
+                        }
+                    }
+
                     const buffer = Buffer.from(req.body.imagen.base64, 'base64');
 
                     const timestamp = Date.now();

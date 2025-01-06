@@ -17,7 +17,10 @@ const {
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
+
 require('dotenv').config();
 
 class Empresa {
@@ -43,11 +46,21 @@ class Empresa {
                 throw new Error('No se encontraron datos de empresa.');
             }
 
-            const respuesta = {
-                ...primeraEmpresa,
-                rutaLogo: !primeraEmpresa.rutaLogo ? null : `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaLogo}`,
-                rutaImage: !primeraEmpresa.rutaImage ? null : `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaImage}`
-            };
+            const bucket = firebaseService.getBucket();
+            let respuesta = null;
+            if (bucket) {
+                respuesta = {
+                    ...primeraEmpresa,
+                    rutaLogo: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}`,
+                    rutaImage: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}`
+                };
+            } else {
+                respuesta = {
+                    ...primeraEmpresa,
+                    rutaLogo: null,
+                    rutaImage: null
+                };
+            }
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -57,7 +70,7 @@ class Empresa {
 
     async id(req, res) {
         try {
-            const [primeraEmpresa] = await conec.query(`
+            const [empresa] = await conec.query(`
             SELECT  
                 idEmpresa,
                 documento,
@@ -67,6 +80,7 @@ class Empresa {
                 paginaWeb,
                 rutaLogo,
                 rutaImage,
+                rutaIcon,
                 usuarioEmail,
                 claveEmail,
                 usuarioSolSunat,
@@ -86,11 +100,32 @@ class Empresa {
                 req.query.idEmpresa
             ]);
 
-            const respuesta = {
-                ...primeraEmpresa,
-                rutaLogo: !primeraEmpresa.rutaLogo ? null : `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaLogo}`,
-                rutaImage: !primeraEmpresa.rutaImage ? null : `${process.env.APP_URL}/files/company/${primeraEmpresa.rutaImage}`
-            };
+            const bucket = firebaseService.getBucket();
+            let respuesta = null;
+            if (bucket) {
+                respuesta = {
+                    ...empresa,
+                    rutaLogo: {
+                        nombre: empresa.rutaLogo,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaLogo}`,
+                    },
+                    rutaImage: {
+                        nombre: empresa.rutaImage,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaImage}`
+                    },
+                    rutaIcon: {
+                        nombre: empresa.rutaIcon,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaIcon}`     
+                    }
+                };
+            } else {
+                respuesta = {
+                    ...empresa,
+                    rutaLogo: null,
+                    rutaImage: null,
+                    rutaIcon: null,
+                };
+            }
 
             return sendSuccess(res, respuesta)
         } catch (error) {
@@ -102,6 +137,8 @@ class Empresa {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const bucket = firebaseService.getBucket();
 
             const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
             const existsCertificates = await isDirectory(fileCertificates);
@@ -123,6 +160,7 @@ class Empresa {
             SELECT
                 rutaLogo,
                 rutaImage,
+                rutaIcon,
                 certificadoSunat,
                 certificadoPem,
                 privatePem
@@ -151,18 +189,133 @@ class Empresa {
                 req.body.extFireBase
             );
 
-            const rutaLogo = await processImage(
-                fileCompany,
-                req.body.logo,
-                req.body.extlogo,
-                empresa[0].rutaLogo
-            );
-            const rutaImage = await processImage(
-                fileCompany,
-                req.body.image,
-                req.body.extimage,
-                empresa[0].rutaImage
-            );
+            let rutaLogo = null;
+            let rutaImage = null;
+            let rutaIcon = null;
+
+            if (req.body.logo && req.body.logo.nombre === undefined && req.body.logo.base64 === undefined) {
+                if (bucket) {
+                    const file = bucket.file(empresa[0].rutaLogo);
+                    await file.delete();
+                }
+            }
+            else if (req.body.logo && req.body.logo.base64 !== undefined) {
+                if (bucket) {
+                    if(empresa[0].rutaLogo){
+                        const file = bucket.file(empresa[0].rutaLogo);
+                        if(file.exists()){
+                            await file.delete();
+                        }
+                    }
+
+                    const buffer = Buffer.from(req.body.logo.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.logo.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.logo.extension,
+                        }
+                    });
+                    await file.makePublic();
+                    rutaLogo = filePath;
+                }
+            } else {
+                rutaLogo = req.body.logo.nombre;
+            }
+
+            if (req.body.image && req.body.image.nombre === undefined && req.body.image.base64 === undefined) {
+                if (bucket) {
+                    const file = bucket.file(empresa[0].rutaImage);
+                    await file.delete();
+                }
+            }
+            else if (req.body.image && req.body.image.base64 !== undefined) {
+                if (bucket) {
+                    if(empresa[0].rutaImage){
+                        const file = bucket.file(empresa[0].rutaImage);
+                        if(file.exists()){
+                            await file.delete();
+                        }
+                    }
+
+                    const buffer = Buffer.from(req.body.image.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.image.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.image.extension,
+                        }
+                    });
+                    await file.makePublic();
+                    rutaImage = filePath;
+                }
+            } else {
+                rutaImage = req.body.image.nombre;
+            }
+
+            if (req.body.icon && req.body.icon.nombre === undefined && req.body.icon.base64 === undefined) {
+                if (bucket) {
+                    const file = bucket.file(empresa[0].rutaIcon);
+                    await file.delete();
+                }
+            }
+            else if (req.body.icon && req.body.icon.base64 !== undefined) {
+                if (bucket) {
+                    if(empresa[0].rutaIcon){
+                        const file = bucket.file(empresa[0].rutaIcon);
+                        if(file.exists()){
+                            await file.delete();
+                        }
+                    }
+
+                    const buffer = Buffer.from(req.body.icon.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.icon.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.icon.extension,
+                        }
+                    });
+                    await file.makePublic();
+                    rutaIcon = filePath;
+                }
+            } else {
+                rutaIcon = req.body.icon.nombre;
+            }
+
+            // const rutaLogo = await processImage(
+            //     fileCompany,
+            //     req.body.logo,
+            //     req.body.extlogo,
+            //     empresa[0].rutaLogo
+            // );
+            // const rutaImage = await processImage(
+            //     fileCompany,
+            //     req.body.image,
+            //     req.body.extimage,
+            //     empresa[0].rutaImage
+            // );
 
             await conec.execute(connection, `
             UPDATE 
@@ -176,6 +329,7 @@ class Empresa {
 
                 rutaLogo=?,
                 rutaImage=?,
+                rutaIcon=?,
 
                 usuarioEmail=?,
                 claveEmail=?,
@@ -209,6 +363,7 @@ class Empresa {
 
                 rutaLogo,
                 rutaImage,
+                rutaIcon,
 
                 req.body.usuarioEmail,
                 req.body.claveEmail,
@@ -247,6 +402,8 @@ class Empresa {
 
     async config(req, res) {
         try {
+            const bucket = firebaseService.getBucket();
+
             const [result] = await conec.query(`
             SELECT 
                 idEmpresa,
@@ -261,8 +418,8 @@ class Empresa {
 
             const empresa = {
                 ...result,
-                rutaLogo: !result.rutaLogo ? null : `${process.env.APP_URL}/files/company/${result.rutaLogo}`,
-                rutaImage: !result.rutaImage ? null : `${process.env.APP_URL}/files/company/${result.rutaImage}`
+                rutaLogo:  result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
+                rutaImage: result.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaImage}` : null,
             }
 
             return sendSuccess(res, empresa);
@@ -394,6 +551,31 @@ class Empresa {
                 empresa
             LIMIT 
                 1`);
+
+            return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
+        }
+    }
+
+    async imagesForWeb(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT
+                nombreEmpresa,
+                rutaImage,
+                rutaIcon
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+                const bucket = firebaseService.getBucket();
+
+                if(bucket){
+                    result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
+                    result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
+                }
 
             return sendSuccess(res, result[0]);
         } catch (error) {

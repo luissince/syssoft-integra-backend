@@ -16,4 +16,6 @@ router.get('/combo', async (req, res) => await empresa.combo(req, res));
 
 router.get('/load/web', async (req, res) => await empresa.loadForWeb(req, res));
 
+router.get('/images/web', async (req, res) => await empresa.imagesForWeb(req, res));
+
 module.exports = router;

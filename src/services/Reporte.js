@@ -1,14 +1,19 @@
 const { dateFormat, currentTime, currentDate, formatNumberWithZeros } = require('../tools/Tools');
 const xl = require('excel4node');
 const { sendPdf, sendError, sendSuccess } = require('../tools/Message');
-
 const axios = require('axios').default;
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
+
+require('dotenv').config();
 
 class Reporte {
     async generarPreFacturacion(req, res, tipo) {
         try {
+
+            const bucket = firebaseService.getBucket();
 
             const comprobante = await conec.query(`
             SELECT 
@@ -86,7 +91,7 @@ class Reporte {
 
             const newEmpresa = {
                 ...empresa[0],
-                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoEmpresa": empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 "logoDesarrollador": `${process.env.APP_URL}/public/logo.png`,
             }
 
@@ -222,6 +227,8 @@ class Reporte {
             const idSucursal = req.params.idSucursal === "-" ? "" : req.params.idSucursal;
             const idUsuario = req.params.idUsuario === "-" ? "" : req.params.idUsuario;
 
+            const bucket = firebaseService.getBucket();
+
             const empresa = await conec.query(`
             SELECT 
                 documento,
@@ -236,7 +243,7 @@ class Reporte {
 
             const newEmpresa = {
                 ...empresa[0],
-                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoEmpresa": empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 "logoDesarrollador": `${process.env.APP_URL}/public/logo.png`,
             }
 
@@ -596,6 +603,8 @@ class Reporte {
             const idSucursal = req.params.idSucursal === "-" ? "" : req.params.idSucursal;
             const idUsuario = req.params.idUsuario === "-" ? "" : req.params.idUsuario;
 
+            const bucket = firebaseService.getBucket();
+
             const empresa = await conec.query(`
             SELECT 
                 documento,
@@ -610,7 +619,7 @@ class Reporte {
 
             const newEmpresa = {
                 ...empresa[0],
-                "logoEmpresa": `${process.env.APP_URL}/files/company/${empresa[0].rutaLogo}`,
+                "logoEmpresa": empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 "logoDesarrollador": `${process.env.APP_URL}/public/logo.png`,
             }
 
