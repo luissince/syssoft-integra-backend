@@ -1,5 +1,5 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
-const { sendSuccess, sendError, sendSave, sendFile } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
@@ -80,11 +80,11 @@ class Pedido {
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
-                cd.costo,
+                cd.precio,
                 tp.nombre as tipoProducto,
                 p.idTipoTratamientoProducto
             from 
-                ordenCompraDetalle AS cd
+                pedidoDetalle AS cd
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto
             INNER JOIN 
@@ -112,7 +112,7 @@ class Pedido {
     async detail(req, res) {
         try {
             // Consulta la información principal del pedido
-            const ordenCompra = await conec.query(`
+            const pedido = await conec.query(`
             SELECT 
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
                 c.hora,
@@ -131,7 +131,7 @@ class Pedido {
                 mo.codiso,
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
-                ordenCompra AS c
+                pedido AS c
             INNER JOIN 
                 comprobante AS co ON co.idComprobante = c.idComprobante
             INNER JOIN 
@@ -141,8 +141,8 @@ class Pedido {
             INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
-                c.idOrdenCompra = ?`, [
-                req.query.idOrdenCompra,
+                c.idPedido = ?`, [
+                req.query.idPedido,
             ]);
 
             // Consulta los detalles del pedido
@@ -154,13 +154,13 @@ class Pedido {
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
-                cd.costo,
+                cd.precio,
                 cd.cantidad,
                 cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
             FROM 
-                ordenCompraDetalle AS cd 
+                pedidoDetalle AS cd 
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto 
             INNER JOIN 
@@ -190,21 +190,21 @@ class Pedido {
             });
 
             // Devuelve un objeto con la información del pedido y los detalles 
-            return sendSuccess(res, { cabecera: ordenCompra[0], detalles: listaDetalles });
+            return sendSuccess(res, { cabecera: pedido[0], detalles: listaDetalles });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
         }
     }
 
-    async forPurchase(req, res) {
+    async forSale(req, res) {
         try {
             const cliente = await conec.query(`
             SELECT                 
                 p.idPersona,
                 p.idTipoCliente,     
                 p.idTipoDocumento,
-                p.documento,
+                p.documento, 
                 p.informacion,
                 IFNULL(p.celular,'') AS celular,
                 IFNULL(p.email,'') AS email,
@@ -377,7 +377,7 @@ class Pedido {
                     idPedido,
                     idProducto,
                     idMedida,
-                    costo,
+                    precio,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
@@ -385,7 +385,7 @@ class Pedido {
                     idPedido,
                     item.idProducto,
                     item.idMedida,
-                    item.costo,
+                    item.precio,
                     item.cantidad,
                     item.idImpuesto
                 ]);
@@ -395,7 +395,7 @@ class Pedido {
 
             await conec.commit(connection);
             return sendSave(res, {
-                idPedidoDetalle: idPedidoDetalle,
+                idPedido: idPedido,
                 message: "Se registró correctamente el pedido."
             });
         } catch (error) {
@@ -410,6 +410,15 @@ class Pedido {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const valid = await conec.execute(connection, `SELECT * FROM pedido WHERE idPedido = ? AND estado = 0`, [
+                req.body.idPedido
+            ]);
+
+            if (valid.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "El pedido ha sido anulado o no existe.");
+            }
 
             await conec.execute(connection, `
             UPDATE 
@@ -457,7 +466,7 @@ class Pedido {
                     idPedido,
                     idProducto,
                     idMedida,
-                    costo,
+                    precio,
                     cantidad,
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
@@ -465,7 +474,7 @@ class Pedido {
                     req.body.idPedido,
                     item.idProducto,
                     item.idMedida,
-                    item.costo,
+                    item.precio,
                     item.cantidad,
                     item.idImpuesto
                 ]);
@@ -504,12 +513,12 @@ class Pedido {
 
             if (pedido.length === 0) {
                 await conec.rollback(connection);
-                return "No se encontro registros del pedido.";
+                return sendClient(res,"No se encontro registros del pedido.");
             }
 
             if (pedido[0].estado === 0) {
                 await conec.rollback(connection);
-                return "El pedido ya se encuentra anulado.";
+                return sendClient(res, "El pedido ya se encuentra anulado.");
             }
 
             await conec.execute(connection, `
@@ -612,7 +621,7 @@ class Pedido {
                 p.nombre,
                 p.imagen,
                 gd.cantidad,
-                gd.costo,
+                gd.precio,
                 m.nombre AS medida,
                 i.idImpuesto,
                 i.nombre AS impuesto,
@@ -641,7 +650,7 @@ class Pedido {
                     banco
                 WHERE 
                     reporte = 1 AND idSucursal = ?`, [
-                ordenCompra[0].idSucursal
+                pedido[0].idSucursal
             ]);
 
             return {
@@ -690,7 +699,7 @@ class Pedido {
                         return {
                             "id": item.id,
                             "cantidad": item.cantidad,
-                            "costo": item.costo,
+                            "precio": item.precio,
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,

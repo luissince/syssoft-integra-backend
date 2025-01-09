@@ -13,7 +13,7 @@ router.get('/id', async (req, res) => await pedido.id(req, res));
 
 router.get('/detail', async (req, res) => await pedido.detail(req, res));
 
-router.get('/for-purchase', async (req, res) => await pedido.forPurchase(req, res));
+router.get('/for-sale', async (req, res) => await pedido.forSale(req, res));
 
 router.post('/create', async (req, res) => await pedido.create(req, res));
 

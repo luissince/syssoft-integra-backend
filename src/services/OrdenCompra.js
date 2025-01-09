@@ -1,5 +1,5 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
-const { sendSuccess, sendError, sendSave, sendFile } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
@@ -504,12 +504,12 @@ class OrdenCompra {
 
             if (ordenCompra.length === 0) {
                 await conec.rollback(connection);
-                return "No se encontro registros de la orden de compra.";
+                return sendClient(res, "No se encontro registros de la orden de compra.");
             }
 
             if (ordenCompra[0].estado === 0) {
                 await conec.rollback(connection);
-                return "La orden de compra ya se encuentra anulado.";
+                return sendClient(res, "La orden de compra ya se encuentra anulado.");  
             }
 
             await conec.execute(connection, `

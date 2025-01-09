@@ -714,9 +714,9 @@ class Producto {
 
             } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
                 if (bucket) {
-                    if(producto[0].imagen){
+                    if (producto[0].imagen) {
                         const file = bucket.file(producto[0].imagen);
-                        if(file.exists()){
+                        if (file.exists()) {
                             await file.delete();
                         }
                     }
@@ -1236,7 +1236,6 @@ class Producto {
                 return item;
             });
 
-
             return sendSuccess(res, newData);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filter", error);
@@ -1248,6 +1247,7 @@ class Producto {
             const result = await conec.query(`
             SELECT 
                 p.idProducto,
+                p.imagen,
                 p.codigo,
                 p.nombre,
                 inv.cantidad,
@@ -1274,9 +1274,20 @@ class Producto {
                 req.query.idAlmacen,
                 req.query.filtrar,
                 req.query.filtrar,
-            ])
+            ]);
 
-            return sendSuccess(res, result);
+            const bucket = firebaseService.getBucket();
+            const newData = result.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return item;
+            });
+
+            return sendSuccess(res, newData);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterAlmacen", error);
         }
