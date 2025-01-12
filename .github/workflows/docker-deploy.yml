@@ -19,6 +19,8 @@ jobs:
             service: ferreteria-rym-services
           - environment: principal
             service: principal-services
+          - environment: importmuneli
+            service: importmuneli-services
 
     environment: ${{ matrix.environment }}
     

@@ -59,15 +59,15 @@ services:
   #   ports:
   #     - 6007:80
 
-  legrand-tiquepos-services:
+  importmuneli-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
     build:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: legrand-tiquepos-backend-image
+    image: importmuneli-backend-image
     # Nombre del contenedor
-    container_name: legrand-tiquepos-backend
+    container_name: importmuneli-backend
     # Configuración para reiniciar siempre el contenedor
     restart: always
     # Configuración de redes
@@ -77,7 +77,7 @@ services:
     ports:
       - 6011:80
     volumes:
-      - legrand-tiquepos-backend-volumen:/app/src/path
+      - importmuneli-backend-volumen:/app/src/path
 
   raices-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
