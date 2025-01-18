@@ -1165,6 +1165,79 @@ class Producto {
         }
     }
 
+    async catalog(req, res) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            // Genera un nuevo ID para el catálogo
+            const listCatalogos = await conec.execute(connection, `SELECT idCatalogo FROM catalogo`);
+            const idCatalogo = generateAlphanumericCode("CT0001", listCatalogos, 'idCatalogo');
+
+            await conec.execute(connection, `
+                INSERT INTO catalogo(
+                    idCatalogo,
+                    nombre,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?)`, [
+                idCatalogo,
+                req.body.nombre,
+                currentDate(),
+                currentTime(),
+                req.body.idUsuario,
+            ]);
+
+            for (const item of req.body.productos) {
+                await conec.execute(connection, `
+                    INSERT INTO catalogoDetalle(
+                        idCatalogo,
+                        idProducto
+                    ) VALUES(?,?)`, [
+                    idCatalogo,
+                    item.idProducto
+                ]);
+            }
+
+            await conec.commit(connection);
+            return sendSave(res, {
+                idCatalogo: idCatalogo,
+                message: "Datos registrados correctamente.",
+            });
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/catalog", error);
+        }
+    }
+
+    async comboCatalog(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT 
+                c.idCatalogo,
+                c.nombre
+            FROM 
+                catalogo AS c
+            WHERE 
+                ? = 0
+                OR
+                ? = 1 AND c.nombre LIKE concat('%',?,'%')
+            ORDER BY 
+                c.nombre ASC`, [
+                parseInt(req.query.tipo),
+
+                parseInt(req.query.tipo),
+                req.query.filtrar,
+            ]);
+            return sendSuccess(res, result);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/comboCatalog", error);
+        }
+    }
+
     async detalle(req, res) {
 
     }
@@ -1707,8 +1780,6 @@ class Producto {
                 }
             });
 
-            console.log(resultLista)
-
             return sendSuccess(res, resultLista);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
@@ -1769,7 +1840,7 @@ class Producto {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfReports", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfReports", error);
         }
     }
 
@@ -1787,7 +1858,106 @@ class Producto {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/documentsPdfExcel", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfExcel", error);
+        }
+    }
+
+    async documentsPdfCatalog(req, res) {
+        try {
+
+            const empresa = await conec.query(`
+                SELECT
+                    documento,
+                    razonSocial,
+                    nombreEmpresa,
+                    rutaLogo
+                FROM 
+                    empresa`);
+
+            const sucursal = await conec.query(`
+                SELECT 
+                    s.nombre,
+                    s.telefono,
+                    s.celular,
+                    s.email,
+                    s.paginaWeb,
+                    s.direccion,
+    
+                    ub.departamento,
+                    ub.provincia,
+                    ub.distrito
+                FROM 
+                    sucursal AS s
+                INNER JOIN
+                    ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+                WHERE 
+                    s.principal = 1`);
+
+            const productos = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    p.nombre,
+                    p.codigo,
+                    p.imagen,
+                    p.descripcionCorta
+                FROM 
+                    catalogo AS c
+                INNER JOIN 
+                    catalogoDetalle AS cd ON c.idCatalogo = cd.idCatalogo
+                INNER JOIN
+                    producto AS p ON cd.idProducto = p.idProducto
+                WHERE 
+                    c.idCatalogo = ?`, [
+                req.params.idCatalogo
+            ]);
+
+            const bucket = firebaseService.getBucket();
+            const products = productos.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                    imagen: `${process.env.APP_URL}/files/to/noimage.png`
+                }
+            });
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/product/pdf/catalog`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "company": {
+                        ...empresa[0],
+                        rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    },
+                    "branch": {
+                        "nombre": sucursal[0].nombre,
+                        "telefono": sucursal[0].telefono,
+                        "celular": sucursal[0].celular,
+                        "email": sucursal[0].email,
+                        "paginaWeb": sucursal[0].paginaWeb,
+                        "direccion": sucursal[0].direccion,
+                        "ubigeo": {
+                            "departamento": sucursal[0].departamento,
+                            "provincia": sucursal[0].provincia,
+                            "distrito": sucursal[0].distrito
+                        }
+                    },
+                    "products": products
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfCatalog", error);
         }
     }
 

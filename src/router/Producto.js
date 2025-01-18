@@ -19,6 +19,10 @@ router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
 router.get('/combo', async (req, res) => await producto.combo(req, res));
 
+router.post('/catalog', async (req, res) => await producto.catalog(req, res));
+
+router.get('/combo/catalog', async (req, res) => await producto.comboCatalog(req, res));
+
 router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta(req, res));
 
 router.get('/filter', async (req, res) => await producto.filter(req, res));
@@ -46,6 +50,8 @@ router.get('/filter/web/related/id', async (req, res) => await producto.filterWe
 router.get("/documents/pdf/reports", async (req, res) => await producto.documentsPdfReports(req, res));
 
 router.get("/documents/excel", async (req, res) => await producto.documentsPdfExcel(req, res));
+
+router.get("/documents/pdf/catalog/:idCatalogo", async (req, res) => await producto.documentsPdfCatalog(req, res));
 
 // router.get('/filtrar/venta', async function (req, res) {
     // return responseSSE(req, res, async (sendEvent) => {
