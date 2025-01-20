@@ -69,7 +69,7 @@ class Pedido {
                 req.query.idPedido,
             ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
                 cd.cantidad,
@@ -77,6 +77,7 @@ class Pedido {
                 p.idMedida,
                 p.idProducto,
                 p.nombre,
+                p.imagen,
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
@@ -100,10 +101,23 @@ class Pedido {
                 req.query.idPedido,
             ]);
 
-            const idImpuesto = detalle[0]?.idImpuesto ?? '';
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
+            const idImpuesto = detalles[0]?.idImpuesto ?? '';
             cabecera[0].idImpuesto = idImpuesto;
 
-            return sendSuccess(res, { cabecera: cabecera[0], detalle });
+            return sendSuccess(res, { cabecera: cabecera[0], detalles:listaDetalles });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/id", error)
         }
