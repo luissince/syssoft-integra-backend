@@ -331,7 +331,7 @@ class Catalogo {
                 WHERE 
                     c.idCatalogo = ?
                 ORDER BY 
-                    cd.idCatalogoDetalle ASC`, [
+                    p.nombre ASC`, [
                 req.params.idCatalogo
             ]);
 
