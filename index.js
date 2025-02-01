@@ -28,11 +28,35 @@ app.use('/files', router);
 app.set('port', process.env.PORT || 5000);
 
 // Configuración de middleware para manejar JSON y datos codificados en URL
-app.use(express.json({ limit: '1024mb' }));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 // Cargar la app estatica compilada
 // app.use(express.static(path.join(__dirname, "app", "dist")));
+
+// Middleware para validar rutas
+// app.use((req, res, next) => {
+//     console.log('===================== Middleware validar ruta ===================');
+//     const decoded = verifyToken(req, process.env.TOKEN_ACCESSO);
+//     if(!decoded){
+//         return sendNoAutorizado(res, { message: 'Acceso no autorizado' });
+//     }
+//     console.log('Decoded:', decoded);
+//     next();
+// });
+
+// Middleware para registrar las solicitudes
+app.use((req, res, next) => {
+    console.log(`[${currentDate()} ${currentTime()}]`);
+    console.log('Solicitud recibida:');
+    console.log('Método:', req.method);
+    console.log('URL:', req.url);
+    console.log('Cabecera(req.headers):', req.headers);
+    console.log('Cuerpo(req.body):', req.body);
+    console.log('Parametro(req.params):', req.params);
+    console.log('Consulta(req.query):', req.query);
+    next();
+});
 
 // Ruta principal
 app.get('/', (_, res) => {
@@ -41,18 +65,6 @@ app.get('/', (_, res) => {
         "Fecha y hora actuales": new Date().toLocaleDateString(),
         "Entorno": process.env.ENVIRONMENT
     });
-});
-
-// Middleware para registrar las solicitudes
-app.use((req, res, next) => {
-    console.log('Solicitud recibida:');
-    console.log('Fecha:', currentDate() + " " + currentTime());
-    console.log('Método:', req.method);
-    console.log('URL:', req.url);
-    console.log('Cuerpo(req.body):', req.body);
-    console.log('Parametro(req.params):', req.params);
-    console.log('Consulta(req.query):', req.query);
-    next();
 });
 
 // Rutas API
@@ -72,8 +84,8 @@ app.use('/api/almacen', require('./src/router/Almacen'));
 app.use('/api/persona', require('./src/router/Persona'));
 app.use('/api/factura', require('./src/router/Factura'));
 
-app.use('/api/perfil', require('./src/router/Perfil'));
-app.use('/api/usuario', require('./src/router/Usuario'));
+app.use('/api/perfil', require('./src/router/perfil.router'));
+app.use('/api/usuario', require('./src/router/usuario.router'));
 
 app.use('/api/concepto', require('./src/router/Concepto'));
 app.use('/api/gasto', require('./src/router/Gasto'));
@@ -87,7 +99,7 @@ app.use('/api/medida', require('./src/router/Medida'));
 app.use('/api/motivo', require('./src/router/Motivo'));
 
 app.use('/api/empresa', require('./src/router/Empresa'));
-app.use('/api/dashboard', require('./src/router/Dashboard'));
+app.use('/api/dashboard', require('./src/router/dashboard.router'));
 app.use('/api/notificacion', require('./src/router/Notificacion'));
 
 app.use('/api/kardex', require('./src/router/Kardex'));

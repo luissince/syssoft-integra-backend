@@ -984,11 +984,16 @@ class Factura {
                     'PRODUCTO' AS tipo
                 FROM 
                     producto AS p
-                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                    INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                    INNER JOIN medida AS m ON m.idMedida = p.idMedida
-                    INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
-                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
+                INNER JOIN 
+                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN 
+                    categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN 
+                    inventario AS i ON i.idProducto = p.idProducto 
+                INNER JOIN 
+                    almacen AS a ON a.idAlmacen = i.idAlmacen
                 WHERE 
                     p.idProducto = ? AND a.idAlmacen = ?
                 UNION
@@ -1006,9 +1011,12 @@ class Factura {
                     'SERVICIO' AS tipo
                 FROM 
                     producto AS p
-                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN 
+                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN 
+                    categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
                 WHERE 
                     p.idProducto = ?`, [
                     item.idProducto,
@@ -1020,7 +1028,9 @@ class Factura {
                     ...producto[0],
                     nombreProducto: item.descripcion,
                     precio: item.precio,
-                    cantidad: item.cantidad
+                    cantidad: item.cantidad,
+                    imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
+                    id: index + 1
                 }
 
                 productos.push(newProducto);

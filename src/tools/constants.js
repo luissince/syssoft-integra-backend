@@ -1,0 +1,21 @@
+const MENUS = {
+    DASHBOARD: 'MN0001',
+    SEGURIDAD: 'MN0002',
+};
+
+const SUBMENUS = {
+    PERFIL: 'SM0001',
+};
+
+const PRIVILEGIOS = {
+    LISTAR_PERFIL: 'PR0001',
+    CREAR_PERFIL: 'PR0002',
+    EDITAR_PERFIL: 'PR0003',
+    ELIMINAR_PERFIL: 'PR0004',
+};
+
+module.exports = {
+    MENUS,
+    SUBMENUS,
+    PRIVILEGIOS,
+};

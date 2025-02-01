@@ -4,7 +4,6 @@ const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
-    generateNumericCode,
 } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const FirebaseService = require('../tools/FiraseBaseService');

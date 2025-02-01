@@ -55,7 +55,9 @@ class Acceso {
             INNER JOIN 
                 privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu 
             WHERE 
-                pp.idPerfil = ?`, [
+                pp.idPerfil = ?
+            ORDER BY
+                pp.idPrivilegio`, [
                 req.query.idPerfil,
             ]);
 
@@ -252,6 +254,88 @@ class Acceso {
             }
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/update", error);
         }
+    }
+
+    async validarMenu(idUsuario, idMenu) {
+        const sql = `
+            SELECT 
+                m.nombre,
+                pmp.estado 
+            FROM
+                usuario u
+            JOIN
+                perfil p ON u.idPerfil = p.idPerfil
+            JOIN
+                permisoMenu pmp ON pmp.idPerfil = p.idPerfil
+            JOIN
+                menu m ON pmp.idMenu = m.idMenu
+            WHERE 
+                    u.idUsuario = ? 
+                AND 
+                    pmp.idMenu = ?`;
+        const [row] = await conec.query(sql, [idUsuario, idMenu]);
+        return row && row.estado === 1 ? true : false;
+    }
+
+    async validarSubMenu(idUsuario, idMenu, idSubMenu) {
+        const sql = `
+            SELECT 
+                sm.nombre,
+                pms.estado
+            FROM
+                usuario u
+            JOIN
+                perfil p ON u.idPerfil = p.idPerfil
+            JOIN
+                permisoMenu pmp ON pmp.idPerfil = p.idPerfil
+            JOIN
+                menu m ON pmp.idMenu = m.idMenu
+            JOIN 
+                permisoSubMenu pms ON pms.idPerfil = pmp.idPerfil AND pms.idMenu = m.idMenu 
+            JOIN 
+                subMenu sm ON sm.idSubMenu = pms.idSubMenu AND sm.idMenu = m.idMenu
+            WHERE 
+                    u.idUsuario = ? 
+                AND 
+                    pmp.idMenu = ?
+                AND
+                    sm.idSubMenu = ?`;
+        const [row] = await conec.query(sql, [idUsuario, idMenu, idSubMenu]);
+        return row && row.estado === 1 ? true : false;
+    }
+
+    async validarPrivilegio(idUsuario, idMenu, idSubMenu, idPrivilegio) {
+        const sql = `
+            SELECT 
+                pv.nombre,
+                pmpv.estado 
+            FROM
+                usuario u
+            JOIN
+                perfil p ON u.idPerfil = p.idPerfil
+            JOIN
+                permisoMenu pmp ON pmp.idPerfil = p.idPerfil
+            JOIN
+                menu m ON pmp.idMenu = m.idMenu
+            JOIN 
+                permisoSubMenu pms ON pms.idPerfil = pmp.idPerfil AND pms.idMenu = m.idMenu 
+            JOIN 
+                subMenu sm ON sm.idSubMenu = pms.idSubMenu AND sm.idMenu = m.idMenu
+            JOIN
+                permisoPrivilegio pmpv ON pmpv.idPerfil = pms.idPerfil AND pmpv.idMenu = m.idMenu AND pmpv.idSubMenu = sm.idSubMenu
+            JOIN
+                privilegio pv ON pv.idPrivilegio = pmpv.idPrivilegio AND pv.idSubMenu = sm.idSubMenu AND pv.idMenu = m.idMenu
+
+            WHERE 
+                    u.idUsuario = ? 
+                AND 
+                    pmp.idMenu = ?
+                AND
+                    sm.idSubMenu = ?
+                AND 
+                    pv.idPrivilegio = ?`;
+        const [row] = await conec.query(sql, [idUsuario, idMenu, idSubMenu, idPrivilegio]);
+        return row && row.estado === 1 ? true : false;
     }
 
 }

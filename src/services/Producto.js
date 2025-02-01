@@ -66,6 +66,8 @@ class Producto {
                 idMarca,
                 nombre,
                 codigo,
+                sku,
+                codigoBarras,
                 idCodigoSunat,
                 descripcionCorta,
                 descripcionLarga,
@@ -149,6 +151,8 @@ class Producto {
                 idMarca,
                 nombre,
                 codigo,
+                sku,
+                codigoBarras,
                 idCodigoSunat,
                 descripcionCorta,
                 descripcionLarga,
@@ -165,13 +169,15 @@ class Producto {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 idMedida,
                 idMarca,
                 nombre,
                 codigo,
+                sku,
+                codigoBarras,
                 idCodigoSunat,
                 descripcionCorta,
                 descripcionLarga,
@@ -490,6 +496,8 @@ class Producto {
                 p.idMarca,
                 p.nombre,
                 p.codigo,
+                p.sku,
+                p.codigoBarras,
                 p.idCodigoSunat,
                 p.descripcionCorta,
                 p.descripcionLarga,
@@ -750,6 +758,8 @@ class Producto {
                 idMarca = ?,
                 nombre = ?,
                 codigo = ?,
+                sku = ?,
+                codigoBarras = ?,
                 idCodigoSunat = ?,
                 descripcionCorta = ?,
                 descripcionLarga = ?,
@@ -770,6 +780,8 @@ class Producto {
                 req.body.idMarca,
                 req.body.nombre,
                 req.body.codigo,
+                req.body.sku,
+                req.body.codigoBarras,
                 req.body.idCodigoSunat,
                 req.body.descripcionCorta,
                 req.body.descripcionLarga,
@@ -1197,6 +1209,8 @@ class Producto {
                 p.idProducto,
                 p.imagen,
                 p.codigo,
+                p.sku,
+                p.codigoBarras,
                 p.nombre,
                 p.costo,
                 pc.valor AS precio,
@@ -1218,9 +1232,15 @@ class Producto {
             WHERE 
                 p.estado = 1 AND (
                     (p.codigo LIKE CONCAT('%',?,'%'))
+                    OR
+                    (p.sku = ?)
+                    OR
+                    (p.codigoBarras = ?)
                     OR 
                     (p.nombre LIKE CONCAT('%',?,'%'))
                 )`, [
+                req.query.filtrar,
+                req.query.filtrar,
                 req.query.filtrar,
                 req.query.filtrar,
             ]);
@@ -1249,6 +1269,8 @@ class Producto {
                 p.idProducto,
                 p.imagen,
                 p.codigo,
+                p.sku,
+                p.codigoBarras,
                 p.nombre,
                 inv.cantidad,
                 p.costo,
@@ -1268,10 +1290,16 @@ class Producto {
             WHERE 
                 p.estado = 1 AND (
                     (p.codigo LIKE CONCAT('%',?,'%'))
+                    OR
+                    (p.sku = ?)
+                    OR
+                    (p.codigoBarras = ?)
                     OR 
                     (p.nombre LIKE CONCAT('%',?,'%'))
                 )`, [
                 req.query.idAlmacen,
+                req.query.filtrar,
+                req.query.filtrar,
                 req.query.filtrar,
                 req.query.filtrar,
             ]);
@@ -1499,6 +1527,8 @@ class Producto {
                 p.idProducto,
                 p.nombre,
                 p.codigo,
+                p.sku,
+                p.codigoBarras,
                 p.descripcionCorta,
                 p.descripcionLarga,
                 pc.valor AS precio,
@@ -1677,6 +1707,8 @@ class Producto {
             SELECT 
                 p.idProducto,
                 p.codigo,
+                p.sku,
+                p.codigoBarras,
                 p.nombre,
                 pc.valor AS precio,
                 p.imagen,
@@ -1776,6 +1808,24 @@ class Producto {
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_PDF}/product/excel`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfExcel", error);
+        }
+    }
+
+    async documentsPdfCodBar(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/product/pdf/codbar`,
                 headers: {
                     'Content-Type': 'application/json',
                 },

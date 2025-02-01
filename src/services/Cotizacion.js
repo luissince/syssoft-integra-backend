@@ -71,7 +71,7 @@ class Cotizacion {
                 req.query.idCotizacion,
             ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
                 cd.cantidad,
@@ -79,6 +79,7 @@ class Cotizacion {
                 p.idMedida,
                 p.idProducto,
                 p.nombre,
+                p.imagen,
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
@@ -102,10 +103,23 @@ class Cotizacion {
                 req.query.idCotizacion,
             ]);
 
-            const idImpuesto = detalle[0]?.idImpuesto ?? '';
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
+            const idImpuesto = detalles[0]?.idImpuesto ?? '';
             cabecera[0].idImpuesto = idImpuesto;
 
-            return sendSuccess(res, { cabecera: cabecera[0], detalle });
+            return sendSuccess(res, { cabecera: cabecera[0], detalles: listaDetalles });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/id", error)
         }
@@ -180,7 +194,7 @@ class Cotizacion {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
-                if(bucket && item.imagen){
+                if (bucket && item.imagen) {
                     return {
                         ...item,
                         imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
@@ -227,6 +241,8 @@ class Cotizacion {
 
     async forSale(req, res) {
         try {
+            const bucket = firebaseService.getBucket();
+
             const cliente = await conec.query(`
             SELECT                 
                 p.idPersona,
@@ -262,6 +278,7 @@ class Cotizacion {
 
             let productos = [];
 
+            let index = 0;
             for (const item of detalles) {
                 const producto = await conec.query(`
                 SELECT 
@@ -279,11 +296,16 @@ class Cotizacion {
                     'PRODUCTO' AS tipo
                 FROM 
                     producto AS p
-                    INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                    INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                    INNER JOIN medida AS m ON m.idMedida = p.idMedida
-                    INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
-                    INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
+                INNER JOIN 
+                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN 
+                    categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN 
+                    inventario AS i ON i.idProducto = p.idProducto 
+                INNER JOIN 
+                    almacen AS a ON a.idAlmacen = i.idAlmacen
                 WHERE 
                     p.idProducto = ? AND a.idAlmacen = ?
                 UNION
@@ -302,9 +324,12 @@ class Cotizacion {
                     'SERVICIO' AS tipo
                 FROM 
                     producto AS p
-                INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN 
+                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                INNER JOIN 
+                    categoria AS c ON p.idCategoria = c.idCategoria
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
                 WHERE 
                     p.idProducto = ?`, [
                     item.idProducto,
@@ -315,7 +340,9 @@ class Cotizacion {
                 const newProducto = {
                     ...producto[0],
                     precio: item.precio,
-                    cantidad: item.cantidad
+                    cantidad: item.cantidad,
+                    imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
+                    id: index + 1
                 }
 
                 productos.push(newProducto);

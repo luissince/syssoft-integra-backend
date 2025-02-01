@@ -326,7 +326,7 @@ class Sucursal {
                 perfilSucursal AS ps ON ps.idSucursal = p.idSucursal
             WHERE
                 ps.idPerfil = ?`, [
-                req.query.idPerfil
+                req.dataToken.idPerfil
             ]);
 
             const newLista = lista.map(function (item, index) {

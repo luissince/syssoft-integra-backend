@@ -1,6 +1,15 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-function create(user, key, expiresIn = '10h') {
+/**
+ * Crea un token JWT basado en los datos del usuario y una clave secreta.
+ * 
+ * @param {Object} user - Información del usuario que se incluirá en el token.
+ * @param {string} key - Clave secreta para firmar el token.
+ * @param {string} [expiresIn='10h'] - Tiempo de expiración del token (por defecto 10 horas).
+ * @returns {Promise<string>} - Una promesa que resuelve con el token JWT generado.
+ */
+function createToken(user, key, expiresIn = '10h') {
     return new Promise((resolve, reject) => {
         jwt.sign(user, key, { expiresIn: expiresIn }, (error, token) => {
             if (error) {
@@ -12,26 +21,4 @@ function create(user, key, expiresIn = '10h') {
     });
 }
 
-function verify(req, res, next) {
-    try {
-        const decoded = jwt.verify(req.token, 'userkeylogin');
-        req.idUsuario = decoded.idUsuario;
-        next();
-    } catch (err) {
-        return res.status(403).send("Acceso denegado.");
-    }
-}
-
-function token(req, res, next) {
-    const bearerToken = req.headers['authorization'];
-
-    if (typeof bearerToken !== 'undefined') {
-        const token = bearerToken.split(" ")[1];
-        req.token = token;
-        next();
-    } else {
-        return res.status(401).send("No autorizado.");
-    }
-}
-
-module.exports = { create, verify, token }
+module.exports = { createToken }

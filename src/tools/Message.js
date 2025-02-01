@@ -162,7 +162,7 @@ function sendNoAutorizado(res, result) {
 *     res.send('<p>some html</p>');
 *     res.status(403).send('Sorry, cant find that');
 */
-function sendExpired(res, result) {
+function sendForbidden(res, result) {
     return res.status(403).send(result);
 }
 
@@ -190,7 +190,7 @@ module.exports = {
     sendError,
     sendClient,
     sendNoContent,
-    sendExpired,
+    sendForbidden,
     sendNoAutorizado,
     sendNotFound
 };
