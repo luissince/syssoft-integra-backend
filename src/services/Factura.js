@@ -932,6 +932,8 @@ class Factura {
 
     async detailVenta(req, res) {
         try {
+            const bucket = firebaseService.getBucket();
+
             const cliente = await conec.query(`
             SELECT 
                 p.idPersona,
@@ -967,6 +969,7 @@ class Factura {
             ]);
 
             let productos = [];
+            let index = 0;
 
             for (const item of detalles) {
                 const producto = await conec.query(`

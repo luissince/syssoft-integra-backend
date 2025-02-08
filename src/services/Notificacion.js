@@ -57,6 +57,7 @@ class Notificacion {
             const lista = await conec.query(`
             SELECT 
                 v.idVenta AS idComprobante,
+                v.fecha AS fechaOrder,
                 DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha, 
                 v.hora,        
                 co.nombre AS comprobante,
@@ -77,6 +78,7 @@ class Notificacion {
             --
             SELECT 
                 gu.idGuiaRemision AS idComprobante,
+                gu.fecha AS fechaOrder,
                 DATE_FORMAT(gu.fecha, '%d/%m/%Y') AS fecha, 
                 gu.hora,         
                 co.nombre AS comprobante,
@@ -93,7 +95,7 @@ class Notificacion {
                 OR
                 IFNULL(gu.xmlSunat,'') = '0' AND gu.estado = 3
                 
-            ORDER BY fecha DESC, hora DESC
+            ORDER BY fechaOrder DESC, hora DESC
 
             LIMIT ?,?`, [
                 parseInt(req.query.posicionPagina),
