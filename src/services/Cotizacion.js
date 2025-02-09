@@ -216,17 +216,25 @@ class Cotizacion {
                     co.nombre AS comprobante,
                     v.serie,
                     v.numeracion,
-                    v.estado
+                    v.estado,
+                    m.codiso,
+                    SUM(vd.precio * vd.cantidad) AS total
                 FROM 
                     ventaCotizacion AS vc 
                 INNER JOIN 
                     cotizacion AS c ON c.idCotizacion = vc.idCotizacion
                 INNER JOIN 
-                    venta AS v ON v.idVenta = vc.idVenta
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                INNER JOIN 
+                    moneda AS m ON v.idMoneda = m.idMoneda
+                INNER JOIN 
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
                 INNER JOIN 
                     comprobante AS co ON co.idComprobante = v.idComprobante
                 WHERE 
-                    vc.idCotizacion = ?
+                    vc.idCotizacion = ? 
+                GROUP BY 
+                    v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
                 ORDER BY 
                     v.fecha DESC, v.hora DESC`, [
                 req.query.idCotizacion,
