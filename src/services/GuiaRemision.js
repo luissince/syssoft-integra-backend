@@ -453,7 +453,8 @@ class GuiaRemision {
                 UPDATE 
                     guiaRemision 
                 SET 
-                    estado = 3 
+                    estado = 3,
+                    numeroTicketSunat = null
                 WHERE 
                     idGuiaRemision = ?`, [
                 req.query.idGuiaRemision

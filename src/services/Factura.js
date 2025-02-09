@@ -74,6 +74,126 @@ class Factura {
                 importeTotal
             } = req.body;
 
+            if (idCotizacion) {
+                const vendidos = await conec.query(`
+                    SELECT 
+                        p.idProducto,
+                        SUM(vd.cantidad) AS cantidad
+                    FROM 
+                        ventaCotizacion AS vc
+                    INNER JOIN
+                        venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                    INNER JOIN
+                        ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                    INNER JOIN
+                        producto AS p ON p.idProducto = vd.idProducto
+                    WHERE 
+                        vc.idCotizacion = ?
+                    GROUP BY 
+                        p.idProducto`, [idCotizacion]);
+
+                const cotizacionDetalles = await conec.query(`
+                    SELECT 
+                        cd.idProducto,
+                        cd.precio,
+                        cd.cantidad
+                    FROM
+                        cotizacionDetalle AS cd
+                    WHERE
+                        cd.idCotizacion = ?`, [idCotizacion]);
+
+                const newDetallesCotizacion = cotizacionDetalles.map((detalle) => {
+                    const item = vendidos.find(pro => pro.idProducto === detalle.idProducto);
+                    if (item) {
+                        if (item.cantidad !== detalle.cantidad) {
+                            return {
+                                ...detalle,
+                                cantidad: Math.abs(item.cantidad - detalle.cantidad),
+                            };
+                        }
+                    } else {
+                        return { ...detalle };
+                    }
+                    return null; // Se retorna `null` para que después se filtre
+                }).filter(Boolean);
+
+                const newDetallesVenta = [];
+                for (const item of detalleVenta) {
+                    if (item.tipo === "PRODUCTO") {
+                        const producto = await conec.execute(connection, `
+                            SELECT 
+                                p.costo, 
+                                pc.valor AS precio 
+                            FROM 
+                                producto AS p 
+                            INNER JOIN 
+                                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                            WHERE 
+                                p.idProducto = ?`, [
+                            item.idProducto,
+                        ]);
+
+                        const cantidad = item.inventarios.reduce((sum, inventario) => {
+                            let cantidad = 0;
+
+                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                                cantidad = inventario.cantidad;
+                            } else if (item.idTipoTratamientoProducto === "TT0002") {
+                                cantidad = item.precio / producto[0].precio;
+                            }
+
+                            return sum + cantidad;
+                        }, 0);
+
+                        newDetallesVenta.push({
+                            idProducto: item.idProducto,
+                            cantidad
+                        });
+                    } else if (item.tipo === "SERVICIO") {
+                        newDetallesVenta.push({
+                            idProducto: item.idProducto,
+                            cantidad: item.cantidad
+                        });
+                    }
+                }
+
+                // 1️ Validación de cantidad de ítems
+                if (newDetallesVenta.length > newDetallesCotizacion.length ) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "El número de productos en la cotización no coincide con los productos vendidos." });
+                }
+
+                // 2 Validación de ids
+                const ids1 = new Set(newDetallesCotizacion.map(obj => obj.idProducto));
+                const ids2 = new Set(newDetallesVenta.map(obj => obj.idProducto));
+
+                for (let id of ids2) {
+                    if (!ids1.has(id)) {
+                        await conec.rollback(connection);
+                        return sendClient(res, { "message": "Los productos vendidos no son iguales al de la cotización." });
+                    }
+                }
+
+                // 3 Validación de cantidad de productos
+                const map1 = new Map(newDetallesCotizacion.map(obj => [obj.idProducto, obj.cantidad]));
+                const map2 = new Map(newDetallesVenta.map(obj => [obj.idProducto, obj.cantidad]));
+
+                const diferencias = [];
+                for (let [idProducto, cantidad] of map1) {
+                    if(map2.has(idProducto)){
+                        if(map2.get(idProducto) > cantidad){
+                            console.log(map2.has(idProducto))
+                            diferencias.push(true);
+                        }
+                    }
+                }
+
+                if (diferencias.length > 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente a la cotización." });
+                }
+            }
+
             /**
              * Validación de productos inventariables
              */
@@ -299,11 +419,9 @@ class Factura {
                     for (const inventario of item.inventarios) {
                         let cantidad = 0;
 
-                        if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
+                        if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
                             cantidad = inventario.cantidad;
-                        }
-
-                        if (item.idTipoTratamientoProducto === 'TT0002') {
+                        } else if (item.idTipoTratamientoProducto === 'TT0002') {
                             cantidad = item.precio / producto[0].precio;
                         }
 

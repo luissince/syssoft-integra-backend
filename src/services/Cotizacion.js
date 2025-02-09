@@ -1,5 +1,5 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
-const { sendSuccess, sendError, sendSave, sendFile } = require('../tools/Message');
+const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
@@ -165,6 +165,7 @@ class Cotizacion {
             const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
+                p.idProducto,
                 p.codigo,
                 p.nombre AS producto,
                 p.imagen,
@@ -231,8 +232,27 @@ class Cotizacion {
                 req.query.idCotizacion,
             ]);
 
+            const vendidos = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    SUM(vd.cantidad) AS cantidad
+                FROM 
+                    ventaCotizacion AS vc
+                INNER JOIN
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                INNER JOIN
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                INNER JOIN
+                    producto AS p ON p.idProducto = vd.idProducto
+                WHERE 
+                    vc.idCotizacion = ?
+                GROUP BY 
+                    p.idProducto`, [
+                req.query.idCotizacion
+            ]);
+
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cabecera: cotizacion[0], detalles: listaDetalles, ventas });
+            return sendSuccess(res, { cabecera: cotizacion[0], detalles: listaDetalles, ventas, vendidos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detail", error)
@@ -241,7 +261,20 @@ class Cotizacion {
 
     async forSale(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
+
+            const validate = await conec.query(`
+                SELECT 
+                    *
+                FROM 
+                    cotizacion
+                WHERE 
+                    idCotizacion = ? AND estado = 0`, [
+                req.query.idCotizacion
+            ]);
+
+            if (validate.length !== 0) {
+                return sendClient(res, "La cotización se encuentra anulada.");
+            }
 
             const cliente = await conec.query(`
             SELECT                 
@@ -262,6 +295,25 @@ class Cotizacion {
                 req.query.idCotizacion
             ]);
 
+            const vendidos = await conec.query(`
+            SELECT 
+                p.idProducto,
+                SUM(vd.cantidad) AS cantidad
+            FROM 
+                ventaCotizacion AS vc
+            INNER JOIN
+                venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+            INNER JOIN
+                ventaDetalle AS vd ON vd.idVenta = v.idVenta
+            INNER JOIN
+                producto AS p ON p.idProducto = vd.idProducto
+            WHERE 
+                vc.idCotizacion = ?
+            GROUP BY 
+                p.idProducto`, [
+                req.query.idCotizacion
+            ]);
+
             const detalles = await conec.query(`
             SELECT 
                 cd.idProducto,
@@ -276,10 +328,27 @@ class Cotizacion {
                 req.query.idCotizacion
             ]);
 
+            const newDetalles = detalles
+                .map((detalle) => {
+                    const item = vendidos.find(pro => pro.idProducto === detalle.idProducto);
+                    if (item) {
+                        if (item.cantidad !== detalle.cantidad) {
+                            return {
+                                ...detalle,
+                                cantidad: Math.abs(item.cantidad - detalle.cantidad),
+                            };
+                        }
+                    } else {
+                        return { ...detalle };
+                    }
+                    return null; // Se retorna `null` para que después se filtre
+                })
+                .filter(Boolean);
+
             let productos = [];
 
             let index = 0;
-            for (const item of detalles) {
+            for (const item of newDetalles) {
                 const producto = await conec.query(`
                 SELECT 
                     p.idProducto, 
@@ -337,6 +406,7 @@ class Cotizacion {
                     item.idProducto
                 ]);
 
+                const bucket = firebaseService.getBucket();
                 const newProducto = {
                     ...producto[0],
                     precio: item.precio,
@@ -466,6 +536,23 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
+            const validate = await conec.execute(connection, `
+                SELECT 
+                    *
+                FROM 
+                    ventaCotizacion AS vc
+                INNER JOIN
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                WHERE 
+                    vc.idCotizacion = ?`, [
+                req.body.idCotizacion
+            ]);
+
+            if (validate.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "La cotización ya esta ligado a una venta y no se puede editar.");
+            }
+
             await conec.execute(connection, `
             UPDATE 
                 cotizacion 
@@ -545,6 +632,23 @@ class Cotizacion {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const validate = await conec.execute(connection, `
+                SELECT 
+                    *
+                FROM 
+                    ventaCotizacion AS vc
+                INNER JOIN
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                WHERE 
+                    vc.idCotizacion = ?`, [
+                req.query.idCotizacion
+            ]);
+
+            if (validate.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "La cotización ya esta ligado a una venta y no se puede anular.");
+            }
 
             const cotizacion = await conec.execute(connection, `
             SELECT
