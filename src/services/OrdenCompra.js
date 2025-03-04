@@ -69,7 +69,7 @@ class OrdenCompra {
                 req.query.idOrdenCompra,
             ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idOrdenCompraDetalle ASC) AS id,
                 cd.cantidad,
@@ -77,6 +77,7 @@ class OrdenCompra {
                 p.idMedida,
                 p.idProducto,
                 p.nombre,
+                p.imagen,
                 i.nombre AS nombreImpuesto,
                 m.nombre AS nombreMedida,
                 i.porcentaje AS porcentajeImpuesto,
@@ -100,10 +101,18 @@ class OrdenCompra {
                 req.query.idOrdenCompra,
             ]);
 
-            const idImpuesto = detalle[0]?.idImpuesto ?? '';
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map(item => {
+                return {
+                    ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                }
+            });
+
+            const idImpuesto = detalles[0]?.idImpuesto ?? '';
             cabecera[0].idImpuesto = idImpuesto;
 
-            return sendSuccess(res, { cabecera: cabecera[0], detalle });
+            return sendSuccess(res, { cabecera: cabecera[0], detalles: listaDetalles });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/id", error)
         }
@@ -178,19 +187,67 @@ class OrdenCompra {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                 }
             });
 
+            // Consulta los compras asociadas
+            const compras = await conec.query(`
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
+                    v.idVenta,
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
+                    v.hora,
+                    co.nombre AS comprobante,
+                    v.serie,
+                    v.numeracion,
+                    v.estado,
+                    m.codiso,
+                    SUM(vd.precio * vd.cantidad) AS total
+                FROM 
+                    compraOrdenCompra AS vc 
+                INNER JOIN 
+                    ordenCompra AS c ON c.idOrdenCompra = vc.idOrdenCompra
+                INNER JOIN 
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                INNER JOIN 
+                    moneda AS m ON v.idMoneda = m.idMoneda
+                INNER JOIN 
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                INNER JOIN 
+                    comprobante AS co ON co.idComprobante = v.idComprobante
+                WHERE 
+                    vc.idOrdenCompra = ? 
+                GROUP BY 
+                    v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
+                ORDER BY 
+                    v.fecha DESC, v.hora DESC`, [
+                req.query.idOrdenCompra,
+            ]);
+
+            const comprados = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    SUM(vd.cantidad) AS cantidad
+                FROM 
+                    compraOrdenCompra AS vc
+                INNER JOIN
+                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                INNER JOIN
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                INNER JOIN
+                    producto AS p ON p.idProducto = vd.idProducto
+                WHERE 
+                    vc.idOrdenCompra = ?
+                GROUP BY 
+                    p.idProducto`, [
+                req.query.idOrdenCompra
+            ]);
+
             // Devuelve un objeto con la información del ordenCompra, los detalles y las salidas
-            return sendSuccess(res, { cabecera: ordenCompra[0], detalles: listaDetalles });
+            return sendSuccess(res, { cabecera: ordenCompra[0], detalles: listaDetalles, compras, comprados });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/detail", error)
@@ -199,105 +256,137 @@ class OrdenCompra {
 
     async forPurchase(req, res) {
         try {
-            const cliente = await conec.query(`
-            SELECT                 
-                p.idPersona,
-                p.idTipoCliente,     
-                p.idTipoDocumento,
-                p.documento,
-                p.informacion,
-                IFNULL(p.celular,'') AS celular,
-                IFNULL(p.email,'') AS email,
-                IFNULL(p.direccion,'') AS direccion
-            FROM 
-                ordenCompra AS c
-            INNER JOIN 
-                persona AS p ON p.idPersona = c.idProveedor
-            WHERE 
-                c.idOrdenCompra = ?`, [
+            const validate = await conec.query(`
+                SELECT 
+                    *
+                FROM 
+                    ordenCompra
+                WHERE 
+                    idOrdenCompra = ? AND estado = 0`, [
                 req.query.idOrdenCompra
             ]);
 
-            // const detalles = await conec.query(`
-            // SELECT 
-            //     cd.idProducto,
-            //     cd.precio,
-            //     cd.cantidad
-            // FROM
-            //     cotizacionDetalle AS cd
-            // WHERE
-            //     cd.idCotizacion = ?
-            // ORDER BY 
-            //     cd.idCotizacionDetalle ASC`, [
-            //     req.query.idCotizacion
-            // ]);
+            if (validate.length !== 0) {
+                return sendClient(res, "La orden de compra se encuentra anulada.");
+            }
 
-            // let productos = [];
+            const proveedor = await conec.query(`
+                SELECT                 
+                    p.idPersona,
+                    p.idTipoCliente,     
+                    p.idTipoDocumento,
+                    p.documento,
+                    p.informacion,
+                    IFNULL(p.celular,'') AS celular,
+                    IFNULL(p.email,'') AS email,
+                    IFNULL(p.direccion,'') AS direccion
+                FROM 
+                    ordenCompra AS c
+                INNER JOIN 
+                    persona AS p ON p.idPersona = c.idProveedor
+                WHERE 
+                    c.idOrdenCompra = ?`, [
+                req.query.idOrdenCompra
+            ]);
 
-            // for (const item of detalles) {
-            //     const producto = await conec.query(`
-            //     SELECT 
-            //         p.idProducto, 
-            //         p.codigo,
-            //         p.nombre AS nombreProducto, 
-            //         p.preferido,
-            //         p.negativo,
-            //         c.nombre AS categoria, 
-            //         m.nombre AS medida,
-            //         p.idTipoTratamientoProducto,
-            //         p.imagen,
-            //         a.nombre AS almacen,
-            //         i.idInventario,
-            //         'PRODUCTO' AS tipo
-            //     FROM 
-            //         producto AS p
-            //         INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-            //         INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-            //         INNER JOIN medida AS m ON m.idMedida = p.idMedida
-            //         INNER JOIN inventario AS i ON i.idProducto = p.idProducto 
-            //         INNER JOIN almacen AS a ON a.idAlmacen = i.idAlmacen
-            //     WHERE 
-            //         p.idProducto = ? AND a.idAlmacen = ?
-            //     UNION
-            //     SELECT 
-            //         p.idProducto, 
-            //         p.codigo,
-            //         p.nombre AS nombreProducto, 
-            //         p.preferido,
-            //         p.negativo,
-            //         c.nombre AS categoria, 
-            //         m.nombre AS medida,
-            //         p.idTipoTratamientoProducto,
-            //         p.imagen,
-            //         'SIN ALMACEN' AS almacen,
-            //         0 AS idInventario,
-            //         'SERVICIO' AS tipo
-            //     FROM 
-            //         producto AS p
-            //     INNER JOIN precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-            //     INNER JOIN categoria AS c ON p.idCategoria = c.idCategoria
-            //     INNER JOIN medida AS m ON m.idMedida = p.idMedida
-            //     WHERE 
-            //         p.idProducto = ?`, [
-            //         item.idProducto,
-            //         req.query.idAlmacen,
-            //         item.idProducto
-            //     ]);
+            const comprados = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    SUM(vd.cantidad) AS cantidad
+                FROM 
+                    compraOrdenCompra AS vc
+                INNER JOIN
+                    compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
+                INNER JOIN
+                    compraDetalle AS vd ON vd.idCompra = v.idCompra
+                INNER JOIN
+                    producto AS p ON p.idProducto = vd.idProducto
+                WHERE 
+                    vc.idOrdenCompra = ?
+                GROUP BY 
+                    p.idProducto`, [
+                req.query.idOrdenCompra
+            ]);
 
-            //     const newProducto = {
-            //         ...producto[0],
-            //         precio: item.precio,
-            //         cantidad: item.cantidad
-            //     }
+            const detalles = await conec.query(`
+                SELECT 
+                    ocd.idProducto,
+                    ocd.costo,
+                    ocd.cantidad
+                FROM
+                    ordenCompraDetalle AS ocd
+                WHERE
+                    ocd.idOrdenCompra = ?
+                ORDER BY 
+                    ocd.idOrdenCompraDetalle ASC`, [
+                req.query.idOrdenCompra
+            ]);
 
-            //     productos.push(newProducto);
-            // }
+            const newDetalles = detalles
+                .map((detalle) => {
+                    const item = comprados.find(pro => pro.idProducto === detalle.idProducto);
+                    if (item) {
+                        if (item.cantidad !== detalle.cantidad) {
+                            return {
+                                ...detalle,
+                                cantidad: Math.abs(item.cantidad - detalle.cantidad),
+                            };
+                        }
+                    } else {
+                        return { ...detalle };
+                    }
+                    return null; // Se retorna `null` para que después se filtre
+                })
+                .filter(Boolean);
+
+            let productos = [];
+
+            let index = 0;
+            for (const item of newDetalles) {
+                const producto = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    p.imagen,
+                    p.codigo,
+                    p.sku,
+                    p.codigoBarras,
+                    p.nombre,
+                    p.costo,
+                    c.nombre AS categoria,
+                    tp.nombre as tipoProducto,
+                    p.idTipoTratamientoProducto,
+                    p.idMedida,
+                    me.nombre AS unidad
+                FROM 
+                    producto AS p
+                INNER JOIN 
+                    medida AS me ON me.idMedida = p.idMedida
+                INNER JOIN 
+                    categoria AS c ON c.idCategoria = p.idCategoria
+                INNER JOIN 
+                    tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+                WHERE 
+                    p.idProducto = ?`, [
+                    item.idProducto,
+                ]);
+
+                const bucket = firebaseService.getBucket();
+                const newProducto = {
+                    ...producto[0],
+                    costo: item.costo,
+                    cantidad: item.cantidad,
+                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
+                    id: index + 1
+                }
+
+                productos.push(newProducto);
+            }
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSuccess(res, { cliente: cliente[0], });
+            return sendSuccess(res, { proveedor: proveedor[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/detailVenta", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/forPurchase", error)
         }
     }
 
@@ -411,6 +500,23 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
+            const validate = await conec.execute(connection, `
+            SELECT 
+                *
+            FROM 
+                compraOrdenCompra AS vc
+            INNER JOIN
+                compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
+            WHERE 
+                vc.idOrdenCompra = ?`, [
+                req.body.idOrdenCompra
+            ]);
+
+            if (validate.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "La orden de compra ya esta ligado a una compra y no se puede editar.");
+            }
+
             await conec.execute(connection, `
             UPDATE 
                 ordenCompra 
@@ -491,14 +597,30 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
+            const validate = await conec.execute(connection, `
+            SELECT 
+                *
+            FROM 
+                compraOrdenCompra AS vc
+            INNER JOIN
+                compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
+            WHERE 
+                vc.idOrdenCompra = ?`, [
+                req.query.idOrdenCompra
+            ]);
+
+            if (validate.length !== 0) {
+                await conec.rollback(connection);
+                return sendClient(res, "El ordend e compra ya esta ligado a una compra y no se puede anular.");
+            }
+
             const ordenCompra = await conec.execute(connection, `
             SELECT
                 estado
             FROM
                 ordenCompra
             WHERE
-                idOrdenCompra = ?
-            `, [
+                idOrdenCompra = ?`, [
                 req.query.idOrdenCompra
             ]);
 
@@ -509,7 +631,7 @@ class OrdenCompra {
 
             if (ordenCompra[0].estado === 0) {
                 await conec.rollback(connection);
-                return sendClient(res, "La orden de compra ya se encuentra anulado.");  
+                return sendClient(res, "La orden de compra ya se encuentra anulado.");
             }
 
             await conec.execute(connection, `
@@ -581,7 +703,7 @@ class OrdenCompra {
                 usuario AS u ON u.idUsuario = p.idUsuario
             WHERE 
                 p.idOrdenCompra = ?`, [
-                    idOrdenCompra
+                idOrdenCompra
             ]);
 
             const sucursal = await conec.query(`
@@ -648,7 +770,7 @@ class OrdenCompra {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: bucket && empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,
@@ -694,7 +816,7 @@ class OrdenCompra {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
+                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
                             },
                             "medida": {
                                 "nombre": item.medida,

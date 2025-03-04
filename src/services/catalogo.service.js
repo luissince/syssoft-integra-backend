@@ -1,11 +1,9 @@
-require("@aws-sdk/client-s3");
 const Conexion = require('../database/Conexion');
 const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
 } = require('../tools/Tools');
-const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
 const conec = new Conexion();
@@ -15,34 +13,30 @@ require('dotenv').config();
 
 class Catalogo {
 
-    async list(req, res) {
-        try {
-            const list = await conec.procedure(`CALL Listar_Catalogos(?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
-            ]);
+    async list(data) {
+        const list = await conec.procedure(`CALL Listar_Catalogos(?,?,?,?)`, [
+            parseInt(data.opcion),
+            data.buscar,
+            parseInt(data.posicionPagina),
+            parseInt(data.filasPorPagina)
+        ]);
 
-            const resultLista = list.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            });
+        const resultLista = list.map(function (item, index) {
+            return {
+                ...item,
+                id: (index + 1) + parseInt(data.posicionPagina)
+            }
+        });
 
-            const total = await conec.procedure(`CALL Listar_Catalogos_Count(?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar
-            ]);
+        const total = await conec.procedure(`CALL Listar_Catalogos_Count(?,?)`, [
+            parseInt(data.opcion),
+            data.buscar
+        ]);
 
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Catalogo/list", error);
-        }
+        return { "result": resultLista, "total": total[0].Total };
     }
 
-    async create(req, res) {
+    async create(data) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -61,16 +55,16 @@ class Catalogo {
                     idUsuario
                 ) VALUES(?,?,?,?,?,?)`, [
                 idCatalogo,
-                req.body.idSucursal,
-                req.body.nombre,
+                data.idSucursal,
+                data.nombre,
                 currentDate(),
                 currentTime(),
-                req.body.idUsuario,
+                data.idUsuario,
             ]);
 
             let count = 0;
 
-            for (const item of req.body.productos) {
+            for (const item of data.productos) {
                 count++;
                 await conec.execute(connection, `
                     INSERT INTO catalogoDetalle(
@@ -85,21 +79,21 @@ class Catalogo {
             }
 
             await conec.commit(connection);
-            return sendSave(res, {
+            return {
                 idCatalogo: idCatalogo,
                 message: "Datos registrados correctamente.",
-            });
+            };
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Catalogo/create", error);
+
+            throw error;
         }
     }
 
-    async id(req, res) {
-        try {
-            const catalogo = await conec.query(`
+    async id(data) {
+        const catalogo = await conec.query(`
             SELECT 
                 p.idCatalogo,
                 p.nombre,
@@ -109,10 +103,10 @@ class Catalogo {
                 catalogo AS p
             WHERE 
                 p.idCatalogo = ?`, [
-                req.params.idCatalogo
-            ]);
+            data.idCatalogo
+        ]);
 
-            const detalles = await conec.query(`
+        const detalles = await conec.query(`
                 SELECT
                     idCatalogoDetalle AS id,
                     p.idProducto,
@@ -142,31 +136,27 @@ class Catalogo {
                     cd.idCatalogo = ?
                 ORDER BY 
                     cd.idCatalogoDetalle ASC`, [
-                req.params.idCatalogo
-            ]);
+            data.idCatalogo
+        ]);
 
-            const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
+        const bucket = firebaseService.getBucket();
+        const listaDetalles = detalles.map(item => {
+            if (bucket && item.imagen) {
                 return {
                     ...item,
+                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
-            });
+            }
+            return {
+                ...item,
+            }
+        });
 
-            return sendSuccess(res, { "cabecera": catalogo[0], "detalles": listaDetalles });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Catalogo/id", error);
-        }
+        return { "cabecera": catalogo[0], "detalles": listaDetalles };
     }
 
-    async detail(req, res) {
-        try {
-            const catalogo = await conec.query(`
+    async detail(data) {
+        const catalogo = await conec.query(`
             SELECT 
                 p.idCatalogo,
                 p.nombre,
@@ -179,10 +169,10 @@ class Catalogo {
                 usuario AS u ON u.idUsuario = p.idUsuario
             WHERE 
                 p.idCatalogo = ?`, [
-                req.params.idCatalogo
-            ]);
+            data.idCatalogo
+        ]);
 
-            const detalles = await conec.query(`
+        const detalles = await conec.query(`
                 SELECT
                     idCatalogoDetalle AS id,
                     p.idProducto,
@@ -197,32 +187,29 @@ class Catalogo {
                     cd.idCatalogo = ?
                 ORDER BY 
                     cd.idCatalogoDetalle ASC`, [
-                req.params.idCatalogo
-            ]);
+            data.idCatalogo
+        ]);
 
-            const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
+        const bucket = firebaseService.getBucket();
+        const listaDetalles = detalles.map(item => {
+            if (bucket && item.imagen) {
                 return {
                     ...item,
+                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
-            });
+            }
+            return {
+                ...item,
+            }
+        });
 
-            return sendSuccess(res, {
-                "cabecera": catalogo[0],
-                "detalles": listaDetalles
-            });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Catalogo/id", error);
-        }
+        return {
+            "cabecera": catalogo[0],
+            "detalles": listaDetalles
+        };
     }
 
-    async update(req, res) {
+    async update(data) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -236,18 +223,18 @@ class Catalogo {
                 hora = ?
             WHERE 
                 idCatalogo = ?`, [
-                req.body.nombre,
+                data.nombre,
                 currentDate(),
                 currentTime(),
-                req.body.idCatalogo,
+                data.idCatalogo,
             ]);
 
             await conec.execute(connection, `DELETE FROM catalogoDetalle WHERE idCatalogo = ?`, [
-                req.body.idCatalogo
+                data.idCatalogo
             ]);
 
             let count = 0;
-            for (const item of req.body.productos) {
+            for (const item of data.productos) {
                 count++;
                 await conec.execute(connection, `
                     INSERT INTO catalogoDetalle(
@@ -256,28 +243,27 @@ class Catalogo {
                         idProducto
                     ) VALUES(?,?,?)`, [
                     count,
-                    req.body.idCatalogo,
+                    data.idCatalogo,
                     item.idProducto
                 ]);
             }
 
             await conec.commit(connection);
-            return sendSave(res, {
-                idCatalogo: req.body.idCatalogo,
+            return {
+                idCatalogo: data.idCatalogo,
                 message: "Datos actualizdos correctamente.",
-            });
+            };
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Catalogo/update", error);
+
+            throw error;
         }
     }
 
-    async documentsPdfCatalog(req, res) {
-        try {
-
-            const empresa = await conec.query(`
+    async documentsPdfCatalog(data) {
+        const empresa = await conec.query(`
                 SELECT
                     documento,
                     razonSocial,
@@ -286,7 +272,7 @@ class Catalogo {
                 FROM 
                     empresa`);
 
-            const sucursal = await conec.query(`
+        const sucursal = await conec.query(`
                 SELECT 
                     s.nombre,
                     s.telefono,
@@ -305,7 +291,7 @@ class Catalogo {
                 WHERE 
                     s.principal = 1`);
 
-            const moneda = await conec.query(`
+        const moneda = await conec.query(`
                 SELECT 
                     codiso,
                     simbolo
@@ -314,91 +300,90 @@ class Catalogo {
                 WHERE 
                     nacional = 1;`);
 
-            const productos = await conec.query(`
+        const productos = await conec.query(`
                 SELECT 
                     p.idProducto,
                     p.nombre,
                     p.codigo,
                     p.imagen,
-                    p.descripcionCorta
+                    p.descripcionCorta,
+                    md.nombre AS nombreMedido
                 FROM 
                     catalogo AS c
                 INNER JOIN 
                     catalogoDetalle AS cd ON c.idCatalogo = cd.idCatalogo
                 INNER JOIN
                     producto AS p ON cd.idProducto = p.idProducto
+                INNER JOIN 
+                    medida AS md ON md.idMedida = p.idMedida 
                 WHERE 
                     c.idCatalogo = ?
                 ORDER BY 
                     p.nombre ASC`, [
-                req.params.idCatalogo
+            data.idCatalogo
+        ]);
+
+        const bucket = firebaseService.getBucket();
+        const products = await Promise.all(productos.map(async (item) => {
+            // Clonar el objeto eliminando 'nombreMedido'
+            const { nombreMedido, ...copy } = item;
+
+            const precios = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    nombre,
+                    valor AS precio
+                FROM 
+                    precio 
+                WHERE 
+                    idProducto = ? AND preferido = 1`, [
+                item.idProducto
             ]);
 
-            const bucket = firebaseService.getBucket();
-            const products = await Promise.all(productos.map(async (item) => {
-                const precios = await conec.query(`
-                    SELECT
-                        ROW_NUMBER() OVER () AS id,
-                        nombre,
-                        valor AS precio
-                    FROM 
-                        precio 
-                    WHERE 
-                        idProducto = ? AND preferido = 1`, [
-                    item.idProducto
-                ]);
-
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                        precios,
-                    }
-                }
-                return {
-                    ...item,
-                    imagen: `${process.env.APP_URL}/files/to/noimage.png`,
-                    precios,
-                }
-            }));
-
-            const options = {
-                method: 'POST',
-                url: `${process.env.APP_PDF}/product/pdf/catalog`,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                data: {
-                    "company": {
-                        ...empresa[0],
-                        rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
-                    },
-                    "branch": {
-                        "nombre": sucursal[0].nombre,
-                        "telefono": sucursal[0].telefono,
-                        "celular": sucursal[0].celular,
-                        "email": sucursal[0].email,
-                        "paginaWeb": sucursal[0].paginaWeb,
-                        "direccion": sucursal[0].direccion,
-                        "ubigeo": {
-                            "departamento": sucursal[0].departamento,
-                            "provincia": sucursal[0].provincia,
-                            "distrito": sucursal[0].distrito
-                        }
-                    },
-                    "moneda": moneda[0],
-                    "products": products
-                },
-                responseType: 'arraybuffer'
+            return {
+                ...copy,
+                imagen: bucket && item.imagen
+                    ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
+                    : `${process.env.APP_URL}/files/to/noimage.png`,
+                medida: { nombre: nombreMedido },
+                precios,
             };
+        }));
 
-            const response = await axios.request(options);
-            return sendFile(res, response);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfCatalog", error);
-        }
+        const options = {
+            method: 'POST',
+            url: `${process.env.APP_PDF}/product/pdf/catalog`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            data: {
+                "company": {
+                    ...empresa[0],
+                    rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                },
+                "branch": {
+                    "nombre": sucursal[0].nombre,
+                    "telefono": sucursal[0].telefono,
+                    "celular": sucursal[0].celular,
+                    "email": sucursal[0].email,
+                    "paginaWeb": sucursal[0].paginaWeb,
+                    "direccion": sucursal[0].direccion,
+                    "ubigeo": {
+                        "departamento": sucursal[0].departamento,
+                        "provincia": sucursal[0].provincia,
+                        "distrito": sucursal[0].distrito
+                    }
+                },
+                "moneda": moneda[0],
+                "products": products
+            },
+            responseType: 'arraybuffer'
+        };
+
+        const response = await axios.request(options);
+        return response;
     }
 
 }
 
-module.exports = Catalogo;
+module.exports = new Catalogo();

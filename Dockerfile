@@ -4,11 +4,11 @@ FROM node:18-alpine AS builder
 # Establecer el directorio de trabajo en /app
 WORKDIR /app
 
-# Copiar los archivos de configuración de dependencias (package.json y package-lock.json si existe)
-COPY package*.json ./
+# Copiar solo los archivos necesarios para instalar dependencias
+COPY app/package.json app/package-lock.json ./
 
-# Instalar las dependencias de la aplicación
-RUN npm install
+# Instalar dependencias de producción
+RUN npm install --frozen-lockfile 
 
 # Copiar todos los archivos al directorio de trabajo
 COPY . .

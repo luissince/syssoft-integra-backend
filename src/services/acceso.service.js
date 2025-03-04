@@ -5,9 +5,8 @@ const conec = new Conexion();
 
 class Acceso {
 
-    async accesos(req, res) {
-        try {
-            const menu = await conec.query(`
+    async accesos(data) {
+        const menu = await conec.query(`
             SELECT 
                 m.idMenu,
                 m.nombre, 
@@ -20,10 +19,10 @@ class Acceso {
                 menu as m on pm.idMenu = m.idMenu
             WHERE 
                 p.idPerfil = ?`, [
-                req.query.idPerfil,
-            ]);
+            data.idPerfil,
+        ]);
 
-            const subMenu = await conec.query(`
+        const subMenu = await conec.query(`
             SELECT 
                 sm.idMenu,
                 sm.idSubMenu,
@@ -38,10 +37,10 @@ class Acceso {
             WHERE 
                 psm.idPerfil = ?
             `, [
-                req.query.idPerfil,
-            ]);
+            data.idPerfil,
+        ]);
 
-            const privilegio = await conec.query(`
+        const privilegio = await conec.query(`
             SELECT
                 pp.idPrivilegio,
                 pp.idSubMenu,
@@ -58,10 +57,10 @@ class Acceso {
                 pp.idPerfil = ?
             ORDER BY
                 pp.idPrivilegio`, [
-                req.query.idPerfil,
-            ]);
+            data.idPerfil,
+        ]);
 
-            const perfilSucursales = await conec.query(`
+        const perfilSucursales = await conec.query(`
             SELECT
                 s.idSucursal,
                 s.nombre,
@@ -73,21 +72,18 @@ class Acceso {
                 sucursal AS s
             LEFT JOIN
                 perfilSucursal AS ps ON ps.idSucursal = s.idSucursal AND ps.idPerfil = ?`, [
-                req.query.idPerfil,
-            ]);
+            data.idPerfil,
+        ]);
 
-            return sendSuccess(res, { menu, subMenu, privilegio, perfilSucursales });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/accesos", error);
-        }
+        return { menu, subMenu, privilegio, perfilSucursales };
     }
 
-    async save(req, res) {
+    async save(data) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
-            for (let menu of req.body.menus) {
+            for (const menu of data.menus) {
                 await conec.execute(connection, `
                 UPDATE 
                     permisoMenu 
@@ -96,11 +92,11 @@ class Acceso {
                 WHERE 
                     idPerfil  = ? AND idMenu = ?`, [
                     menu.estado,
-                    req.body.idPerfil,
+                    data.idPerfil,
                     menu.idMenu
                 ]);
 
-                for (let submenu of menu.children) {
+                for (const submenu of menu.children) {
                     await conec.execute(connection, `
                         UPDATE 
                             permisoSubMenu 
@@ -109,12 +105,12 @@ class Acceso {
                         WHERE 
                             idPerfil = ? AND idMenu = ? AND idSubMenu = ?`, [
                         submenu.estado,
-                        req.body.idPerfil,
+                        data.idPerfil,
                         menu.idMenu,
                         submenu.idSubMenu
                     ]);
 
-                    for (let privilegio of submenu.children) {
+                    for (const privilegio of submenu.children) {
                         await conec.execute(connection, `
                             UPDATE 
                                 permisoPrivilegio 
@@ -126,20 +122,20 @@ class Acceso {
                             privilegio.idPrivilegio,
                             privilegio.idSubMenu,
                             privilegio.idMenu,
-                            req.body.idPerfil,
+                            data.idPerfil,
                         ]);
                     }
                 }
             }
 
             await conec.execute(connection, `DELETE FROM perfilSucursal WHERE idPerfil = ?`, [
-                req.body.idPerfil,
+                data.idPerfil,
             ]);
 
-            for (const sucursal of req.body.sucursales) {
+            for (const sucursal of data.sucursales) {
                 if (sucursal.estado === 1) {
                     await conec.execute(connection, `INSERT INTO perfilSucursal(idPerfil, idSucursal, fecha, hora) VALUES(?,?,?,?)`, [
-                        req.body.idPerfil,
+                        data.idPerfil,
                         sucursal.idSucursal,
                         currentDate(),
                         currentTime(),
@@ -153,33 +149,34 @@ class Acceso {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/save", error);
+
+            throw error;
         }
     }
 
-    async update(req, res) {
+    async update(data) {
         let connection = null;
         try {
 
             connection = await conec.beginTransaction();
 
             await conec.execute(connection, `DELETE FROM permisoMenu WHERE idPerfil  = ?`, [
-                req.body.idPerfil
+                data.idPerfil
             ]);
 
             await conec.execute(connection, `DELETE FROM permisoSubMenu WHERE idPerfil  = ?`, [
-                req.body.idPerfil
+                data.idPerfil
             ]);
 
             await conec.execute(connection, `DELETE FROM permisoPrivilegio WHERE idPerfil  = ?`, [
-                req.body.idPerfil
+                data.idPerfil
             ]);
 
             const menus = await conec.execute(connection, `SELECT idMenu,nombre FROM menu`);
 
             for (const menu of menus) {
                 let estadoMenu = 0;
-                for (const menuold of req.body.menus) {
+                for (const menuold of data.menus) {
                     if (menuold.idMenu === menu.idMenu) {
                         estadoMenu = menuold.estado;
                         break;
@@ -187,7 +184,7 @@ class Acceso {
                 }
 
                 await conec.execute(connection, `INSERT INTO permisoMenu(idPerfil ,idMenu ,estado)values(?,?,?)`, [
-                    req.body.idPerfil,
+                    data.idPerfil,
                     menu.idMenu,
                     estadoMenu
                 ]);
@@ -199,7 +196,7 @@ class Acceso {
                 for (const submenu of submenus) {
 
                     let estadoSubMenu = 0;
-                    for (const menuold of req.body.menus) {
+                    for (const menuold of data.menus) {
                         for (const submenuold of menuold.children) {
                             if (menuold.idMenu === menu.idMenu && submenuold.idSubMenu === submenu.idSubMenu) {
                                 estadoSubMenu = submenuold.estado;
@@ -209,7 +206,7 @@ class Acceso {
                     }
 
                     await conec.execute(connection, `INSERT INTO permisoSubMenu(idPerfil, idMenu ,idSubMenu, estado)values(?,?,?,?)`, [
-                        req.body.idPerfil,
+                        data.idPerfil,
                         menu.idMenu,
                         submenu.idSubMenu,
                         estadoSubMenu
@@ -222,7 +219,7 @@ class Acceso {
 
                     for (const privilegio of privilegios) {
                         let estadoPrivilegio = 0;
-                        for (const menuold of req.body.menus) {
+                        for (const menuold of data.menus) {
                             for (const submenuold of menuold.children) {
                                 for (const privilegioold of submenuold.children) {
                                     if (menuold.idMenu === menu.idMenu
@@ -239,7 +236,7 @@ class Acceso {
                             privilegio.idPrivilegio,
                             privilegio.idSubMenu,
                             privilegio.idMenu,
-                            req.body.idPerfil,
+                            data.idPerfil,
                             estadoPrivilegio
                         ]);
                     }
@@ -247,12 +244,13 @@ class Acceso {
             }
 
             await conec.commit(connection);
-            return sendSuccess(res, "Modulos actualizados correctamente.");
+            return "Modulos actualizados correctamente.";
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/update", error);
+
+            throw error;
         }
     }
 

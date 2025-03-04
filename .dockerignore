@@ -1,0 +1,19 @@
+# Ignorar archivos y carpetas innecesarias
+.git
+.github
+.vscode
+.DS_Store
+.gitignore
+.env.example
+.nvmrc
+Dockerfile
+docker-compose.yml
+
+# Archivos de configuración y documentación
+LICENSE
+README.md
+
+# Ignorar node_modules y la carpeta de build
+node_modules
+run.sh
+start-dev.sh

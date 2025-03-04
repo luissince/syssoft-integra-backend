@@ -60,6 +60,7 @@ class Factura {
                 idSucursal,
                 idMoneda,
                 idCotizacion,
+                idPedido,
                 estado,
                 observacion,
                 nota,
@@ -158,7 +159,7 @@ class Factura {
                 }
 
                 // 1️ Validación de cantidad de ítems
-                if (newDetallesVenta.length > newDetallesCotizacion.length ) {
+                if (newDetallesVenta.length > newDetallesCotizacion.length) {
                     await conec.rollback(connection);
                     return sendClient(res, { "message": "El número de productos en la cotización no coincide con los productos vendidos." });
                 }
@@ -180,9 +181,8 @@ class Factura {
 
                 const diferencias = [];
                 for (let [idProducto, cantidad] of map1) {
-                    if(map2.has(idProducto)){
-                        if(map2.get(idProducto) > cantidad){
-                            console.log(map2.has(idProducto))
+                    if (map2.has(idProducto)) {
+                        if (map2.get(idProducto) > cantidad) {
                             diferencias.push(true);
                         }
                     }
@@ -191,6 +191,125 @@ class Factura {
                 if (diferencias.length > 0) {
                     await conec.rollback(connection);
                     return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente a la cotización." });
+                }
+            }
+
+            if (idPedido) {
+                const vendidos = await conec.query(`
+                    SELECT 
+                        p.idProducto,
+                        SUM(vd.cantidad) AS cantidad
+                    FROM 
+                        ventaPedido AS vc
+                    INNER JOIN
+                        venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                    INNER JOIN
+                        ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                    INNER JOIN
+                        producto AS p ON p.idProducto = vd.idProducto
+                    WHERE 
+                        vc.idPedido = ?
+                    GROUP BY 
+                        p.idProducto`, [idPedido]);
+
+                const pedidoDetalles = await conec.query(`
+                    SELECT 
+                        cd.idProducto,
+                        cd.precio,
+                        cd.cantidad
+                    FROM
+                        pedidoDetalle AS cd
+                    WHERE
+                        cd.idPedido = ?`, [idPedido]);
+
+                const newDetallesPedido = pedidoDetalles.map((detalle) => {
+                    const item = vendidos.find(pro => pro.idProducto === detalle.idProducto);
+                    if (item) {
+                        if (item.cantidad !== detalle.cantidad) {
+                            return {
+                                ...detalle,
+                                cantidad: Math.abs(item.cantidad - detalle.cantidad),
+                            };
+                        }
+                    } else {
+                        return { ...detalle };
+                    }
+                    return null; // Se retorna `null` para que después se filtre
+                }).filter(Boolean);
+
+                const newDetallesVenta = [];
+                for (const item of detalleVenta) {
+                    if (item.tipo === "PRODUCTO") {
+                        const producto = await conec.execute(connection, `
+                            SELECT 
+                                p.costo, 
+                                pc.valor AS precio 
+                            FROM 
+                                producto AS p 
+                            INNER JOIN 
+                                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                            WHERE 
+                                p.idProducto = ?`, [
+                            item.idProducto,
+                        ]);
+
+                        const cantidad = item.inventarios.reduce((sum, inventario) => {
+                            let cantidad = 0;
+
+                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                                cantidad = inventario.cantidad;
+                            } else if (item.idTipoTratamientoProducto === "TT0002") {
+                                cantidad = item.precio / producto[0].precio;
+                            }
+
+                            return sum + cantidad;
+                        }, 0);
+
+                        newDetallesVenta.push({
+                            idProducto: item.idProducto,
+                            cantidad
+                        });
+                    } else if (item.tipo === "SERVICIO") {
+                        newDetallesVenta.push({
+                            idProducto: item.idProducto,
+                            cantidad: item.cantidad
+                        });
+                    }
+                }
+
+                // 1️ Validación de cantidad de ítems
+                if (newDetallesVenta.length > newDetallesPedido.length) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "El número de productos en el pedido no coincide con los productos vendidos." });
+                }
+
+                // 2 Validación de ids
+                const ids1 = new Set(newDetallesPedido.map(obj => obj.idProducto));
+                const ids2 = new Set(newDetallesVenta.map(obj => obj.idProducto));
+
+                for (let id of ids2) {
+                    if (!ids1.has(id)) {
+                        await conec.rollback(connection);
+                        return sendClient(res, { "message": "Los productos vendidos no son iguales al del pedido." });
+                    }
+                }
+
+                // 3 Validación de cantidad de productos
+                const map1 = new Map(newDetallesPedido.map(obj => [obj.idProducto, obj.cantidad]));
+                const map2 = new Map(newDetallesVenta.map(obj => [obj.idProducto, obj.cantidad]));
+
+                const diferencias = [];
+                for (let [idProducto, cantidad] of map1) {
+                    if (map2.has(idProducto)) {
+                        if (map2.get(idProducto) > cantidad) {
+                            diferencias.push(true);
+                        }
+                    }
+                }
+
+                if (diferencias.length > 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente al pedido." });
                 }
             }
 
@@ -526,9 +645,7 @@ class Factura {
                 }
             }
 
-            /**
-             * Proceso cuando la venta es al contado
-             */
+            // Si la venta es al contado
             if (idFormaPago === "FP0001") {
                 const listaTransaccion = await conec.execute(connection, 'SELECT idTransaccion FROM transaccion');
                 let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
@@ -580,9 +697,7 @@ class Factura {
                 }
             }
 
-            /**
-            * Proceso cuando la venta es al crédito fijo
-            */
+            // Si la venta es al crédito fijo
             if (idFormaPago === "FP0002") {
                 const listCuotas = await conec.execute(connection, 'SELECT idCuota FROM cuota');
                 let idCuota = generateNumericCode(1, listCuotas, 'idCuota');
@@ -637,26 +752,50 @@ class Factura {
 
             }
 
-            /**
-             * Registrar el proceso de venta y cotzaición
-             */
-
+            // Si la venta está asociada a una cotización
             if (idCotizacion) {
                 const listaIdVentaCotizacion = await conec.execute(connection, 'SELECT idVentaCotizacion FROM ventaCotizacion');
                 const idVentaCotizacion = generateNumericCode(1, listaIdVentaCotizacion, 'idVentaCotizacion');
 
                 await conec.execute(connection, `
-                    INSERT INTO ventaCotizacion(
+                INSERT INTO ventaCotizacion(
                     idVentaCotizacion, 
                     idVenta, 
                     idCotizacion, 
                     fecha, 
                     hora,
-                    idUsuario) 
-                    VALUES(?,?,?,?,?,?)`, [
+                    idUsuario
+                ) 
+                VALUES
+                    (?,?,?,?,?,?)`, [
                     idVentaCotizacion,
                     idVenta,
                     idCotizacion,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
+            }
+
+            // Si la venta está asociada a un pedido
+            if (idPedido) {
+                const listaIdVentaPedido = await conec.execute(connection, 'SELECT idVentaPedido FROM ventaPedido');
+                const idVentaPedido = generateNumericCode(1, listaIdVentaPedido, 'idVentaPedido');
+
+                await conec.execute(connection, `
+                INSERT INTO ventaCotizacion(
+                    idVentaPedido, 
+                    idVenta, 
+                    idPedido, 
+                    fecha, 
+                    hora,
+                    idUsuario
+                ) 
+                VALUES
+                    (?,?,?,?,?,?)`, [
+                    idVentaPedido,
+                    idVenta,
+                    idPedido,
                     currentDate(),
                     currentTime(),
                     idUsuario
@@ -766,7 +905,7 @@ class Factura {
 
             // Obtener información de transaccion asociados a la venta
             const transaccion = await conec.query(`
-                SELECT 
+            SELECT 
                 t.idTransaccion,
                 DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
                 t.hora,

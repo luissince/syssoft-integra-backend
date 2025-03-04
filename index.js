@@ -90,7 +90,7 @@ app.use('/api/usuario', require('./src/router/usuario.router'));
 app.use('/api/concepto', require('./src/router/Concepto'));
 app.use('/api/gasto', require('./src/router/Gasto'));
 app.use('/api/cobro', require('./src/router/Cobro'));
-app.use('/api/acceso', require('./src/router/Acceso'));
+app.use('/api/acceso', require('./src/router/acceso.router'));
 app.use('/api/notacredito', require('./src/router/NotaCredito'));
 
 app.use('/api/ubigeo', require('./src/router/Ubigeo'));
@@ -121,7 +121,7 @@ app.use('/api/tipopeso', require('./src/router/TipoPeso'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 app.use('/api/ordencompra', require('./src/router/OrdenCompra'));
 app.use('/api/pedido', require('./src/router/Pedido'));
-app.use('/api/catalogo', require('./src/router/Catalogo'));
+app.use('/api/catalogo', require('./src/router/catalogo.router'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));

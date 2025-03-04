@@ -105,14 +105,9 @@ class Cotizacion {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                 }
             });
 
@@ -195,14 +190,9 @@ class Cotizacion {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                 }
             });
 
@@ -269,7 +259,6 @@ class Cotizacion {
 
     async forSale(req, res) {
         try {
-
             const validate = await conec.query(`
                 SELECT 
                     *
@@ -419,7 +408,7 @@ class Cotizacion {
                     ...producto[0],
                     precio: item.precio,
                     cantidad: item.cantidad,
-                    imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
+                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
                     id: index + 1
                 }
 
@@ -430,7 +419,7 @@ class Cotizacion {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/detailVenta", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/forSale", error)
         }
     }
 
@@ -664,8 +653,7 @@ class Cotizacion {
             FROM
                 cotizacion
             WHERE
-                idCotizacion = ?
-            `, [
+                idCotizacion = ?`, [
                 req.query.idCotizacion
             ]);
 
@@ -685,8 +673,7 @@ class Cotizacion {
             SET 
                 estado = 0
             WHERE
-                idCotizacion = ?
-            `, [
+                idCotizacion = ?`, [
                 req.query.idCotizacion
             ]);
 
@@ -816,7 +803,7 @@ class Cotizacion {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: bucket && empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,
@@ -862,7 +849,7 @@ class Cotizacion {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
+                                "imagen": bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
                             },
                             "medida": {
                                 "nombre": item.medida,

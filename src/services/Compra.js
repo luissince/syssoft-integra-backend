@@ -55,6 +55,7 @@ class Compra {
                 idSucursal,
                 idAlmacen,
                 idMoneda,
+                idOrdenCompra,
                 observacion,
                 nota,
                 estado,
@@ -67,6 +68,125 @@ class Compra {
                 notaTransacion,
                 importeTotal
             } = req.body;
+
+            if (idOrdenCompra) {
+                const comprados = await conec.query(`
+                    SELECT 
+                        p.idProducto,
+                        SUM(vd.cantidad) AS cantidad
+                    FROM 
+                        compraOrdenCompra AS vc
+                    INNER JOIN
+                        compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
+                    INNER JOIN
+                        compraDetalle AS vd ON vd.idCompra = v.idCompra
+                    INNER JOIN
+                        producto AS p ON p.idProducto = vd.idProducto
+                    WHERE 
+                        vc.idOrdenCompra = ?
+                    GROUP BY 
+                        p.idProducto`, [idOrdenCompra]);
+
+                const ordenCompraDetalles = await conec.query(`
+                    SELECT 
+                        cd.idProducto,
+                        cd.costo,
+                        cd.cantidad
+                    FROM
+                        ordenCompraDetalle AS cd
+                    WHERE
+                        cd.idOrdenCompra = ?`, [idOrdenCompra]);
+
+                const newDetallesOrdenCompra = ordenCompraDetalles.map((detalle) => {
+                    const item = comprados.find(pro => pro.idProducto === detalle.idProducto);
+                    if (item) {
+                        if (item.cantidad !== detalle.cantidad) {
+                            return {
+                                ...detalle,
+                                cantidad: Math.abs(item.cantidad - detalle.cantidad),
+                            };
+                        }
+                    } else {
+                        return { ...detalle };
+                    }
+                    return null; // Se retorna `null` para que después se filtre
+                }).filter(Boolean);
+
+                const newDetallesCompra = [];
+                for (const item of detalles) {
+                    if (item.tipo === "PRODUCTO") {
+                        const producto = await conec.execute(connection, `
+                            SELECT 
+                                p.costo, 
+                                pc.valor AS precio 
+                            FROM 
+                                producto AS p 
+                            INNER JOIN 
+                                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                            WHERE 
+                                p.idProducto = ?`, [
+                            item.idProducto,
+                        ]);
+
+                        const cantidad = item.inventarios.reduce((sum, inventario) => {
+                            let cantidad = 0;
+
+                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                                cantidad = inventario.cantidad;
+                            } else if (item.idTipoTratamientoProducto === "TT0002") {
+                                cantidad = item.precio / producto[0].precio;
+                            }
+
+                            return sum + cantidad;
+                        }, 0);
+
+                        newDetallesVenta.push({
+                            idProducto: item.idProducto,
+                            cantidad
+                        });
+                    } else if (item.tipo === "SERVICIO") {
+                        newDetallesCompra.push({
+                            idProducto: item.idProducto,
+                            cantidad: item.cantidad
+                        });
+                    }
+                }
+
+                // 1️ Validación de cantidad de ítems
+                if (newDetallesCompra.length > newDetallesOrdenCompra.length) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "El número de productos en la orden de compra no coincide con los productos comprados." });
+                }
+
+                // 2 Validación de ids
+                const ids1 = new Set(newDetallesOrdenCompra.map(obj => obj.idProducto));
+                const ids2 = new Set(newDetallesCompra.map(obj => obj.idProducto));
+
+                for (let id of ids2) {
+                    if (!ids1.has(id)) {
+                        await conec.rollback(connection);
+                        return sendClient(res, { "message": "Los productos comprados no son iguales al de la orden de compra." });
+                    }
+                }
+
+                // 3 Validación de cantidad de productos
+                const map1 = new Map(newDetallesOrdenCompra.map(obj => [obj.idProducto, obj.cantidad]));
+                const map2 = new Map(newDetallesCompra.map(obj => [obj.idProducto, obj.cantidad]));
+
+                const diferencias = [];
+                for (let [idProducto, cantidad] of map1) {
+                    if (map2.has(idProducto)) {
+                        if (map2.get(idProducto) > cantidad) {
+                            diferencias.push(true);
+                        }
+                    }
+                }
+
+                if (diferencias.length > 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente a la orden de compra." });
+                }
+            }
 
             // Genera un nuevo ID para la compra
             const listCompras = await conec.execute(connection, `SELECT idCompra FROM compra`);
@@ -330,9 +450,7 @@ class Compra {
                 }
             }
 
-            /**
-           * Proceso cuando la compra es al crédito fijo
-           */
+            // Si el tipo de compra es crédito
             if (idFormaPago === "FP0002") {
                 const listPlazos = await conec.execute(connection, 'SELECT idPlazo FROM plazo');
                 let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
@@ -377,6 +495,31 @@ class Compra {
                     idPlazo++;
                     current = now;
                 }
+            }
+
+            // Si la compra está asociada a una orden de compra
+            if (idOrdenCompra) {
+                const listaIdCompraOrdenCompra = await conec.execute(connection, 'SELECT idCompraOrdenCompra FROM compraOrdenCompra');
+                const idCompraOrdenCompra = generateNumericCode(1, listaIdCompraOrdenCompra, 'idCompraOrdenCompra');
+
+                await conec.execute(connection, `
+                    INSERT INTO compraOrdenCompra(
+                        idCompraOrdenCompra, 
+                        idCompra, 
+                        idOrdenCompra, 
+                        fecha, 
+                        hora,
+                        idUsuario
+                    ) 
+                    VALUES
+                        (?,?,?,?,?,?)`, [
+                    idCompraOrdenCompra,
+                    idCompra,
+                    idOrdenCompra,
+                    currentDate(),
+                    currentTime(),
+                    idUsuario
+                ]);
             }
 
             // Confirma la transacción
