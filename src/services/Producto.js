@@ -108,6 +108,28 @@ class Producto {
                 return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
             }
 
+            if (sku) {
+                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ?`, [
+                    sku
+                ]);
+
+                if (validateSku.length !== 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, "No se puede haber 2 producto con el mismo SKU.");
+                }
+            }
+
+            if (codigoBarras) {
+                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ?`, [
+                    codigoBarras
+                ]);
+
+                if (validateCodigoBarras.length !== 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, "No se puede haber 2 producto con el mismo código de barras.");
+                }
+            }
+
             // const fileDirectory = path.join(__dirname, '..', 'path', 'product');
             // const exists = await isDirectory(fileDirectory);
 
@@ -657,13 +679,7 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
 
-            const validateCodigo = await conec.execute(connection, `
-            SELECT 
-                1 
-            FROM 
-                producto 
-            WHERE 
-                codigo = ? AND idProducto <> ?`, [
+            const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND idProducto <> ?`, [
                 req.body.codigo,
                 req.body.idProducto
             ]);
@@ -673,13 +689,7 @@ class Producto {
                 return sendClient(res, "No se puede haber 2 producto con la misma clave.");
             }
 
-            const validateNombre = await conec.execute(connection, `
-            SELECT 
-                * 
-            FROM 
-                producto 
-            WHERE 
-                nombre = ? AND idProducto <> ?`, [
+            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND idProducto <> ?`, [
                 req.body.nombre,
                 req.body.idProducto
             ]);
@@ -687,6 +697,30 @@ class Producto {
             if (validateNombre.length !== 0) {
                 await conec.rollback(connection);
                 return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
+            }
+
+            if (req.body.sku) {
+                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ? AND idProducto <> ?`, [
+                    req.body.sku,
+                    req.body.idProducto
+                ]);
+
+                if (validateSku.length !== 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, "No se puede haber 2 producto con el mismo SKU.");
+                }
+            }
+
+            if (req.body.codigoBarras) {
+                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ? AND idProducto <> ?`, [
+                    req.body.codigoBarras,
+                    req.body.idProducto
+                ]);
+
+                if (validateCodigoBarras.length !== 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, "No se puede haber 2 producto con el mismo código de barras.");
+                }
             }
 
             // const fileDirectory = path.join(__dirname, '..', 'path', 'product');
