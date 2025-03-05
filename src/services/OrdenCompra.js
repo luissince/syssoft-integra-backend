@@ -196,51 +196,51 @@ class OrdenCompra {
             // Consulta los compras asociadas
             const compras = await conec.query(`
                 SELECT 
-                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
-                    v.idVenta,
-                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
-                    v.hora,
-                    co.nombre AS comprobante,
-                    v.serie,
-                    v.numeracion,
-                    v.estado,
+                    ROW_NUMBER() OVER (ORDER BY c.idCompra DESC) AS id,
+                    c.idCompra,
+                    DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha,
+                    c.hora,
+                    cc.nombre AS comprobante,
+                    c.serie,
+                    c.numeracion,
+                    c.estado,
                     m.codiso,
-                    SUM(vd.precio * vd.cantidad) AS total
+                    SUM(cd.costo * cd.cantidad) AS total
                 FROM 
-                    compraOrdenCompra AS vc 
+                    compraOrdenCompra AS cod 
                 INNER JOIN 
-                    ordenCompra AS c ON c.idOrdenCompra = vc.idOrdenCompra
+                    ordenCompra AS oc ON oc.idOrdenCompra = cod.idOrdenCompra
                 INNER JOIN 
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                    compra AS c ON c.idCompra = cod.idCompra AND c.estado <> 3
                 INNER JOIN 
-                    moneda AS m ON v.idMoneda = m.idMoneda
+                    moneda AS m ON m.idMoneda = c.idMoneda
                 INNER JOIN 
-                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                    compraDetalle AS cd ON cd.idCompra = c.idCompra
                 INNER JOIN 
-                    comprobante AS co ON co.idComprobante = v.idComprobante
+                    comprobante AS cc ON cc.idComprobante = c.idComprobante
                 WHERE 
-                    vc.idOrdenCompra = ? 
+                    cod.idOrdenCompra = ? 
                 GROUP BY 
-                    v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
+                    c.idCompra, c.fecha, c.hora, cc.nombre, c.serie, c.numeracion, c.estado,  m.codiso
                 ORDER BY 
-                    v.fecha DESC, v.hora DESC`, [
+                    c.fecha DESC, c.hora DESC`, [
                 req.query.idOrdenCompra,
             ]);
 
             const comprados = await conec.query(`
                 SELECT 
                     p.idProducto,
-                    SUM(vd.cantidad) AS cantidad
+                    SUM(cd.cantidad) AS cantidad
                 FROM 
-                    compraOrdenCompra AS vc
+                    compraOrdenCompra AS oc
                 INNER JOIN
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+                    compra AS c ON c.idCompra = oc.idCompra AND c.estado <> 3
                 INNER JOIN
-                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                    compraDetalle AS cd ON cd.idCompra = c.idCompra
                 INNER JOIN
-                    producto AS p ON p.idProducto = vd.idProducto
+                    producto AS p ON p.idProducto = cd.idProducto
                 WHERE 
-                    vc.idOrdenCompra = ?
+                    oc.idOrdenCompra = ?
                 GROUP BY 
                     p.idProducto`, [
                 req.query.idOrdenCompra
