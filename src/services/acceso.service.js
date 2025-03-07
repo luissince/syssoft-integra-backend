@@ -144,7 +144,7 @@ class Acceso {
             }
 
             await conec.commit(connection);
-            return sendSuccess(res, "Se registro correctamente el acceso.");
+            return "Se registro correctamente el acceso.";
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);

@@ -10,8 +10,8 @@ class Concepto {
             const lista = await conec.query(`
                 SELECT 
                     idConcepto,
+                    idTipoConcepto,
                     nombre,
-                    tipo,
                     sistema,
                     DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
                     hora 
@@ -72,8 +72,8 @@ class Concepto {
             await conec.execute(connection, `
             INSERT INTO concepto(
                 idConcepto, 
+                idTipoConcepto,
                 nombre, 
-                tipo,
                 codigo,
                 sistema,
                 fecha, 
@@ -83,8 +83,8 @@ class Concepto {
                 idUsuario
             ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
                 idConcepto,
+                req.body.idTipoConcepto,
                 req.body.nombre,
-                req.body.tipo,
                 req.body.codigo,
                 0,
                 currentDate(),
@@ -125,16 +125,20 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
-            await conec.execute(connection, `UPDATE concepto SET 
-            nombre=?, 
-            tipo=?,
-            codigo=?,
-            fupdate=?,
-            hupdate=?,
-            idUsuario=?
-            WHERE idConcepto=?`, [
+            await conec.execute(connection, `
+            UPDATE 
+                concepto 
+            SET 
+                idTipoConcepto = ?,
+                nombre = ?, 
+                codigo = ?,
+                fupdate = ?,
+                hupdate = ?,
+                idUsuario = ?
+            WHERE 
+                idConcepto=?`, [
+                req.body.idTipoConcepto,
                 req.body.nombre,
-                req.body.tipo,
                 req.body.codigo,
                 currentDate(),
                 currentTime(),
@@ -157,7 +161,7 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
-            const sistem = await conec.execute(connection, `SELECT * FROM cobroDetalle WHERE idConcepto = ? AND sistema = 1`, [
+            const sistem = await conec.execute(connection, `SELECT * FROM concepto WHERE idConcepto = ? AND sistema = 1`, [
                 req.query.idConcepto
             ]);
 
@@ -166,31 +170,13 @@ class Concepto {
                 return sendClient(res, 'El concepto es del propio sistema, puede ser eliminado.');
             }
 
-            const cobroDetalle = await conec.execute(connection, `SELECT * FROM cobroDetalle WHERE idConcepto = ?`, [
+            const transaccion = await conec.execute(connection, `SELECT * FROM transaccion WHERE idConcepto = ?`, [
                 req.query.idConcepto
             ]);
 
-            if (cobroDetalle.length > 0) {
+            if (transaccion.length > 0) {
                 await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el concepto ya que esta ligada a un detalle de cobro.');
-            }
-
-            const gastoDetalle = await conec.execute(connection, `SELECT * FROM gastoDetalle WHERE idConcepto = ?`, [
-                req.query.idConcepto
-            ]);
-
-            if (gastoDetalle.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el concepto ya que esta ligada a un detalle de gasto.');
-            }
-
-            const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idConcepto = ?`, [
-                req.query.idConcepto
-            ]);
-
-            if (producto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, 'No se puede eliminar el concepto ya que esta ligada a un producto.');
+                return sendClient(res, 'El concepto esta relacionado con transacciones, puede ser eliminado.');
             }
 
             await conec.execute(connection, `DELETE FROM concepto WHERE idConcepto = ?`, [
@@ -216,7 +202,7 @@ class Concepto {
             FROM 
                 concepto 
             WHERE 
-                tipo = 1 AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
+                idTipoConcepto = 'TC0001' AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
                 req.query.filtrar,
             ]);
             return sendSuccess(res, result);
@@ -234,7 +220,7 @@ class Concepto {
             FROM 
                 concepto 
             WHERE 
-                tipo = 2 AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
+                idTipoConcepto = 'TC0002' AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
                 req.query.filtrar,
             ]);
             return sendSuccess(res, result);;
