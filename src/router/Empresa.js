@@ -18,6 +18,4 @@ router.get('/web/info', async (req, res) => await empresa.getCompanyInfo(req, re
 
 router.get('/web/whatsapp', async (req, res) => await empresa.getCompanyWhatsApp(req, res));
 
-router.get('/web/images', async (req, res) => await empresa.getCompanyImages(req, res));
-
 module.exports = router;

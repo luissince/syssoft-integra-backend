@@ -555,11 +555,20 @@ class Empresa {
                 horarioAtencion,
                 acercaNosotros,
                 politicasPrivacidad,
-                terminosCondiciones
+                terminosCondiciones,
+                rutaImage,
+                rutaIcon
             FROM 
                 empresa
             LIMIT 
                 1`);
+
+            const bucket = firebaseService.getBucket();
+
+            if (bucket) {
+                result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
+                result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
+            }
 
             return sendSuccess(res, result[0]);
         } catch (error) {
