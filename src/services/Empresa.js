@@ -89,6 +89,9 @@ class Empresa {
                 claveCertificadoSunat,
                 idApiSunat,
                 claveApiSunat,
+                numeroWhatsapp,
+                tituloWhatsapp,
+                mensajeWhatsapp,
                 horarioAtencion,
                 acercaNosotros,
                 politicasPrivacidad,
@@ -115,7 +118,7 @@ class Empresa {
                     },
                     rutaIcon: {
                         nombre: empresa.rutaIcon,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaIcon}`     
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaIcon}`
                     }
                 };
             } else {
@@ -201,9 +204,9 @@ class Empresa {
             }
             else if (req.body.logo && req.body.logo.base64 !== undefined) {
                 if (bucket) {
-                    if(empresa[0].rutaLogo){
+                    if (empresa[0].rutaLogo) {
                         const file = bucket.file(empresa[0].rutaLogo);
-                        if(file.exists()){
+                        if (file.exists()) {
                             await file.delete();
                         }
                     }
@@ -238,9 +241,9 @@ class Empresa {
             }
             else if (req.body.image && req.body.image.base64 !== undefined) {
                 if (bucket) {
-                    if(empresa[0].rutaImage){
+                    if (empresa[0].rutaImage) {
                         const file = bucket.file(empresa[0].rutaImage);
-                        if(file.exists()){
+                        if (file.exists()) {
                             await file.delete();
                         }
                     }
@@ -275,9 +278,9 @@ class Empresa {
             }
             else if (req.body.icon && req.body.icon.base64 !== undefined) {
                 if (bucket) {
-                    if(empresa[0].rutaIcon){
+                    if (empresa[0].rutaIcon) {
                         const file = bucket.file(empresa[0].rutaIcon);
-                        if(file.exists()){
+                        if (file.exists()) {
                             await file.delete();
                         }
                     }
@@ -345,6 +348,9 @@ class Empresa {
                 idApiSunat=?,
                 claveApiSunat=?,
 
+                numeroWhatsapp=?,
+                tituloWhatsapp=?,
+                mensajeWhatsapp=?,
                 horarioAtencion=?,
                 acercaNosotros=?,
                 politicasPrivacidad=?,
@@ -379,6 +385,9 @@ class Empresa {
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
 
+                req.body.numeroWhatsapp,
+                req.body.tituloWhatsapp,
+                req.body.mensajeWhatsapp,
                 req.body.horarioAtencion,
                 req.body.acercaNosotros,
                 req.body.politicasPrivacidad,
@@ -418,7 +427,7 @@ class Empresa {
 
             const empresa = {
                 ...result,
-                rutaLogo:  result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
+                rutaLogo: result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
                 rutaImage: result.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaImage}` : null,
             }
 
@@ -536,7 +545,7 @@ class Empresa {
         }
     }
 
-    async loadForWeb(req, res) {
+    async getCompanyInfo(req, res) {
         try {
             const result = await conec.query(`
             SELECT
@@ -558,7 +567,25 @@ class Empresa {
         }
     }
 
-    async imagesForWeb(req, res) {
+    async getCompanyWhatsApp(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT
+                numeroWhatsapp,
+                tituloWhatsapp,
+                mensajeWhatsapp
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
+        }
+    }
+
+    async getCompanyImages(req, res) {
         try {
             const result = await conec.query(`
             SELECT
@@ -570,12 +597,12 @@ class Empresa {
             LIMIT 
                 1`);
 
-                const bucket = firebaseService.getBucket();
+            const bucket = firebaseService.getBucket();
 
-                if(bucket){
-                    result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
-                    result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
-                }
+            if (bucket) {
+                result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
+                result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
+            }
 
             return sendSuccess(res, result[0]);
         } catch (error) {

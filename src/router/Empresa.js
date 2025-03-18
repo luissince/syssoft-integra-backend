@@ -14,8 +14,10 @@ router.post('/save', async (req, res) => await empresa.save(req, res));
 
 router.get('/combo', async (req, res) => await empresa.combo(req, res));
 
-router.get('/load/web', async (req, res) => await empresa.loadForWeb(req, res));
+router.get('/web/info', async (req, res) => await empresa.getCompanyInfo(req, res));
 
-router.get('/images/web', async (req, res) => await empresa.imagesForWeb(req, res));
+router.get('/web/whatsapp', async (req, res) => await empresa.getCompanyWhatsApp(req, res));
+
+router.get('/web/images', async (req, res) => await empresa.getCompanyImages(req, res));
 
 module.exports = router;
