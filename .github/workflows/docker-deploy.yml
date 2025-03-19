@@ -17,8 +17,8 @@ jobs:
             service: leatsac-services
           - environment: ferreteria-rym
             service: ferreteria-rym-services
-          - environment: principal
-            service: principal-services
+          - environment: supermarketya
+            service: supermarketya-services
           - environment: importmuneli
             service: importmuneli-services
 

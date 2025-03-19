@@ -219,15 +219,15 @@ services:
     volumes:
       - asiaticos-pcl-backend-volumen:/app/src/path
 
-  principal-services:
+  supermarketya-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
     build:
       context: .
       dockerfile: Dockerfile
     # Nombre de la imagen de la imagen generada
-    image: principal-backend-image
+    image: supermarketya-backend-image
     # Nombre del contenedor
-    container_name: principal-backend
+    container_name: supermarketya-backend
     # Configuración para reiniciar siempre el contenedor
     restart: always
     # Configuración de redes
@@ -237,7 +237,7 @@ services:
     ports:
       - 6039:80
     volumes:
-      - principal-backend-volumen:/app/src/path
+      - supermarketya-backend-volumen:/app/src/path
 
 # Definición de redes
 networks:
@@ -256,5 +256,5 @@ volumes:
   leatsac-backend-volumen:
   ferreteria-rym-backend-volumen:
   asiaticos-pcl-backend-volumen:
-  principal-backend-volumen:
+  supermarketya-backend-volumen:
   importmuneli-backend-volumen:
