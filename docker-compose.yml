@@ -1,179 +1,63 @@
 # Versión de la configuración de Docker Compose
 version: "3"
 
+# Definición de un servicio base reutilizable
+x-service-template: &backend-service
+  # Configuración para construir la imagen del contenedor desde el contexto actual
+  build:
+    context: .
+    dockerfile: Dockerfile
+  # Configuración de redes
+  networks:
+    - luis
+  # Configuración para reiniciar siempre el contenedor
+  restart: always
+  # Configuración de recursos
+  deploy:
+    resources:
+      limits:
+        cpus: "0.5"   # Máximo 50% de un núcleo
+        memory: "512m" # Máximo 512MB de RAM
+      reservations:
+        cpus: "0.25"   # Reserva 25% de un núcleo
+        memory: "256m" # Reserva 256MB de RAM
+
 # Definición de servicios
 services:
   sysintegra-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *backend-service
     # Nombre de la imagen de la imagen generada
     image: sysintegra-backend-image
     # Nombre del contenedor
     container_name: sysintegra-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
+    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor (http)
     ports:
       - 6001:80
     volumes:
       - sysintegra-backend-volumen:/app/src/path
 
-  # app-bodega:
-  #   # Configuración para construir la imagen del contenedor desde el contexto actual
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   # Nombre de la imagen de la imagen generada
-  #   image: sysintegra-backend-image
-  #   # Nombre del contenedor
-  #   container_name: sysintegra-backend-bodega
-  #   # Configuración para reiniciar siempre el contenedor
-  #   restart: always
-  #   # Configuración de redes
-  #   networks:
-  #     - luis
-  #   # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
-  #   ports:
-  #     - 6004:80
-
-  # app-autopartes:
-  #   # Configuración para construir la imagen del contenedor desde el contexto actual
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   # Nombre de la imagen de la imagen generada
-  #   image: sysintegra-backend-image
-  #   # Nombre del contenedor
-  #   container_name: sysintegra-backend-autopartes
-  #   # Configuración para reiniciar siempre el contenedor
-  #   restart: always
-  #   # Configuración de redes
-  #   networks:
-  #     - luis
-  #   # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor
-  #   ports:
-  #     - 6007:80
-
   importmuneli-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *backend-service
     # Nombre de la imagen de la imagen generada
     image: importmuneli-backend-image
     # Nombre del contenedor
     container_name: importmuneli-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6011 del host al puerto 80 del contenedor
+    # Mapeo de puertos: Mapea el puerto 6011 del host al puerto 80 del contenedor (http)
     ports:
       - 6011:80
     volumes:
       - importmuneli-backend-volumen:/app/src/path
 
-  raices-services:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: raices-backend-image
-    # Nombre del contenedor
-    container_name: raices-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6015 del host al puerto 80 del contenedor
-    ports:
-      - 6015:80
-    volumes:
-      - raices-backend-volumen:/app/src/path
-
-  felicitygirls-tiquepos-services:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: felicitygirls-tiquepos-backend-image
-    # Nombre del contenedor
-    container_name: felicitygirls-tiquepos-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6019 del host al puerto 80 del contenedor
-    ports:
-      - 6019:80
-    volumes:
-      - felicitygirls-tiquepos-backend-volumen:/app/src/path
-
-  bodega-modelo-services:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: bodega-modelo-backend-image
-    # Nombre del contenedor
-    container_name: bodega-modelo-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6023 del host al puerto 80 del contenedor
-    ports:
-      - 6023:80
-    volumes:
-      - bodega-modelo-backend-volumen:/app/src/path
-
-  unnagro-services:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: unnagro-backend-image
-    # Nombre del contenedor
-    container_name: unnagro-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6027 del host al puerto 80 del contenedor
-    ports:
-      - 6027:80
-    volumes:
-      - unnagro-backend-volumen:/app/src/path
-
   leatsac-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *backend-service
     # Nombre de la imagen de la imagen generada
     image: leatsac-backend-image
     # Nombre del contenedor
     container_name: leatsac-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6031 del host al puerto 80 del contenedor
+
     ports:
       - 6031:80
     volumes:
@@ -181,59 +65,25 @@ services:
     
   ferreteria-rym-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *backend-service
     # Nombre de la imagen de la imagen generada
     image: ferreteria-rym-backend-image
     # Nombre del contenedor
     container_name: ferreteria-rym-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6035 del host al puerto 80 del contenedor
+    # Mapeo de puertos: Mapea el puerto 6035 del host al puerto 80 del contenedor (http)
     ports:
       - 6035:80
     volumes:
       - ferreteria-rym-backend-volumen:/app/src/path
 
-  asiaticos-pcl-services:
-    # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # Nombre de la imagen de la imagen generada
-    image: asiaticos-pcl-backend-image
-    # Nombre del contenedor
-    container_name: asiaticos-pcl-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6037 del host al puerto 80 del contenedor
-    ports:
-      - 6037:80
-    volumes:
-      - asiaticos-pcl-backend-volumen:/app/src/path
-
   supermarketya-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *backend-servicee
     # Nombre de la imagen de la imagen generada
     image: supermarketya-backend-image
     # Nombre del contenedor
     container_name: supermarketya-backend
-    # Configuración para reiniciar siempre el contenedor
-    restart: always
-    # Configuración de redes
-    networks:
-      - luis
-    # Mapeo de puertos: Mapea el puerto 6039 del host al puerto 80 del contenedor
+    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
     ports:
       - 6039:80
     volumes:
@@ -248,13 +98,7 @@ networks:
 
 volumes:
   sysintegra-backend-volumen:
-  legrand-tiquepos-backend-volumen:
-  raices-backend-volumen:
-  felicitygirls-tiquepos-backend-volumen:
-  bodega-modelo-backend-volumen:
-  unnagro-backend-volumen:
   leatsac-backend-volumen:
   ferreteria-rym-backend-volumen:
-  asiaticos-pcl-backend-volumen:
-  supermarketya-backend-volumen:
   importmuneli-backend-volumen:
+  supermarketya-backend-volumen:
