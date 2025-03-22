@@ -78,7 +78,7 @@ services:
 
   supermarketya-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
-    <<: *backend-servicee
+    <<: *backend-service
     # Nombre de la imagen de la imagen generada
     image: supermarketya-backend-image
     # Nombre del contenedor
