@@ -370,7 +370,7 @@ class Usuario {
                     usuario 
                 WHERE 
                     usuario = ?`, [
-                data.usuario,
+                data.username,
             ]);
 
             if (validate.length == 0) {

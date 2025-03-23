@@ -62,7 +62,6 @@ async function writeFile(file, data, options = 'base64') {
         await writeFileAsync(file, data, options);
         return true;
     } catch (error) {
-        console.log(error)
         return false;
     }
 }

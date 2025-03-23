@@ -89,7 +89,7 @@ async function combo(_, res) {
 
 async function createSession(req, res) {
     try {
-        const data = await usuario.createSession(req.query);
+        const data = await usuario.createSession(req.body);
         return sendSuccess(res, data);
     } catch (error) {
         if (error instanceof ClientError) {

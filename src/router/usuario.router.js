@@ -17,7 +17,7 @@ router.get('/id', usuario.id);
 
 router.get('/combo', usuario.combo);
 
-router.get('/login', usuario.createSession);
+router.post('/login', usuario.createSession);
 
 router.get('/valid/token', authenticate, usuario.validToken);
 

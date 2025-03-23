@@ -5,7 +5,7 @@ const conec = new Conexion();
 
 class Acceso {
 
-    async accesos(data) {
+    async accesos(idPerfil) {
         const menu = await conec.query(`
             SELECT 
                 m.idMenu,
@@ -19,7 +19,7 @@ class Acceso {
                 menu as m on pm.idMenu = m.idMenu
             WHERE 
                 p.idPerfil = ?`, [
-            data.idPerfil,
+            idPerfil,
         ]);
 
         const subMenu = await conec.query(`
@@ -37,7 +37,7 @@ class Acceso {
             WHERE 
                 psm.idPerfil = ?
             `, [
-            data.idPerfil,
+            idPerfil,
         ]);
 
         const privilegio = await conec.query(`
@@ -57,7 +57,7 @@ class Acceso {
                 pp.idPerfil = ?
             ORDER BY
                 pp.idPrivilegio`, [
-            data.idPerfil,
+            idPerfil,
         ]);
 
         const perfilSucursales = await conec.query(`
@@ -72,7 +72,7 @@ class Acceso {
                 sucursal AS s
             LEFT JOIN
                 perfilSucursal AS ps ON ps.idSucursal = s.idSucursal AND ps.idPerfil = ?`, [
-            data.idPerfil,
+            idPerfil,
         ]);
 
         return { menu, subMenu, privilegio, perfilSucursales };
@@ -133,7 +133,7 @@ class Acceso {
             ]);
 
             for (const sucursal of data.sucursales) {
-                if (sucursal.estado === 1) {
+                if (sucursal.estado) {
                     await conec.execute(connection, `INSERT INTO perfilSucursal(idPerfil, idSucursal, fecha, hora) VALUES(?,?,?,?)`, [
                         data.idPerfil,
                         sucursal.idSucursal,

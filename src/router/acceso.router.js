@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const acceso = require('../controller/acceso.controller');
 
-router.get('/accesos', acceso.accesos);
+router.get('/:idPerfil', acceso.accesos);
 
-router.post('/save', acceso.save);
+router.post('/', acceso.save);
 
-router.post('/update', acceso.update);
+router.patch('/', acceso.update);
 
 module.exports = router;

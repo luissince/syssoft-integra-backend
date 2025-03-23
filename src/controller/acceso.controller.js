@@ -3,7 +3,7 @@ const { sendSuccess, sendError } = require('../tools/Message');
 
 async function accesos(req, res) {
     try {
-        const data = await acceso.accesos(req.query);
+        const data = await acceso.accesos(req.params.idPerfil);
         return sendSuccess(res, data);
     } catch (error) {
         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Acceso/accesos", error);
