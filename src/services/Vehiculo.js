@@ -59,8 +59,8 @@ class Vehiculo {
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {          
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/list", error);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/list", error);
         }
     }
 
@@ -98,11 +98,11 @@ class Vehiculo {
 
             await conec.commit(connection);
             return sendSave(res, "Los datos se registraron correctamente.");
-        } catch (error) {            
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/add", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/add", error);
         }
     }
 
@@ -119,7 +119,7 @@ class Vehiculo {
             }
 
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/id", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/id", error);
         }
     }
 
@@ -155,13 +155,13 @@ class Vehiculo {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/edit", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/edit", error);
         }
     }
 
     async delete(req, res) {
         let connection = null;
-        try {        
+        try {
             connection = await conec.beginTransaction();
 
             const guiaRemision = await conec.execute(connection, `SELECT * FROM guiaRemision WHERE idVehiculo = ?`, [
@@ -173,7 +173,7 @@ class Vehiculo {
                 return sendClient(res, 'No se puede eliminar el vehículo, ya que esta ligado a una guía de remisión.');
             }
 
-            const preferida = await conec.execute(connection, `SELECT * FROM vehiculo WHERE preferido = 1 AND idVehiculo = ?`,[
+            const preferida = await conec.execute(connection, `SELECT * FROM vehiculo WHERE preferido = 1 AND idVehiculo = ?`, [
                 req.query.idVehiculo
             ]);
 
@@ -188,17 +188,39 @@ class Vehiculo {
 
             await conec.commit(connection)
             return sendSave(res, 'Se eliminó correctamente el vehículo.');
-        } catch (error) {    
+        } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/delete", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/delete", error);
+        }
+    }
+
+    async predeterminado(req, res) {
+        try {
+            const result = await conec.query(`
+                SELECT 
+                    idVehiculo,
+                    marca,
+                    numeroPlaca,
+                    preferido 
+                FROM 
+                    vehiculo 
+                WHERE 
+                    preferido = 1`);
+            if (result.length !== 0) {
+                return sendSuccess(res, result[0]);
+            }
+            return sendSuccess(res, "");
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);;
         }
     }
 
     async combo(req, res) {
         try {
-            const result = await conec.query(`SELECT 
+            const result = await conec.query(`
+            SELECT 
                 idVehiculo,
                 marca,
                 numeroPlaca,
@@ -209,13 +231,14 @@ class Vehiculo {
                 estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/combo", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/combo", error);
         }
     }
 
     async filter(req, res) {
-        try {           
-            const result = await conec.query(`SELECT 
+        try {
+            const result = await conec.query(`
+            SELECT 
                 idVehiculo,
                 marca,
                 numeroPlaca
@@ -232,8 +255,8 @@ class Vehiculo {
                 req.query.filter,
             ]);
             return sendSuccess(res, result);
-        } catch (error) {         
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Vehiculo/filter", error);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Vehiculo/filter", error);
         }
     }
 }

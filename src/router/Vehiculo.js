@@ -18,6 +18,10 @@ router.post('/edit', async function (req, res) {
     return await vehiculo.edit(req, res);
 });
 
+router.delete('/default', async function (req, res) {
+    return await vehiculo.predeterminado(req, res);
+});
+
 router.delete('/', async function (req, res) {
     return await vehiculo.delete(req, res);
 });

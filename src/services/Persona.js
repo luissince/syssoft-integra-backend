@@ -27,7 +27,7 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/list", error);
         }
@@ -54,7 +54,7 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listClientes", error);
         }
@@ -81,7 +81,7 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listProveedores", error);
         }
@@ -108,7 +108,7 @@ class Persona {
                 req.query.buscar,
             ]);
 
-            return sendSuccess(res,  { "result": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listConductores", error);
         }
@@ -185,7 +185,7 @@ class Persona {
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.estadoCivil,
-                req.body.predeterminado,
+                false,
                 req.body.estado,
                 req.body.observacion,
                 currentDate(),
@@ -264,11 +264,7 @@ class Persona {
 
             if (validate.length > 0) {
                 await conec.rollback(connection);
-                return sendSuccess(res,`El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
-            }
-
-            if (req.body.predeterminado) {
-                await conec.execute(connection, `UPDATE persona SET predeterminado = 0`);
+                return sendSuccess(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
             }
 
             await conec.execute(connection, `
@@ -291,7 +287,6 @@ class Persona {
                 direccion=?, 
                 idUbigeo=?,
                 estadoCivil=?, 
-                predeterminado=?,
                 estado=?,
                 observacion=?,
                 fupdate=?,
@@ -317,7 +312,6 @@ class Persona {
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.estadoCivil,
-                req.body.predeterminado,
                 req.body.estado,
                 req.body.observacion,
                 currentDate(),
@@ -331,8 +325,50 @@ class Persona {
         } catch (error) {
             if (connection != null) {
                 await conec.rollback(connection);
-            }      
+            }
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/update", error);
+        }
+    }
+
+    async preferido(req, res) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const idPersona = req.query.idPersona;
+            const rol = req.query.rol;
+
+            if (rol === "1") {
+                await conec.execute(connection, `UPDATE persona SET clientePreferido = 0`);
+
+                await conec.execute(connection, `UPDATE persona SET clientePreferido = 1 WHERE idPersona = ?`, [
+                    idPersona
+                ]);
+            }
+
+            if (rol === "2") {
+                await conec.execute(connection, `UPDATE persona SET proveedorPreferido = 0`);
+
+                await conec.execute(connection, `UPDATE persona SET proveedorPreferido = 1 WHERE idPersona = ?`, [
+                    idPersona
+                ]);
+            }
+
+            if (rol === "3") {
+                await conec.execute(connection, `UPDATE persona SET conductorPreferido = 0`);
+
+                await conec.execute(connection, `UPDATE persona SET conductorPreferido = 1 WHERE idPersona = ?`, [
+                    idPersona
+                ]);
+            }
+
+            await conec.commit(connection);
+            return sendSuccess(res, "Se actualizó correctamente el estado de preferencia.");
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/preferido", error);
         }
     }
 
@@ -390,7 +426,9 @@ class Persona {
                 documento, 
                 informacion 
             FROM 
-                persona`);
+                persona
+            WHERE 
+                estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/combo", error);
@@ -398,14 +436,14 @@ class Persona {
     }
 
     async filtrar(req, res) {
-        try {   
+        try {
             const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.filter,
                 Boolean(req.query.cliente),
                 Boolean(req.query.proveedor),
                 Boolean(req.query.conductor),
-            ]); 
+            ]);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/filtrar", error);;
@@ -414,6 +452,8 @@ class Persona {
 
     async predeterminado(req, res) {
         try {
+            console.log("Query:");
+            console.log(req.query);
             const result = await conec.query(`
             SELECT 
                 idPersona, 
@@ -427,7 +467,15 @@ class Persona {
             FROM 
                 persona
             WHERE 
-                predeterminado = 1`);
+                ? IS NOT NULL AND clientePreferido = 1 AND estado = 1
+                OR
+                ? IS NOT NULL AND proveedorPreferido = 1 AND estado = 1
+                OR
+                ? IS NOT NULL AND conductorPreferido = 1 AND estado = 1`, [
+                    req.query.cliente,
+                    req.query.proveedor,
+                    req.query.conductor,
+                ]);
             if (result.length !== 0) {
                 return sendSuccess(res, result[0]);
             }

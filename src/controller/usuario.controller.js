@@ -1,5 +1,4 @@
 
-const e = require("express");
 const usuario = require("../services/usuario.service");
 const { sendSuccess, sendError, sendSave, sendClient } = require("../tools/Message");
 const { ClientError } = require("../tools/Error");

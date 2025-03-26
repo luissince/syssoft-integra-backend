@@ -1137,7 +1137,8 @@ class Factura {
 
     async filtrar(req, res) {
         try {
-            const result = await conec.procedure(`CALL Filtrar_Ventas(?,?)`, [
+            const result = await conec.procedure(`CALL Filtrar_Ventas(?,?,?)`, [
+                req.query.tipo,
                 req.query.idSucursal,
                 req.query.filtrar,
             ])

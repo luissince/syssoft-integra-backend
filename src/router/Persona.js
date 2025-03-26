@@ -18,6 +18,8 @@ router.get('/id', async (req, res) => await persona.id(req, res));
 
 router.post('/update', async (req, res) => await persona.update(req, res));
 
+router.get('/preferred', async (req, res) => await persona.preferido(req, res));
+
 router.delete('/', async (req, res) => await persona.delete(req, res));
 
 router.get('/combo', async (req, res) => await persona.combo(req, res));
