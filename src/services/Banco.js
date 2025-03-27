@@ -182,14 +182,26 @@ class Banco {
 
             const total = await conec.query(`
             SELECT 
-                IFNULL(SUM(CASE 
-                WHEN tipo = 1 THEN monto
-                ELSE  -monto
-            END),0) AS monto 
+                SUM(IFNULL(
+                    (SELECT 
+                        SUM(CASE 
+                            WHEN co.idTipoConcepto = 'TC0001' THEN td.monto
+                            ELSE -td.monto
+                        END) AS saldo 
+                    FROM 
+                        transaccion AS t 
+                    INNER JOIN
+                        concepto AS co ON co.idConcepto = t.idConcepto
+                    INNER JOIN 
+                        transaccionDetalle AS td ON td.idTransaccion = t.idTransaccion 
+                    WHERE 
+                        td.idBanco = b.idBanco AND t.estado = 1
+                    ), 
+                0)) AS monto
             FROM 
-                bancoDetalle
-            WHERE 
-                idBanco = ? AND estado = 1`, [
+                banco AS b
+            WHERE
+                b.idBanco = ?`, [
                 req.query.idBanco,
             ])
 

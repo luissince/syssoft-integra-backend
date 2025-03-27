@@ -1251,6 +1251,7 @@ class Producto {
                 c.nombre AS categoria,
                 tp.nombre as tipoProducto,
                 p.idTipoTratamientoProducto,
+                p.idTipoProducto,
                 p.idMedida,
                 me.nombre AS unidad
             FROM 
@@ -1306,21 +1307,31 @@ class Producto {
                 p.sku,
                 p.codigoBarras,
                 p.nombre,
+                a.nombre as almacen,
                 inv.cantidad,
                 p.costo,
+                pc.valor AS precio,
                 c.nombre AS categoria,
                 tp.nombre as tipoProducto,
+                me.nombre AS unidad,
+                p.idTipoTratamientoProducto,
+                p.idTipoProducto,
+                p.idMedida,
                 me.nombre AS unidad
             FROM 
                 producto AS p
+            INNER JOIN 
+                medida AS me ON me.idMedida = p.idMedida
             INNER JOIN 
                 categoria AS c ON c.idCategoria = p.idCategoria
             INNER JOIN 
                 tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
             INNER JOIN 
-                medida AS me ON me.idMedida = p.idMedida
+                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             INNER JOIN 
-                inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?          
+                inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?     
+            INNER JOIN
+                almacen AS a ON a.idAlmacen = inv.idAlmacen    
             WHERE 
                 p.estado = 1 AND (
                     (p.codigo LIKE CONCAT('%',?,'%'))

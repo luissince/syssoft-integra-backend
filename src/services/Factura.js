@@ -371,7 +371,7 @@ class Factura {
             if (nuevoCliente !== null && typeof nuevoCliente === 'object') {
                 const cliente = await conec.execute(connection, `SELECT * FROM persona WHERE documento = ?`, [
                     nuevoCliente.numeroDocumento
-                ])
+                ]);
 
                 if (cliente.length === 0) {
                     const result = await conec.execute(connection, 'SELECT idPersona FROM persona');

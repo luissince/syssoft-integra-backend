@@ -257,7 +257,7 @@ class Usuario {
             const tablesToCheck = [
                 'venta', 'empresa', 'sucursal', 'perfil', 'moneda',
                 'categoria', 'producto', 'impuesto', 'gasto', 'concepto',
-                'comprobante', 'cobro', 'persona', 'bancoDetalle', 'banco'
+                'comprobante', 'cobro', 'persona', 'banco'
             ];
 
             for (const table of tablesToCheck) {
