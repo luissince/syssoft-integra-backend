@@ -29,6 +29,23 @@ class Transaccion {
                 }
             });
 
+            for (const item of resultLista) {
+                const detalles = await conec.query(`
+                SELECT 
+                    b.nombre,
+                    td.monto 
+                FROM 
+                    transaccionDetalle as td
+                INNER JOIN 
+                    banco AS b ON b.idBanco = td.idBanco
+                WHERE
+                    td.idTransaccion = ?`, [
+                    item.idTransaccion
+                ]);
+
+                item.detalles = detalles;
+            }
+
             const total = await conec.procedure(`CALL Listar_Transacciones_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,

@@ -271,82 +271,95 @@ class Banco {
         try {
             const lista = await conec.query(`
             SELECT 
-                DATE_FORMAT(bd.fecha, '%d/%m/%Y') AS fecha, 
-                bd.hora,
-                bd.tipo,
-                --
+                t.idTransaccion,
+                DATE_FORMAT(t.fecha, '%d/%m/%Y') AS fecha, 
+                t.hora,
+                t.estado,
+                co.nombre AS concepto,
                 CASE 
-                    WHEN i.idIngreso IS NOT NULL THEN  
-                        CASE 
-                            WHEN vt.idVenta is not null THEN  'venta'
-                            ELSE 'cobro'
-                        END
-                    ELSE 
-                        CASE 
-                            WHEN cm.idCompra is not null THEN  'compra'
-                            ELSE 'gasto'
-                        END
-                END AS opcion,
-                --
+                    WHEN t.idReferencia = v.idVenta THEN v.idVenta
+                    WHEN t.idReferencia = c.idCobro THEN c.idCobro
+                    WHEN t.idReferencia = cp.idCompra THEN cp.idCompra
+                    ELSE g.idGasto
+                END AS idComprobante,
                 CASE 
-                    WHEN i.idIngreso IS NOT NULL THEN  
-                        IFNULL(vt.idVenta, co.idCobro)
-                    ELSE 
-                        IFNULL(cm.idCompra, gt.idGasto)
-                END AS idComprobante,             
-                --
-                CASE 
-                    WHEN i.idIngreso IS NOT NULL THEN  
-                        IFNULL(cov.nombre, coc.nombre)
-                    ELSE 
-                        IFNULL(com.nombre, cog.nombre)
+                    WHEN t.idReferencia = v.idVenta THEN cov.nombre
+                    WHEN t.idReferencia = c.idCobro THEN coc.nombre
+                    WHEN t.idReferencia = cp.idCompra THEN cop.nombre
+                    ELSE cog.nombre
                 END AS comprobante,
-                --
                 CASE 
-                    WHEN i.idIngreso IS NOT NULL THEN  
-                        IFNULL(vt.serie, co.serie)
-                    ELSE 
-                        IFNULL(cm.serie, gt.serie)
+                    WHEN t.idReferencia = v.idVenta THEN 'venta'
+                    WHEN t.idReferencia = c.idCobro THEN 'cobro'
+                    WHEN t.idReferencia = cp.idCompra THEN 'compra'
+                    ELSE 'gasto'
+                END AS tipo,
+                CASE 
+                    WHEN t.idReferencia = v.idVenta THEN v.serie
+                    WHEN t.idReferencia = c.idCobro THEN c.serie
+                    WHEN t.idReferencia = cp.idCompra THEN cp.serie
+                    ELSE g.serie
                 END AS serie,
-                --
                 CASE 
-                    WHEN i.idIngreso IS NOT NULL THEN  
-                        IFNULL(vt.numeracion, co.numeracion)
-                    ELSE 
-                        IFNULL(cm.numeracion, gt.numeracion)
+                    WHEN t.idReferencia = v.idVenta THEN v.numeracion
+                    WHEN t.idReferencia = c.idCobro THEN c.numeracion
+                    WHEN t.idReferencia = cp.idCompra THEN cp.numeracion
+                    ELSE g.numeracion
                 END AS numeracion,
-                --
-                bd.estado,
-                bd.monto
-            FROM 
-                bancoDetalle AS bd
+                CASE 
+                    WHEN t.idReferencia = v.idVenta THEN mv.codiso
+                    WHEN t.idReferencia = c.idCobro THEN mc.codiso
+                    WHEN t.idReferencia = cp.idCompra THEN mcp.codiso
+                    ELSE mcg.codiso
+                END AS codiso,
+                SUM(CASE 
+                    WHEN co.idTipoConcepto = 'TC0001' AND t.estado = 1 THEN td.monto 
+                    ELSE 0 
+                END) AS credito,
+                SUM(CASE 
+                    WHEN co.idTipoConcepto = 'TC0002' AND t.estado = 1 THEN td.monto 
+                    ELSE 0 
+                END) AS debito
+            FROM
+                transaccion AS t
+            INNER JOIN
+                concepto AS co ON co.idConcepto = t.idConcepto
             LEFT JOIN
-                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
+                venta AS v ON v.idVenta = t.idReferencia
             LEFT JOIN
-                venta AS vt ON vt.idVenta = i.idVenta
+                comprobante AS cov ON cov.idComprobante = v.idComprobante
             LEFT JOIN
-                comprobante AS cov ON cov.idComprobante = vt.idComprobante
+                moneda AS mv ON mv.idMoneda = v.idMoneda
             LEFT JOIN
-                cobro AS co ON co.idCobro = i.idCobro
+                cobro AS c ON c.idCobro = t.idReferencia
             LEFT JOIN
-                comprobante AS coc ON coc.idComprobante = co.idComprobante
-                
-            LEFT JOIN 
-                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
+                comprobante AS coc ON coc.idComprobante = c.idComprobante
             LEFT JOIN
-                compra AS cm ON s.idCompra = cm.idCompra
+                moneda AS mc ON mc.idMoneda = c.idMoneda
             LEFT JOIN
-                comprobante AS com ON com.idComprobante = cm.idComprobante
+                compra AS cp ON cp.idCompra = t.idReferencia
             LEFT JOIN
-                gasto AS gt ON s.idGasto = gt.idGasto
+                comprobante AS cop ON cop.idComprobante = cp.idComprobante
             LEFT JOIN
-                comprobante AS cog ON cog.idComprobante = gt.idComprobante
+                moneda AS mcp ON mcp.idMoneda = cp.idMoneda
+            LEFT JOIN
+                gasto AS g ON g.idGasto = t.idReferencia
+            LEFT JOIN
+                comprobante AS cog ON cog.idComprobante = g.idComprobante
+            LEFT JOIN
+                moneda AS mcg ON mcg.idMoneda = g.idMoneda
+            INNER JOIN
+                transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+            INNER JOIN
+                banco AS b ON b.idBanco = td.idBanco
             WHERE
-                bd.idBanco = ?
-            ORDER BY 
-                bd.fecha DESC, 
-                bd.hora DESC
-            LIMIT ?,?`, [
+                b.idBanco = ?
+            GROUP BY
+                t.idTransaccion
+            ORDER BY
+                t.fecha DESC, t.hora DESC
+            LIMIT 
+                ?, ?`, [
                 req.query.idBanco,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -361,33 +374,19 @@ class Banco {
 
             const total = await conec.query(`
             SELECT 
-                COUNT(*) AS Total
-            FROM 
-                bancoDetalle AS bd
-            LEFT JOIN
-                ingreso AS i ON i.idBancoDetalle = bd.idBancoDetalle
-            LEFT JOIN
-                venta AS vt ON vt.idVenta = i.idVenta
-            LEFT JOIN
-                comprobante AS cov ON cov.idComprobante = vt.idComprobante
-            LEFT JOIN
-                cobro AS co ON co.idCobro = i.idCobro
-            LEFT JOIN
-                comprobante AS coc ON coc.idComprobante = co.idComprobante
-            LEFT JOIN 
-                salida AS s ON s.idBancoDetalle = bd.idBancoDetalle
-            LEFT JOIN
-                compra AS cm ON s.idCompra = cm.idCompra
-            LEFT JOIN
-                comprobante AS com ON com.idComprobante = cm.idComprobante
-            LEFT JOIN
-                gasto AS gt ON s.idGasto = gt.idGasto
-            LEFT JOIN
-                comprobante AS cog ON cog.idComprobante = gt.idComprobante
-            WHERE 
-                bd.idBanco = ?`, [
+                COUNT(DISTINCT t.idTransaccion) AS Total
+            FROM
+                transaccion AS t
+            INNER JOIN
+                concepto AS co ON co.idConcepto = t.idConcepto
+            INNER JOIN
+                transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+            INNER JOIN
+                banco AS b ON b.idBanco = td.idBanco
+            WHERE
+                b.idBanco = ?`, [
                 req.query.idBanco
-            ])
+            ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
