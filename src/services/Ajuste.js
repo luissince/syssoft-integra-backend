@@ -1,6 +1,8 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Ajuste {
 
@@ -65,12 +67,13 @@ class Ajuste {
             WHERE 
                 a.idAjuste = ?`, [
                 req.query.idAjuste,
-            ])
+            ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 p.codigo,
                 p.nombre as producto,
+                p.imagen,
                 aj.cantidad,
                 m.nombre as unidad,
                 c.nombre as categoria
@@ -85,9 +88,24 @@ class Ajuste {
             WHERE 
                 aj.idAjuste = ?`, [
                 req.query.idAjuste,
-            ])
+            ]);
 
-            return { cabecera: ajuste[0], detalle };
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map((item, index) => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        id: index + 1,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                    id: index + 1,
+                }
+            });
+
+            return { cabecera: ajuste[0], detalles: listaDetalles };
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
@@ -104,7 +122,8 @@ class Ajuste {
                 idAlmacen,
                 idSucursal,
                 observacion,
-                idUsuario
+                idUsuario,
+                detalle
             } = req.body;
 
             const result = await conec.execute(connection, 'SELECT idAjuste FROM ajuste');
@@ -146,7 +165,7 @@ class Ajuste {
                 idKardex = Math.max(...quitarValor);
             }
 
-            for (const item of req.body.detalle) {
+            for (const item of detalle) {
                 await conec.execute(connection, `
                 INSERT INTO ajusteDetalle(
                     idAjusteDetalle,

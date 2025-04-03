@@ -1,6 +1,9 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
+
 
 class Traslado {
 
@@ -72,12 +75,13 @@ class Traslado {
             WHERE 
                 a.idTraslado = ?`, [
                 req.query.idTraslado,
-            ])
+            ]);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 p.codigo,
                 p.nombre as producto,
+                p.imagen,
                 aj.cantidad,
                 m.nombre as unidad,
                 c.nombre as categoria
@@ -92,9 +96,24 @@ class Traslado {
             WHERE 
                 aj.idTraslado = ?`, [
                 req.query.idTraslado,
-            ])
+            ]);
 
-            return { cabecera: traslado[0], detalle };
+            const bucket = firebaseService.getBucket();
+            const listaDetalles = detalles.map((item, index) => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        id: index + 1,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                    id: index + 1,
+                }
+            });
+
+            return { cabecera: traslado[0], detalles: listaDetalles };
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
@@ -117,6 +136,7 @@ class Traslado {
                 observacion,
                 estado,
                 idUsuario,
+                detalle
             } = req.body;
 
             // Genera un nuevo código alfanumérico para el traslado
@@ -167,7 +187,7 @@ class Traslado {
             }
 
             // Itera sobre los detalles de traslado proporcionados en la solicitud
-            for (const item of req.body.detalle) {
+            for (const item of detalle) {
                 // Inserta un nuevo registro en la tabla trasladoDetalle
                 await conec.execute(connection, `
                 INSERT INTO trasladoDetalle(

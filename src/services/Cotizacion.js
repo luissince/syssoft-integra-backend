@@ -78,6 +78,7 @@ class Cotizacion {
                 cd.idImpuesto,
                 p.idMedida,
                 p.idProducto,
+                p.codigo,
                 p.nombre,
                 p.imagen,
                 i.nombre AS nombreImpuesto,
