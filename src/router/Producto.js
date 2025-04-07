@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Producto = require('../services/Producto');
-const { responseSSE } = require('../tools/Tools');
 
 const producto = new Producto();
 
