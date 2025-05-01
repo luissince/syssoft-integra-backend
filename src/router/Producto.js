@@ -8,7 +8,7 @@ router.get('/list', async (req, res) => await producto.list(req, res));
 
 router.post('/', async (req, res) => await producto.create(req, res));
 
-router.get('/id', async (req, res) => await producto.id(req, res));
+router.get('/id/:idProducto', async (req, res) => await producto.id(req, res));
 
 router.put('/', async (req, res) => await producto.update(req, res));
 

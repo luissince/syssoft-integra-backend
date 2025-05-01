@@ -74,7 +74,7 @@ class Producto {
                 idTipoTratamientoProducto,
                 costo,
                 precio,
-                tipo,
+                idTipoProducto,
                 publicar,
                 negativo,
                 preferido,
@@ -205,7 +205,7 @@ class Producto {
                 descripcionLarga,
                 idTipoTratamientoProducto,
                 costo,
-                tipo,
+                idTipoProducto,
                 publicar,
                 negativo,
                 preferido,
@@ -218,7 +218,7 @@ class Producto {
                 idUsuario,
             ])
 
-            if (tipo === "TP0001") {
+            if (idTipoProducto === "TP0001") {
                 /**
                  * Generar id del inventario
                  */
@@ -538,7 +538,7 @@ class Producto {
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
                 p.idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             let respuesta = { ...producto[0] };
@@ -564,7 +564,7 @@ class Producto {
                 precio 
             WHERE 
                 idProducto = ? AND preferido <> 1`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const imagenes = await conec.query(`
@@ -578,7 +578,7 @@ class Producto {
                     productoImagen 
                 WHERE 
                     idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const newImagenes = [];
@@ -608,7 +608,7 @@ class Producto {
                     productoDetalle 
                 WHERE 
                     idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const colores = await conec.query(`
@@ -623,7 +623,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const tallas = await conec.query(`
@@ -638,7 +638,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const sabores = await conec.query(`
@@ -653,7 +653,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.query.idProducto
+                req.params.idProducto
             ]);
 
             const newProducto = {
@@ -1680,28 +1680,6 @@ class Producto {
                 producto[0].idProducto
             ]);
 
-            const relacionados = await conec.query(`
-            SELECT 
-                p.idProducto,
-                p.codigo,
-                p.nombre,
-                pc.valor AS precio,
-                p.imagen,
-                c.nombre AS categoria
-            FROM 
-                producto AS p 
-            INNER JOIN 
-                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-            INNER JOIN 
-                categoria AS c ON p.idCategoria = c.idCategoria    
-            WHERE
-                p.publicar = 1
-            ORDER BY 
-                p.fecha DESC, p.hora DESC
-            LIMIT 4`, [
-                producto[0].idCategoria
-            ])
-
             const respuesta = {
                 ...producto[0],
                 imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
@@ -1718,7 +1696,6 @@ class Producto {
                 colores,
                 tallas,
                 sabores,
-                relacionados
             };
 
             // const r2 = new S3Client({
