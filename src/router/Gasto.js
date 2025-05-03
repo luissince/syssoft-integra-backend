@@ -4,7 +4,6 @@ const Gasto = require('../services/Gasto');
 const { sendFile, sendError } = require('../tools/Message');
 const { default: axios } = require('axios');
 
-require('dotenv').config();
 const gasto = new Gasto();
 
 router.get("/list", async (req, res) => await gasto.list(req, res));

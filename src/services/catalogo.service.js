@@ -9,8 +9,6 @@ const { default: axios } = require("axios");
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
-require('dotenv').config();
-
 class Catalogo {
 
     async list(data) {

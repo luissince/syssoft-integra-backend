@@ -12,8 +12,6 @@ const { default: axios } = require("axios");
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
-require('dotenv').config();
-
 class Producto {
 
     async list(req, res) {
@@ -545,7 +543,6 @@ class Producto {
             if (bucket) {
                 respuesta = {
                     ...producto[0],
-                    // imagen: !producto[0].imagen ? null : `${process.env.APP_URL}/files/product/${producto[0].imagen}`,
                     imagen: !producto[0].imagen
                         ? null
                         : {

@@ -1,6 +1,4 @@
 const mysql = require('mysql');
-require('dotenv').config();
-
 /**
  * Clase para gestionar la conexión a la base de datos MySQL.
  */

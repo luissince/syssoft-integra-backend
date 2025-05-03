@@ -4,7 +4,6 @@ const Cobro = require('../services/Cobro');
 const { default: axios } = require('axios');
 const { sendFile, sendError } = require('../tools/Message');
 
-require('dotenv').config();
 const cobro = new Cobro();
 
 router.get("/list", async (req, res) => await cobro.list(req, res));

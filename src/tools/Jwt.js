@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
 /**
  * Crea un token JWT basado en los datos del usuario y una clave secreta.

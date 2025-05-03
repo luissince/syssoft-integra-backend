@@ -4,7 +4,6 @@ const OrdenCompra = require('../services/OrdenCompra');
 const { sendError, sendFile } = require('../tools/Message');
 const { default: axios } = require('axios');
 
-require('dotenv').config();
 const ordenCompra = new OrdenCompra();
 
 router.get('/list', async (req, res) => await ordenCompra.list(req, res));

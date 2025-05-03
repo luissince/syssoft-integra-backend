@@ -4,7 +4,6 @@ const Pedido = require('../services/Pedido');
 const { sendError, sendFile } = require('../tools/Message');
 const { default: axios } = require('axios');
 
-require('dotenv').config();
 const pedido = new Pedido();
 
 router.get('/list', async (req, res) => await pedido.list(req, res));

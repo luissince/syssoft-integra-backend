@@ -6,8 +6,6 @@ const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
-require('dotenv').config();
-
 class Cobro {
 
     async list(req, res) {

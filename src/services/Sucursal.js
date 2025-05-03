@@ -11,7 +11,9 @@ const {
 const path = require("path");
 const { sendSuccess, sendSave, sendClient, sendError } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
+const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
+const firebaseService = new FirebaseService();
 
 class Sucursal {
 
@@ -23,7 +25,8 @@ class Sucursal {
                 p.nombre,
                 p.direccion,
                 p.estado,
-                p.principal
+                p.principal,
+                p.imagen
             FROM 
                 sucursal AS p
             WHERE 
@@ -41,7 +44,16 @@ class Sucursal {
                 parseInt(req.query.filasPorPagina)
             ]);
 
+            const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                        id: (index + 1) + parseInt(req.query.posicionPagina)
+                    }
+                }
+
                 return {
                     ...item,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
@@ -73,17 +85,41 @@ class Sucursal {
     async add(req, res) {
         let connection = null;
         try {
+            const bucket = firebaseService.getBucket();
+
             connection = await conec.beginTransaction();
 
-            const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
-            const exists = await isDirectory(fileDirectory);
+            let imagen = null;
 
-            if (!exists) {
-                await mkdir(fileDirectory);
-                await chmod(fileDirectory);
+            if (req.body.imagen && req.body.imagen.base64 !== undefined) {
+                if (bucket) {
+                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
+
+                    imagen = fileName;
+                }
             }
 
-            const imagen = await processImage(fileDirectory, req.body.image, req.body.extension, null);
+            // const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
+            // const exists = await isDirectory(fileDirectory);
+
+            // if (!exists) {
+            //     await mkdir(fileDirectory);
+            //     await chmod(fileDirectory);
+            // }
+
+            // const imagen = await processImage(fileDirectory, req.body.image, req.body.extension, null);
 
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
             const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
@@ -99,7 +135,7 @@ class Sucursal {
                 direccion,
                 idUbigeo,
                 googleMaps,
-                ruta,
+                imagen,
                 estado,
                 principal,
                 fecha,
@@ -150,7 +186,7 @@ class Sucursal {
                 IFNULL(p.paginaWeb, '') AS paginaWeb,
                 IFNULL(p.direccion, '') AS direccion,
                 IFNULL(p.googleMaps, '') AS googleMaps,
-                p.ruta,
+                p.imagen,
                 p.principal,
                 p.estado,
                 --
@@ -169,10 +205,17 @@ class Sucursal {
                 req.query.idSucursal,
             ]);
 
-            const respuesta = {
-                ...result,
-                ruta: !result.ruta ? null : `${process.env.APP_URL}/files/proyect/${result.ruta}`,
-            };
+            const bucket = firebaseService.getBucket();
+            let respuesta = { ...result };
+            if (bucket && result.imagen) {
+                respuesta = {
+                    ...result,
+                    imagen: {
+                        nombre: result.imagen,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.imagen}`
+                    }
+                };
+            }
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -185,21 +228,58 @@ class Sucursal {
         try {
             connection = await conec.beginTransaction();
 
-            const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
-            const exists = await isDirectory(fileDirectory);
+            const sucursal = await await conec.execute(connection, `
+                SELECT 
+                    imagen 
+                FROM 
+                    sucursal 
+                WHERE 
+                    idSucursal = ?`, [
+                req.body.idSucursal
+            ]);
 
-            if (!exists) {
-                await mkdir(fileDirectory);
-                await chmod(fileDirectory);
+            const bucket = firebaseService.getBucket();
+
+            let imagen = null;
+
+            if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
+                if (bucket) {
+                    if (sucursal[0].imagen) {
+                        const file = bucket.file(sucursal[0].imagen);
+                        await file.delete();
+                    }
+                }
+
+            } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
+                if (bucket) {
+                    if (sucursal[0].imagen) {
+                        const file = bucket.file(sucursal[0].imagen);
+                        if (file.exists()) {
+                            await file.delete();
+                        }
+                    }
+
+                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+
+                    const file = bucket.file(fileName);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.imagen.extension,
+                        }
+                    });
+                    await file.makePublic();
+
+                    imagen = fileName;
+                }
+            } else {
+                imagen = req.body.imagen.nombre;
             }
 
-            const sucursal = await await conec.execute(connection, `SELECT ruta FROM sucursal WHERE idSucursal = ?`, [
-                req.body.idSucursal
-            ])
-
-            const imagen = await processImage(fileDirectory, req.body.imagen, req.body.extension, sucursal[0].ruta);
-
-            if(req.body.principal === 1){
+            if (req.body.principal === 1) {
                 await conec.execute(connection, `UPDATE sucursal SET principal = 0`);
             }
 
@@ -215,7 +295,7 @@ class Sucursal {
                 direccion = ?,
                 idUbigeo = ?,
                 googleMaps = ?,
-                ruta = ?,
+                imagen = ?,
                 estado = ?,   
                 principal = ?,
                 fupdate = ?,
@@ -253,9 +333,11 @@ class Sucursal {
     async delete(req, res) {
         let connection = null;
         try {
+            const bucket = firebaseService.getBucket();
+            
             connection = await conec.beginTransaction();
 
-            const sucursal = await conec.execute(connection, `SELECT ruta FROM sucursal WHERE idSucursal = ?`, [
+            const sucursal = await conec.execute(connection, `SELECT imagen FROM sucursal WHERE idSucursal = ?`, [
                 req.query.idSucursal
             ]);
 
@@ -291,8 +373,12 @@ class Sucursal {
                 return sendClient(res, 'No se puede eliminar el sucursal ya que esta ligada a unas ventas.');
             }
 
-            const file = path.join(__dirname, '..', 'path', 'proyect');
-            removeFile(path.join(file, sucursal[0].ruta));
+            if (sucursal[0].imagen) {
+                if (bucket) {
+                    const file = bucket.file(sucursal[0].imagen);
+                    await file.delete();
+                }
+            }
 
             await conec.execute(connection, `DELETE FROM sucursal WHERE idSucursal = ?`, [
                 req.query.idSucursal
@@ -387,7 +473,7 @@ class Sucursal {
         }
     }
 
-    async listForWeb(req, res) { 
+    async listForWeb(req, res) {
         try {
             const list = await conec.query(`
             SELECT  

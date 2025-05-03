@@ -1,6 +1,5 @@
 const admin = require('firebase-admin');
 const logger = require('./Logger');
-require('dotenv').config();
 
 class FirebaseService {
     static instance;

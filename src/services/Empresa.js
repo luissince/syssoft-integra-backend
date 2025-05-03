@@ -10,7 +10,6 @@ const {
     writeFile,
     mkdir,
     chmod,
-    processImage,
     generateAlphanumericCode,
     processFilePem,
     processFile
@@ -20,8 +19,6 @@ const Conexion = require('../database/Conexion');
 const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
-
-require('dotenv').config();
 
 class Empresa {
 
@@ -48,19 +45,13 @@ class Empresa {
 
             const bucket = firebaseService.getBucket();
             let respuesta = null;
-            if (bucket) {
+            if (bucket && primeraEmpresa.rutaLogo) {
                 respuesta = {
                     ...primeraEmpresa,
                     rutaLogo: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}`,
                     rutaImage: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}`
                 };
-            } else {
-                respuesta = {
-                    ...primeraEmpresa,
-                    rutaLogo: null,
-                    rutaImage: null
-                };
-            }
+            } 
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -149,14 +140,6 @@ class Empresa {
             if (!existsCertificates) {
                 await mkdir(fileCertificates);
                 await chmod(fileCertificates);
-            }
-
-            const fileCompany = path.join(__dirname, '..', 'path', 'company');
-            const existsCompany = await isDirectory(fileCompany);
-
-            if (!existsCompany) {
-                await mkdir(fileCompany);
-                await chmod(fileCompany);
             }
 
             const empresa = await conec.execute(connection, `

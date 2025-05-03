@@ -6,8 +6,6 @@ const { default: axios } = require('axios');
 const Conexion = require('../database/Conexion');
 const ErrorResponse = require('../tools/ErrorAxios');
 
-require('dotenv').config();
-
 const conec = new Conexion();
 const factura = new Factura();
 const guiaRemision = new GuiaRemision();

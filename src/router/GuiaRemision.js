@@ -4,8 +4,6 @@ const GuiaRemision = require('../services/GuiaRemision');
 const { default: axios } = require('axios');
 const { sendFile, sendError } = require('../tools/Message');
 
-require('dotenv').config();
-
 const guiaRemision = new GuiaRemision();
 
 router.get('/list', async (req, res) => await guiaRemision.list(req, res));

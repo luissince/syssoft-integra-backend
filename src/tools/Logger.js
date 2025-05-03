@@ -1,6 +1,5 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
-require('dotenv').config();
 
 const transport = new DailyRotateFile({
     level: 'info',

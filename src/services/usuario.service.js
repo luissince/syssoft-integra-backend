@@ -5,7 +5,6 @@ const { createToken } = require('../tools/Jwt');
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { ClientError } = require('../tools/Error');
 const conec = new Conexion();
-require('dotenv').config();
 
 class Usuario {
 

@@ -6,8 +6,6 @@ const FirebaseService = require('../tools/FiraseBaseService');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
-require('dotenv').config();
-
 class Pedido {
 
     async list(req, res) {
