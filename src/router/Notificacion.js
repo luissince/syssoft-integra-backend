@@ -13,7 +13,7 @@ router.get('/list', async function (req, res) {
     }
 });
 
-router.get('/detailt', async function (req, res) {
+router.get('/detail', async function (req, res) {
     const result = await notificacion.detail(req)
     if (typeof result === 'object') {
         res.status(200).send(result);

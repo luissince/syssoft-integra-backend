@@ -14,9 +14,14 @@ class Almacen {
                 u.distrito,
                 u.provincia,
                 a.codigoSunat,
-                a.predefinido
+                a.predefinido,
+
+                a.idTipoAlmacen,
+                ta.nombre as tipoAlmacen
             FROM 
                 almacen AS a
+            INNER JOIN
+                tipoAlmacen AS ta ON ta.idTipoAlmacen = a.idTipoAlmacen
             INNER JOIN 
                 ubigeo AS u ON a.idUbigeo = u.idUbigeo 
             WHERE
@@ -82,6 +87,7 @@ class Almacen {
                 idAlmacen, 
                 idSucursal,
                 nombre,
+                idTipoAlmacen,
                 direccion,
                 idUbigeo,
                 codigoSunat,
@@ -90,10 +96,11 @@ class Almacen {
                 idUsuario,
                 fecha,
                 hora)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idAlmacen,
                 req.body.idSucursal,
                 req.body.nombre,
+                req.body.idTipoAlmacen,
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.codigoSunat,
@@ -146,6 +153,7 @@ class Almacen {
             SELECT 
                 a.idAlmacen,
                 a.nombre,
+                a.idTipoAlmacen,
                 a.direccion,       
                 u.idUbigeo,
                 u.departamento,
@@ -185,6 +193,7 @@ class Almacen {
                 almacen                  
             SET 
                 nombre = ?,
+                idTipoAlmacen = ?,
                 direccion = ?,
                 idUbigeo = ?,
                 codigoSunat = ?,
@@ -194,6 +203,7 @@ class Almacen {
             WHERE 
                 idAlmacen = ?`, [
                 req.body.nombre,
+                req.body.idTipoAlmacen,
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.codigoSunat,

@@ -12,7 +12,7 @@ router.get('/id/:idProducto', async (req, res) => await producto.id(req, res));
 
 router.put('/', async (req, res) => await producto.update(req, res));
 
-router.delete('/', async (req, res) => await producto.delete(req, res));
+router.delete('/:idProducto', async (req, res) => await producto.delete(req, res));
 
 router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
@@ -32,11 +32,9 @@ router.get('/lista/precios', async (req, res) => await producto.obtenerListPreci
 
 router.get('/filter/web/rangeprice', async (req, res) => await producto.rangePriceWeb(req, res));
 
-router.get('/filter/web', async (req, res) => await producto.filterWeb(req, res));
+router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res));
 
-router.get('/filter/web/pages', async (req, res) => await producto.filterWebPages(req, res));
-
-router.get('/filter/web/index', async (req, res) => await producto.filterWebIndex(req, res));
+router.get('/filter/web/limit/:limit', async (req, res) => await producto.filterWebLimit(req, res));
 
 router.get('/filter/web/id', async (req, res) => await producto.filterWebId(req, res));
 

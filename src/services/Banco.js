@@ -315,11 +315,11 @@ class Banco {
                 SUM(CASE 
                     WHEN co.idTipoConcepto = 'TC0001' AND t.estado = 1 THEN td.monto 
                     ELSE 0 
-                END) AS credito,
+                END) AS ingreso,
                 SUM(CASE 
                     WHEN co.idTipoConcepto = 'TC0002' AND t.estado = 1 THEN td.monto 
                     ELSE 0 
-                END) AS debito
+                END) AS egreso
             FROM
                 transaccion AS t
             INNER JOIN

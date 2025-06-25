@@ -797,8 +797,7 @@ class Sunat {
                     documento,
                     razonSocial,
                     nombreEmpresa,
-                    usuarioEmail,
-                    claveEmail
+                    email
                 FROM 
                     empresa
                 LIMIT 
@@ -860,27 +859,26 @@ class Sunat {
                 return sendClient(res, "El cliente no tiene configurado un email.");
             }
 
-            if (empresa[0].usuarioEmail === null || empresa[0].usuarioEmail === "") {
+            if (empresa[0].email === null || empresa[0].email === "") {
                 return sendClient(res, "No se ha configurado el email de envío.");
-            }
-
-            if (empresa[0].claveEmail === null || empresa[0].claveEmail === "") {
-                return sendClient(res, "No se ha configurado la clave de envío.");
             }
 
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_EMAIL}/send/google`,
+                url: `${process.env.APP_EMAIL}/send`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 data: {
                     from: {
                         name: empresa[0].nombreEmpresa ?? empresa[0].razonSocial,
-                        address: empresa[0].usuarioEmail
+                        address: empresa[0].email
                     },
-                    password: empresa[0].claveEmail,
-                    to: xml[0].email,
+                    // to: xml[0].email,
+                    to: {
+                        address: xml[0].email,
+                        name: empresa[0].razonSocial
+                    },
                     subject: "Comprobante Electrónico",
                     html: `
                         <p>Estimado Cliente <b>${xml[0].informacion}</b>.</p>

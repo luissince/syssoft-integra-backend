@@ -97,7 +97,7 @@ class Sucursal {
 
                     const timestamp = Date.now();
                     const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                    const fileName = `branch_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
 
                     const file = bucket.file(fileName);
                     await file.save(buffer, {
@@ -135,6 +135,7 @@ class Sucursal {
                 direccion,
                 idUbigeo,
                 googleMaps,
+                horarioAtencion,
                 imagen,
                 estado,
                 principal,
@@ -143,7 +144,7 @@ class Sucursal {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
                 //datos
                 req.body.nombre,
@@ -154,6 +155,7 @@ class Sucursal {
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.googleMaps,
+                req.body.horarioAtencion,
                 imagen,
                 req.body.estado,
                 req.body.principal,
@@ -186,6 +188,7 @@ class Sucursal {
                 IFNULL(p.paginaWeb, '') AS paginaWeb,
                 IFNULL(p.direccion, '') AS direccion,
                 IFNULL(p.googleMaps, '') AS googleMaps,
+                IFNULL(p.horarioAtencion, '') AS horarioAtencion,
                 p.imagen,
                 p.principal,
                 p.estado,
@@ -263,7 +266,7 @@ class Sucursal {
 
                     const timestamp = Date.now();
                     const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                    const fileName = `branch_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
 
                     const file = bucket.file(fileName);
                     await file.save(buffer, {
@@ -295,6 +298,7 @@ class Sucursal {
                 direccion = ?,
                 idUbigeo = ?,
                 googleMaps = ?,
+                horarioAtencion = ?,
                 imagen = ?,
                 estado = ?,   
                 principal = ?,
@@ -311,6 +315,7 @@ class Sucursal {
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.googleMaps,
+                req.body.horarioAtencion,
                 imagen,
                 req.body.estado,
                 req.body.principal,
@@ -415,10 +420,12 @@ class Sucursal {
                 req.dataToken.idPerfil
             ]);
 
+            const bucket = firebaseService.getBucket();
+
             const newLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: !item.ruta ? null : `${process.env.APP_URL}/files/proyect/${item.ruta}`,
+                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
             });
 
@@ -444,10 +451,12 @@ class Sucursal {
                 req.query.idSucursal
             ]);
 
+            const bucket = firebaseService.getBucket();
+
             const newLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: !item.ruta ? null : `${process.env.APP_URL}/files/proyect/${item.ruta}`,
+                      imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
             });
 
@@ -475,6 +484,8 @@ class Sucursal {
 
     async listForWeb(req, res) {
         try {
+            const bucket = firebaseService.getBucket();
+
             const list = await conec.query(`
             SELECT  
                 p.idSucursal,
@@ -486,14 +497,28 @@ class Sucursal {
                 p.paginaWeb,
                 p.direccion,
                 p.googleMaps,
+                p.horarioAtencion,
                 p.estado,
-                p.principal
+                p.principal,
+                p.ruta AS imagen
             FROM 
                 sucursal AS p
             WHERE 
                 p.estado = 1`);
 
-            return sendSuccess(res, list);
+            const newData = list.map(item => {
+                if (bucket && item.imagen) {
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
+                return {
+                    ...item,
+                }
+            });
+
+            return sendSuccess(res, newData);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/listForWeb", error);
         }

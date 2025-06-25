@@ -114,6 +114,45 @@ class Persona {
         }
     }
 
+    async detail(req, res) {
+        try {
+            const {
+                idPersona,
+                posicionPaginaTransaccion,
+                filasPorPaginaTransaccion,
+                posicionPaginaVenta,
+                filasPorPaginaVenta,
+            } = req.body;
+
+            const result = await conec.procedureAll(`CALL Detalle_Persona(?,?,?,?,?)`, [
+                idPersona,
+                parseInt(posicionPaginaTransaccion),
+                parseInt(filasPorPaginaTransaccion),
+                parseInt(posicionPaginaVenta),
+                parseInt(filasPorPaginaVenta),
+            ]);
+
+            const data = {
+                "persona": result[0][0],
+                "sumaVentas": result[1][0].total ?? 0,
+                "sumaCompras": result[2][0].total ?? 0,
+                "sumaCuentasPorCobrar": result[3][0].total ?? 0,
+                "sumaCuentasPorPagar": result[4][0].total ?? 0,
+                "listaVentas": result[5] ?? [],
+
+                "transacciones": result[6] ?? [],
+                "totalTransacciones": result[7][0].total ?? 0,
+
+                "ventas": result[8] ?? [],
+                "totalVentas": result[9][0].total ?? 0,
+            };
+
+            return sendSuccess(res, data);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/detailt", error);
+        }
+    }
+
     async create(req, res) {
         let connection = null;
         try {
@@ -472,10 +511,10 @@ class Persona {
                 ? IS NOT NULL AND proveedorPreferido = 1 AND estado = 1
                 OR
                 ? IS NOT NULL AND conductorPreferido = 1 AND estado = 1`, [
-                    req.query.cliente,
-                    req.query.proveedor,
-                    req.query.conductor,
-                ]);
+                req.query.cliente,
+                req.query.proveedor,
+                req.query.conductor,
+            ]);
             if (result.length !== 0) {
                 return sendSuccess(res, result[0]);
             }

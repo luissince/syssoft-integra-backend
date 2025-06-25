@@ -118,6 +118,7 @@ app.use('/api/motivotraslado', require('./src/router/MotivoTraslado'));
 app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
 app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
 app.use('/api/tipopeso', require('./src/router/TipoPeso'));
+app.use('/api/tipoalmacen', require('./src/router/TipoAlmacen'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 app.use('/api/ordencompra', require('./src/router/OrdenCompra'));
 app.use('/api/pedido', require('./src/router/Pedido'));
@@ -125,6 +126,7 @@ app.use('/api/catalogo', require('./src/router/catalogo.router'));
 
 app.use('/api/reporte', require('./src/router/Reporte'));
 app.use('/api/sunat', require('./src/router/Sunat'));
+app.use('/api/consulta', require('./src/router/Consulta'));
 
 // app.use((req, res, next) => {
 //     res.sendFile(path.join(__dirname, "app", "dist", "index.html"));

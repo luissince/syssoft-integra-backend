@@ -12,7 +12,8 @@ const {
     chmod,
     generateAlphanumericCode,
     processFilePem,
-    processFile
+    processFile,
+    isFile
 } = require('../tools/Tools');
 const path = require("path");
 const Conexion = require('../database/Conexion');
@@ -44,14 +45,16 @@ class Empresa {
             }
 
             const bucket = firebaseService.getBucket();
+
             let respuesta = null;
+            
             if (bucket && primeraEmpresa.rutaLogo) {
                 respuesta = {
                     ...primeraEmpresa,
                     rutaLogo: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}`,
                     rutaImage: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}`
                 };
-            } 
+            }
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -68,12 +71,11 @@ class Empresa {
                 razonSocial,
                 nombreEmpresa,
                 email,
-                paginaWeb,
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
-                usuarioEmail,
-                claveEmail,
+                rutaBanner,
+                rutaPortada,
                 usuarioSolSunat,
                 claveSolSunat,
                 certificadoSunat,
@@ -83,7 +85,13 @@ class Empresa {
                 numeroWhatsapp,
                 tituloWhatsapp,
                 mensajeWhatsapp,
-                horarioAtencion,
+                paginaWeb,
+                youTubePagina,
+                facebookPagina,
+                twitterPagina,
+                instagramPagina,
+                tiktokPagina,
+                informacion,
                 acercaNosotros,
                 politicasPrivacidad,
                 terminosCondiciones
@@ -110,6 +118,14 @@ class Empresa {
                     rutaIcon: {
                         nombre: empresa.rutaIcon,
                         url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaIcon}`
+                    },
+                    rutaPortada: {
+                        nombre: empresa.rutaPortada,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaPortada}`
+                    },
+                    rutaBanner: {
+                        nombre: empresa.rutaBanner,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaBanner}`
                     }
                 };
             } else {
@@ -118,8 +134,49 @@ class Empresa {
                     rutaLogo: null,
                     rutaImage: null,
                     rutaIcon: null,
+                    rutaPortada: null,
+                    rutaBanner: null,
                 };
             }
+
+            const serviceAccountKey = await isFile(path.join(__dirname, '..', 'path', 'certificates', 'serviceAccountKey.json'));
+
+            if (serviceAccountKey) {
+                respuesta.certificadoFirebase = "services.json"
+            } else {
+                respuesta.certificadoFirebase = null;
+            }
+
+            const banners = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    idBanner,
+                    idEmpresa,
+                    nombre,
+                    ancho,
+                    alto
+                FROM 
+                    empresaBanner 
+                WHERE 
+                    idEmpresa = ?`, [
+                req.query.idEmpresa
+            ]);
+
+            const newBanners = [];
+
+            if (bucket) {
+                for (const banner of banners) {
+                    newBanners.push({
+                        "index": banner.id,
+                        "idBanner": banner.idBanner,
+                        "nombre": banner.nombre,
+                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
+                        "remover": false
+                    });
+                }
+            }
+
+            respuesta.banners = newBanners;
 
             return sendSuccess(res, respuesta)
         } catch (error) {
@@ -147,6 +204,8 @@ class Empresa {
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
+                rutaBanner,
+                rutaPortada,
                 certificadoSunat,
                 certificadoPem,
                 privatePem
@@ -178,14 +237,16 @@ class Empresa {
             let rutaLogo = null;
             let rutaImage = null;
             let rutaIcon = null;
+            let rutaPortada = null;
+            let rutaBanner = null;
 
+            // Proceso para validar si el logo existe y si se debe eliminar o actualizar
             if (req.body.logo && req.body.logo.nombre === undefined && req.body.logo.base64 === undefined) {
                 if (bucket) {
                     const file = bucket.file(empresa[0].rutaLogo);
                     await file.delete();
                 }
-            }
-            else if (req.body.logo && req.body.logo.base64 !== undefined) {
+            } else if (req.body.logo && req.body.logo.base64 !== undefined) {
                 if (bucket) {
                     if (empresa[0].rutaLogo) {
                         const file = bucket.file(empresa[0].rutaLogo);
@@ -216,13 +277,13 @@ class Empresa {
                 rutaLogo = req.body.logo.nombre;
             }
 
+            // Proceso para validar si la imagen existe y si se debe eliminar o actualizar
             if (req.body.image && req.body.image.nombre === undefined && req.body.image.base64 === undefined) {
                 if (bucket) {
                     const file = bucket.file(empresa[0].rutaImage);
                     await file.delete();
                 }
-            }
-            else if (req.body.image && req.body.image.base64 !== undefined) {
+            } else if (req.body.image && req.body.image.base64 !== undefined) {
                 if (bucket) {
                     if (empresa[0].rutaImage) {
                         const file = bucket.file(empresa[0].rutaImage);
@@ -253,13 +314,13 @@ class Empresa {
                 rutaImage = req.body.image.nombre;
             }
 
+            // Proceso para validar el icono existe y si se debe eliminar o actualizar
             if (req.body.icon && req.body.icon.nombre === undefined && req.body.icon.base64 === undefined) {
                 if (bucket) {
                     const file = bucket.file(empresa[0].rutaIcon);
                     await file.delete();
                 }
-            }
-            else if (req.body.icon && req.body.icon.base64 !== undefined) {
+            } else if (req.body.icon && req.body.icon.base64 !== undefined) {
                 if (bucket) {
                     if (empresa[0].rutaIcon) {
                         const file = bucket.file(empresa[0].rutaIcon);
@@ -290,19 +351,170 @@ class Empresa {
                 rutaIcon = req.body.icon.nombre;
             }
 
-            // const rutaLogo = await processImage(
-            //     fileCompany,
-            //     req.body.logo,
-            //     req.body.extlogo,
-            //     empresa[0].rutaLogo
-            // );
-            // const rutaImage = await processImage(
-            //     fileCompany,
-            //     req.body.image,
-            //     req.body.extimage,
-            //     empresa[0].rutaImage
-            // );
+             // Proceso para validar si el bannet existe y si se debe eliminar o actualizar
+             if (req.body.banner && req.body.banner.nombre === undefined && req.body.banner.base64 === undefined) {
+                if (bucket) {
+                    const file = bucket.file(empresa[0].rutaBanner);
+                    await file.delete();
+                }
+            } else if (req.body.banner && req.body.banner.base64 !== undefined) {
+                if (bucket) {
+                    if (empresa[0].rutaBanner) {
+                        const file = bucket.file(empresa[0].rutaBanner);
+                        if (file.exists()) {
+                            await file.delete();
+                        }
+                    }
 
+                    const buffer = Buffer.from(req.body.banner.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.banner.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.banner.extension,
+                        }
+                    });
+                    await file.makePublic();
+                    rutaPortada = filePath;
+                }
+            } else {
+                rutaPortada = req.body.banner.nombre;
+            }
+
+             // Proceso para validar la portada existente y si se debe eliminar o actualizar
+             if (req.body.portada && req.body.portada.nombre === undefined && req.body.portada.base64 === undefined) {
+                if (bucket) {
+                    const file = bucket.file(empresa[0].rutaPortada);
+                    await file.delete();
+                }
+            } else if (req.body.portada && req.body.portada.base64 !== undefined) {
+                if (bucket) {
+                    if (empresa[0].rutaPortada) {
+                        const file = bucket.file(empresa[0].rutaPortada);
+                        if (file.exists()) {
+                            await file.delete();
+                        }
+                    }
+
+                    const buffer = Buffer.from(req.body.portada.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `${timestamp}_${uniqueId}.${req.body.portada.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + req.body.portada.extension,
+                        }
+                    });
+                    await file.makePublic();
+                    rutaBanner = filePath;
+                }
+            } else {
+                rutaBanner = req.body.portada.nombre;
+            }
+
+
+            // Proceso para validar los banners existentes y si se debe eliminar o actualizar
+            const banners = req.body.banners;
+
+            const cacheBanners = await conec.execute(connection, `
+                SELECT 
+                    idBanner,
+                    idEmpresa,
+                    nombre,
+                    extension,
+                    ancho,
+                    alto
+                FROM
+                    empresaBanner
+                WHERE
+                    idEmpresa = ?`, [
+                req.body.idEmpresa
+            ]);
+
+            await conec.execute(connection, `DELETE FROM empresaBanner WHERE idEmpresa = ?`, [
+                req.body.idEmpresa
+            ]);
+
+            let idBanner = 0;
+
+            for (const banner of banners) {
+                if (banner.remover !== undefined && banner.remover === true) {
+                    const file = bucket.file(banner.nombre);
+                    await file.delete();
+                } else if (banner.base64 !== undefined) {
+                    const buffer = Buffer.from(banner.base64, 'base64');
+
+                    const timestamp = Date.now();
+                    const uniqueId = Math.random().toString(36).substring(2, 9);
+                    const fileName = `banner_${timestamp}_${uniqueId}.${banner.extension}`;
+
+                    const folderName = req.body.documento;
+                    const filePath = `${folderName}/${fileName}`;
+
+                    const file = bucket.file(filePath);
+                    await file.save(buffer, {
+                        metadata: {
+                            contentType: 'image/' + banner.extension,
+                        }
+                    });
+                    await file.makePublic();
+
+                    idBanner++;
+
+                    await conec.execute(connection, `
+                    INSERT INTO empresaBanner(
+                        idBanner,
+                        idEmpresa,
+                        nombre,
+                        extension,
+                        ancho,
+                        alto
+                    ) VALUES(?,?,?,?,?,?)`, [
+                        idBanner,
+                        req.body.idEmpresa,
+                        filePath,
+                        banner.extension,
+                        banner.width,
+                        banner.height,
+                    ]);
+                } else {
+                    const imageOld = cacheBanners.find((item) => item.idBanner === banner.idBanner);
+
+                    idBanner++;
+
+                    await conec.execute(connection, `
+                    INSERT INTO empresaBanner(
+                        idBanner,
+                        idEmpresa,
+                        nombre,
+                        extension,
+                        ancho,
+                        alto
+                    ) VALUES(?,?,?,?,?,?)`, [
+                        idBanner,
+                        req.body.idEmpresa,
+                        imageOld.nombre,
+                        imageOld.extension,
+                        imageOld.ancho,
+                        imageOld.alto,
+                    ]);
+                }
+            }
+
+            // Actualizar informacion de empresa
             await conec.execute(connection, `
             UPDATE 
                 empresa 
@@ -311,14 +523,12 @@ class Empresa {
                 razonSocial = ?,
                 nombreEmpresa = ?,
                 email = ?,
-                paginaWeb = ?,
 
                 rutaLogo=?,
                 rutaImage=?,
                 rutaIcon=?,
-
-                usuarioEmail=?,
-                claveEmail=?,
+                rutaPortada=?,
+                rutaBanner=?,
 
                 usuarioSolSunat=?,
                 claveSolSunat=?,
@@ -334,7 +544,15 @@ class Empresa {
                 numeroWhatsapp=?,
                 tituloWhatsapp=?,
                 mensajeWhatsapp=?,
-                horarioAtencion=?,
+
+                paginaWeb = ?,
+                youTubePagina = ?,
+                facebookPagina = ?,
+                twitterPagina = ?,
+                instagramPagina = ?,
+                tiktokPagina = ?,
+
+                informacion=?,
                 acercaNosotros=?,
                 politicasPrivacidad=?,
                 terminosCondiciones=?,
@@ -348,14 +566,12 @@ class Empresa {
                 req.body.razonSocial,
                 req.body.nombreEmpresa,
                 req.body.email,
-                req.body.paginaWeb,
 
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
-
-                req.body.usuarioEmail,
-                req.body.claveEmail,
+                rutaPortada,
+                rutaBanner,
 
                 req.body.usuarioSolSunat,
                 req.body.claveSolSunat,
@@ -371,7 +587,15 @@ class Empresa {
                 req.body.numeroWhatsapp,
                 req.body.tituloWhatsapp,
                 req.body.mensajeWhatsapp,
-                req.body.horarioAtencion,
+
+                req.body.paginaWeb,
+                req.body.youTubePagina,
+                req.body.facebookPagina,
+                req.body.twitterPagina,
+                req.body.instagramPagina,
+                req.body.tiktokPagina,
+
+                req.body.informacion,
                 req.body.acercaNosotros,
                 req.body.politicasPrivacidad,
                 req.body.terminosCondiciones,
@@ -470,8 +694,6 @@ class Empresa {
                 extimage,
                 rutaLogo,
                 rutaImage,
-                usuarioEmail,
-                claveEmail,
                 useSol,
                 claveSol,
                 certificado,
@@ -480,7 +702,7 @@ class Empresa {
                 hora,
                 fupdate,
                 hupdate
-            ) VALUES(?,?,?,?,,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idEmpresa,
                 'TD0003',
                 req.body.documento,
@@ -532,15 +754,23 @@ class Empresa {
         try {
             const result = await conec.query(`
             SELECT
+                idEmpresa,
                 nombreEmpresa,
                 email,
                 paginaWeb,
-                horarioAtencion,
+                youTubePagina,
+                facebookPagina,
+                twitterPagina,
+                instagramPagina,
+                tiktokPagina,
+                informacion,
                 acercaNosotros,
                 politicasPrivacidad,
                 terminosCondiciones,
                 rutaImage,
-                rutaIcon
+                rutaIcon,
+                rutaPortada,
+                rutaBanner
             FROM 
                 empresa
             LIMIT 
@@ -551,9 +781,88 @@ class Empresa {
             if (bucket) {
                 result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
                 result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
+                result[0].rutaPortada = result[0].rutaPortada ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaPortada}` : null;
+                result[0].rutaBanner = result[0].rutaBanner ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaBanner}` : null;
             }
 
+            const banners = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    idBanner,
+                    idEmpresa,
+                    nombre,
+                    ancho,
+                    alto
+                FROM 
+                    empresaBanner 
+                WHERE 
+                    idEmpresa = ?`, [
+                        result[0].idEmpresa
+            ]);
+
+            const newBanners = [];
+
+            if (bucket) {
+                for (const banner of banners) {
+                    newBanners.push({
+                        "id": banner.id,
+                        "nombre": banner.nombre,
+                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
+                        "ancho": banner.ancho,
+                        "alto": banner.alto,
+                    });
+                }
+            }
+
+            result[0].banners = newBanners;
+
             return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
+        }
+    }
+
+    async getCompanyBanners(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT
+                idEmpresa
+            FROM 
+                empresa
+            LIMIT 
+                1`);
+
+            const banners = await conec.query(`
+                SELECT
+                    ROW_NUMBER() OVER () AS id,
+                    idBanner,
+                    idEmpresa,
+                    nombre,
+                    ancho,
+                    alto
+                FROM 
+                    empresaBanner 
+                WHERE 
+                    idEmpresa = ?`, [
+                        result[0].idEmpresa
+            ]);
+
+            const newBanners = [];
+
+            const bucket = firebaseService.getBucket();
+            if (bucket) {
+                for (const banner of banners) {
+                    newBanners.push({
+                        "id": banner.id,
+                        "nombre": banner.nombre,
+                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
+                        "ancho": banner.ancho,
+                        "alto": banner.alto,
+                    });
+                }
+            }
+
+            return sendSuccess(res, newBanners);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
         }
@@ -570,31 +879,6 @@ class Empresa {
                 empresa
             LIMIT 
                 1`);
-
-            return sendSuccess(res, result[0]);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
-        }
-    }
-
-    async getCompanyImages(req, res) {
-        try {
-            const result = await conec.query(`
-            SELECT
-                nombreEmpresa,
-                rutaImage,
-                rutaIcon
-            FROM 
-                empresa
-            LIMIT 
-                1`);
-
-            const bucket = firebaseService.getBucket();
-
-            if (bucket) {
-                result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
-                result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
-            }
 
             return sendSuccess(res, result[0]);
         } catch (error) {

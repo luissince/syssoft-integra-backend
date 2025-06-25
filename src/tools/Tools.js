@@ -42,6 +42,7 @@ async function isDirectory(file) {
         return false;
     }
 }
+
 async function isFile(file) {
     try {
         const stats = await lstatAsync(file);

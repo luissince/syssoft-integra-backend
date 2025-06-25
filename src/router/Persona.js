@@ -12,6 +12,8 @@ router.get('/list/proveedores', async (req, res) => await persona.listProveedore
 
 router.get('/list/conductores', async (req, res) => await persona.listConductores(req, res));
 
+router.post('/detail', async (req, res) => await persona.detail(req, res));
+
 router.post('/create', async (req, res) => await persona.create(req, res));
 
 router.get('/id', async (req, res) => await persona.id(req, res));

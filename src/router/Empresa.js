@@ -16,6 +16,8 @@ router.get('/combo', async (req, res) => await empresa.combo(req, res));
 
 router.get('/web/info', async (req, res) => await empresa.getCompanyInfo(req, res));
 
+router.get('/web/banners', async (req, res) => await empresa.getCompanyBanners(req, res));
+
 router.get('/web/whatsapp', async (req, res) => await empresa.getCompanyWhatsApp(req, res));
 
 module.exports = router;
