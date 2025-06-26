@@ -634,8 +634,8 @@ class Empresa {
 
             const empresa = {
                 ...result,
-                rutaLogo: result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
-                rutaImage: result.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaImage}` : null,
+                rutaLogo: bucket && result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
+                rutaImage: bucket && result.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaImage}` : null,
             }
 
             return sendSuccess(res, empresa);

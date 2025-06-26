@@ -423,9 +423,15 @@ class Sucursal {
             const bucket = firebaseService.getBucket();
 
             const newLista = lista.map(function (item, index) {
+                if(bucket && item.imagen){
+                    return {
+                        ...item,
+                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    }
+                }
                 return {
                     ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    imagen: null,
                 }
             });
 
