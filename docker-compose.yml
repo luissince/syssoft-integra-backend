@@ -89,6 +89,32 @@ services:
     volumes:
       - supermarketya-backend-volumen:/app/src/path
 
+  dracoly-services:
+    # Configuración para construir la imagen del contenedor desde el contexto actual
+    <<: *backend-service
+    # Nombre de la imagen de la imagen generada
+    image: dracoly-backend-image
+    # Nombre del contenedor
+    container_name: dracoly-backend
+    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
+    # ports:
+      # - 6040:80
+    volumes:
+      - dracoly-backend-volumen:/app/src/path
+
+  main-services:
+    # Configuración para construir la imagen del contenedor desde el contexto actual
+    <<: *backend-service
+    # Nombre de la imagen de la imagen generada
+    image: main-backend-image
+    # Nombre del contenedor
+    container_name: main-backend
+    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
+    # ports:
+      # - 6041:80
+    volumes:
+      - main-backend-volumen:/app/src/path
+
 # Definición de redes
 networks:
   # Red llamada 'luis'
@@ -102,3 +128,5 @@ volumes:
   ferreteria-rym-backend-volumen:
   importmuneli-backend-volumen:
   supermarketya-backend-volumen:
+  dracoly-backend-volumen:
+  main-backend-volumen:
