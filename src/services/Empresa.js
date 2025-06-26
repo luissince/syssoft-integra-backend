@@ -46,15 +46,11 @@ class Empresa {
 
             const bucket = firebaseService.getBucket();
 
-            let respuesta = null;
-            
-            if (bucket && primeraEmpresa.rutaLogo) {
-                respuesta = {
-                    ...primeraEmpresa,
-                    rutaLogo: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}`,
-                    rutaImage: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}`
-                };
-            }
+            const respuesta = {
+                ...primeraEmpresa,
+                rutaLogo: bucket && primeraEmpresa.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}` : null,
+                rutaImage: bucket && primeraEmpresa.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}` : null
+            };
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -351,8 +347,8 @@ class Empresa {
                 rutaIcon = req.body.icon.nombre;
             }
 
-             // Proceso para validar si el bannet existe y si se debe eliminar o actualizar
-             if (req.body.banner && req.body.banner.nombre === undefined && req.body.banner.base64 === undefined) {
+            // Proceso para validar si el bannet existe y si se debe eliminar o actualizar
+            if (req.body.banner && req.body.banner.nombre === undefined && req.body.banner.base64 === undefined) {
                 if (bucket) {
                     const file = bucket.file(empresa[0].rutaBanner);
                     await file.delete();
@@ -388,8 +384,8 @@ class Empresa {
                 rutaPortada = req.body.banner.nombre;
             }
 
-             // Proceso para validar la portada existente y si se debe eliminar o actualizar
-             if (req.body.portada && req.body.portada.nombre === undefined && req.body.portada.base64 === undefined) {
+            // Proceso para validar la portada existente y si se debe eliminar o actualizar
+            if (req.body.portada && req.body.portada.nombre === undefined && req.body.portada.base64 === undefined) {
                 if (bucket) {
                     const file = bucket.file(empresa[0].rutaPortada);
                     await file.delete();
@@ -797,7 +793,7 @@ class Empresa {
                     empresaBanner 
                 WHERE 
                     idEmpresa = ?`, [
-                        result[0].idEmpresa
+                result[0].idEmpresa
             ]);
 
             const newBanners = [];
@@ -844,7 +840,7 @@ class Empresa {
                     empresaBanner 
                 WHERE 
                     idEmpresa = ?`, [
-                        result[0].idEmpresa
+                result[0].idEmpresa
             ]);
 
             const newBanners = [];
