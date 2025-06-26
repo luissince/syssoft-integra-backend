@@ -22,6 +22,10 @@ jobs:
             service: supermarketya-services
           - environment: importmuneli
             service: importmuneli-services
+          - environment: dracoly
+            service: dracoly-services
+          - environment: main
+            service: main-services
 
     environment: ${{ matrix.environment }}
     
