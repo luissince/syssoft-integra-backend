@@ -16,7 +16,7 @@ class FirebaseService {
     initializeFirebase() {
         try {
             // Intentar cargar el archivo de configuración
-            const serviceAccount = require(`../path/certificatesw/${process.env.FIREBASE_FILE_ACCOUNT_NAME}`);
+            const serviceAccount = require(`../path/certificates/${process.env.FIREBASE_FILE_ACCOUNT_NAME}`);
 
             // Inicializar Firebase
             admin.initializeApp({
