@@ -133,6 +133,6 @@ app.use('/api/consulta', require('./src/router/Consulta'));
 // });
 
 // Iniciar el servidor
-app.listen(app.get("port"), () => {
+app.listen(app.get("port"), '0.0.0.0', () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 });

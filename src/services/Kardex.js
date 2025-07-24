@@ -13,7 +13,6 @@ class Kardex {
             ]);
             return kardex;
         } catch (error) {
-            console.log(error);
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

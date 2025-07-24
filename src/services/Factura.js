@@ -73,6 +73,10 @@ class Factura {
                 importeTotal
             } = req.body;
 
+            // Obtener fecha y hora actuales
+            const date = currentDate();
+            const time = currentTime();
+
             if (idCotizacion) {
                 const vendidos = await conec.query(`
                     SELECT 
@@ -192,6 +196,7 @@ class Factura {
                 }
             }
 
+            // 
             if (idPedido) {
                 const vendidos = await conec.query(`
                     SELECT 
@@ -496,8 +501,8 @@ class Factura {
                 observacion,
                 nota,
                 estado,
-                currentDate(),
-                currentTime()
+                date,
+                time
             ]);
 
             /**
@@ -542,36 +547,107 @@ class Factura {
                             cantidad = item.precio / producto[0].precio;
                         }
 
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idVenta,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            hora,
-                            fecha,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
-                            item.idProducto,
-                            'TK0002',
-                            'MK0003',
-                            idVenta,
-                            'SALIDA DEL PRODUCTO POR VENTA',
-                            cantidad,
-                            producto[0].costo,
-                            inventario.idAlmacen,
-                            inventario.idInventario,
-                            currentTime(),
-                            currentDate(),
-                            idUsuario
-                        ]);
+                        const lotes = inventario.lotes;
+
+                        if (lotes.length > 0) {
+                            for (const lote of lotes) {
+                                const queryLote = await conec.execute(connection, `
+                                SELECT 
+                                    idLote,
+                                    idInventario,
+                                    codigoLote,
+                                    fechaVencimiento,
+                                    cantidad
+                                FROM 
+                                    lote 
+                                WHERE 
+                                    idLote = ?`, [
+                                    lote.idLote
+                                ]);
+
+                                if (lote.cantidadSeleccionada > parseFloat(queryLote[0].cantidad)) {
+                                    await conec.rollback(connection);
+                                    return sendClient(res, { "message": `La cantidad del LOTE-${lote.codigoLote}, tiene menos de la cantidad que se desea vender.` });
+                                }
+
+                                await conec.execute(connection, `
+                                UPDATE
+                                    lote
+                                SET
+                                    cantidad = cantidad - ?
+                                WHERE  
+                                    idLote = ?`, [
+                                    lote.cantidadSeleccionada,
+                                    lote.idLote
+                                ]);
+
+                                await conec.execute(connection, `
+                                INSERT INTO kardex(
+                                    idKardex,
+                                    idProducto,
+                                    idTipoKardex,
+                                    idMotivoKardex,
+                                    idVenta,
+                                    detalle,
+                                    cantidad,
+                                    costo,
+                                    idAlmacen,
+                                    idInventario,
+                                    idLote,
+                                    fecha,
+                                    hora,
+                                    idUsuario
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                                    `KD${String(idKardex += 1).padStart(4, '0')}`,
+                                    item.idProducto,
+                                    'TK0002',
+                                    'MK0003',
+                                    idVenta,
+                                    'SALIDA DEL PRODUCTO POR VENTA',
+                                    lote.cantidadSeleccionada,
+                                    producto[0].costo,
+                                    inventario.idAlmacen,
+                                    inventario.idInventario,
+                                    lote.idLote,
+                                    date,
+                                    time,
+                                    idUsuario
+                                ]);
+                            }
+                        }
+
+                        if (lotes.length === 0) {
+                            await conec.execute(connection, `
+                            INSERT INTO kardex(
+                                idKardex,
+                                idProducto,
+                                idTipoKardex,
+                                idMotivoKardex,
+                                idVenta,
+                                detalle,
+                                cantidad,
+                                costo,
+                                idAlmacen,
+                                idInventario,
+                                fecha,
+                                hora,
+                                idUsuario
+                            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                                `KD${String(idKardex += 1).padStart(4, '0')}`,
+                                item.idProducto,
+                                'TK0002',
+                                'MK0003',
+                                idVenta,
+                                'SALIDA DEL PRODUCTO POR VENTA',
+                                cantidad,
+                                producto[0].costo,
+                                inventario.idAlmacen,
+                                inventario.idInventario,
+                                date,
+                                time,
+                                idUsuario
+                            ]);
+                        }
 
                         await conec.execute(connection, `
                         UPDATE 
@@ -588,12 +664,12 @@ class Factura {
                     let cantidad = 0;
                     let precio = 0;
 
-                    if (item.idTipoTratamientoProducto === 'TT0001' || item.idTipoTratamientoProducto === 'TT0004' || item.idTipoTratamientoProducto === 'TT0003') {
+                    if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
                         precio = item.precio;
                         cantidad = item.inventarios.reduce((acc, current) => acc + current.cantidad, 0);
                     }
 
-                    if (item.idTipoTratamientoProducto === 'TT0002') {
+                    if (item.idTipoTratamientoProducto === "TT0002") {
                         precio = producto[0].precio;
                         cantidad = item.precio / producto[0].precio;
                     }
@@ -615,13 +691,14 @@ class Factura {
                         precio,
                         cantidad,
                         item.idImpuesto
-                    ])
+                    ]);
 
                     idVentaDetalle++;
                 }
 
                 if (item.tipo === "SERVICIO") {
-                    await conec.execute(connection, `INSERT INTO ventaDetalle(
+                    await conec.execute(connection, `
+                    INSERT INTO ventaDetalle(
                         idVentaDetalle,
                         idVenta,
                         idProducto,
@@ -666,8 +743,8 @@ class Factura {
                     idSucursal,
                     notaTransacion,
                     1,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario
                 ]);
 
@@ -732,7 +809,7 @@ class Factura {
                         idVenta,
                         cuota,
                         now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
-                        currentTime(),
+                        time,
                         monto,
                         0
                     ]);
@@ -769,8 +846,8 @@ class Factura {
                     idVentaCotizacion,
                     idVenta,
                     idCotizacion,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario
                 ]);
             }
@@ -794,8 +871,8 @@ class Factura {
                     idVentaPedido,
                     idVenta,
                     idPedido,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario
                 ]);
             }
@@ -953,6 +1030,10 @@ class Factura {
             // Iniciar una transacción
             connection = await conec.beginTransaction();
 
+            // Obtener fecha y hora actuales
+            const date = currentDate();
+            const time = currentTime();
+
             // Obtener información de la venta para el id proporcionado
             const validate = await conec.execute(connection, `
                 SELECT 
@@ -1000,6 +1081,7 @@ class Factura {
                 req.query.idVenta
             ]);
 
+            // Actualizar el estado de cuotas
             await conec.execute(connection, `
                 UPDATE 
                     cuota 
@@ -1010,6 +1092,7 @@ class Factura {
                 req.query.idVenta
             ]);
 
+            // Obtener cuotas y eliminar transacciones relacionadas
             const cuotas = await conec.execute(connection, `
                 SELECT
                     idCuota
@@ -1056,14 +1139,17 @@ class Factura {
                 idKardex = Math.max(...quitarValor);
             }
 
+            // Procesar cada detalle de la venta
             for (const detalle of detalleVenta) {
+                // Obtener registros de kardex relacionados con esta venta y producto
                 const kardex = await conec.execute(connection, `
                     SELECT 
                         k.idProducto,
                         k.cantidad,
                         k.costo,
                         k.idAlmacen,
-                        k.idInventario    
+                        k.idInventario,
+                        k.idLote
                     FROM 
                         kardex AS k 
                     WHERE 
@@ -1073,8 +1159,21 @@ class Factura {
                 ]);
 
                 for (const item of kardex) {
-                    // Insertar registro en la tabla kardex para anulación
-                    await conec.execute(connection, `
+                    // Si el producto tiene lote, restaurar la cantidad del lote
+                    if (item.idLote) {
+                        await conec.execute(connection, `
+                        UPDATE 
+                            lote 
+                        SET 
+                            cantidad = cantidad - ?
+                        WHERE 
+                            idLote = ?`, [
+                            item.cantidad,
+                            item.idLote
+                        ]);
+
+                        // Insertar registro en kardex para anulación con lote
+                        await conec.execute(connection, `
                         INSERT INTO kardex(
                             idKardex,
                             idProducto,
@@ -1086,24 +1185,59 @@ class Factura {
                             costo,
                             idAlmacen,
                             idInventario,
-                            hora,
+                            idLote,
                             fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0001',
+                            'MK0004',
+                            req.query.idVenta,
+                            'ANULACIÓN DE LA VENTA',
+                            item.cantidad,
+                            item.costo,
+                            item.idAlmacen,
+                            item.idInventario,
+                            item.idLote,
+                            date,
+                            time,
+                            req.query.idUsuario
+                        ]);
+                    } else {
+                        // Si no tiene lote, solo insertar en kardex sin lote
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idVenta,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            fecha,
+                            hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0001',
-                        'MK0004',
-                        req.query.idVenta,
-                        'ANULACIÓN DE LA VENTA',
-                        item.cantidad,
-                        item.costo,
-                        item.idAlmacen,
-                        item.idInventario,
-                        currentTime(),
-                        currentDate(),
-                        req.query.idUsuario
-                    ]);
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0001',
+                            'MK0004',
+                            req.query.idVenta,
+                            'ANULACIÓN DE LA VENTA',
+                            item.cantidad,
+                            item.costo,
+                            item.idAlmacen,
+                            item.idInventario,
+                            date,
+                            time,
+                            req.query.idUsuario
+                        ]);
+                    }
 
                     // Actualizar la cantidad en el inventario
                     await conec.execute(connection, `

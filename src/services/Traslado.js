@@ -134,10 +134,13 @@ class Traslado {
                 idSucursalDestino,
                 idSucursal,
                 observacion,
-                estado,
                 idUsuario,
-                detalle
+                detalles
             } = req.body;
+
+            // Obtener fechas actuales
+            const date = currentDate();
+            const time = currentTime();
 
             // Genera un nuevo código alfanumérico para el traslado
             const result = await conec.execute(connection, 'SELECT idTraslado FROM traslado');
@@ -156,9 +159,8 @@ class Traslado {
                 observacion,
                 fecha,
                 hora,
-                estado,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
                 idTraslado,
                 idTipoTraslado,
                 idMotivoTraslado,
@@ -167,9 +169,8 @@ class Traslado {
                 idSucursalDestino,
                 idSucursal,
                 observacion,
-                currentDate(),
-                currentTime(),
-                estado,
+                date,
+                time,
                 idUsuario
             ]);
 
@@ -187,7 +188,11 @@ class Traslado {
             }
 
             // Itera sobre los detalles de traslado proporcionados en la solicitud
-            for (const item of detalle) {
+            for (const detalle of detalles) {
+                const cantidad = detalle.lotes
+                    ? detalle.lotes.reduce((acc, lote) => acc + Number(lote.cantidadAjustar), 0)
+                    : Number(detalle.cantidad);
+
                 // Inserta un nuevo registro en la tabla trasladoDetalle
                 await conec.execute(connection, `
                 INSERT INTO trasladoDetalle(
@@ -198,8 +203,8 @@ class Traslado {
                 ) VALUES(?,?,?,?)`, [
                     idTrasladoDetalle,
                     idTraslado,
-                    item.idProducto,
-                    parseFloat(item.cantidad)
+                    detalle.idProducto,
+                    cantidad
                 ]);
 
                 // Incrementa el código numérico
@@ -208,24 +213,24 @@ class Traslado {
                 // Obtiene el inventario del producto en el almacén de origen
                 const inventarioOrigen = await conec.execute(connection, `
                 SELECT 
-                        idInventario 
-                    FROM 
-                        inventario 
-                    WHERE 
-                        idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
+                    idInventario 
+                FROM 
+                    inventario 
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
+                    detalle.idProducto,
                     idAlmacenOrigen,
                 ]);
 
                 // Obtiene el inventario del producto en el almacén de destino
                 const inventarioDestino = await conec.execute(connection, `
                 SELECT 
-                        idInventario 
-                    FROM 
-                        inventario 
-                    WHERE 
-                        idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
+                    idInventario 
+                FROM 
+                    inventario 
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
+                    detalle.idProducto,
                     idAlmacenDestino,
                 ]);
 
@@ -237,7 +242,7 @@ class Traslado {
                     cantidad = cantidad - ?
                 WHERE 
                     idInventario = ?`, [
-                    item.cantidad,
+                    cantidad,
                     inventarioOrigen[0].idInventario
                 ]);
 
@@ -249,7 +254,7 @@ class Traslado {
                     cantidad = cantidad + ?
                 WHERE 
                     idInventario = ?`, [
-                    item.cantidad,
+                    cantidad,
                     inventarioDestino[0].idInventario
                 ]);
 
@@ -261,72 +266,207 @@ class Traslado {
                     producto 
                 WHERE 
                     idProducto = ?`, [
-                    item.idProducto,
+                    detalle.idProducto,
                 ]);
 
-                // Inserta registros en la tabla kardex para la salida del almacén de origen
-                await conec.execute(connection, `
-                INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    idTraslado,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    idInventario,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0002',
-                    'MK0002',
-                    idTraslado,
-                    'SALIDA POR TRASLADO',
-                    item.cantidad,
-                    producto[0].costo,
-                    idAlmacenOrigen,
-                    inventarioOrigen[0].idInventario,
-                    currentTime(),
-                    currentDate(),
-                    idUsuario
-                ]);
+                if (detalle.lotes) {
+                    for (const lote of detalle.lotes) {
+                        // Actualiza el lote de origen
+                        await conec.execute(connection, `
+                        UPDATE 
+                            lote 
+                        SET 
+                            cantidad = cantidad - ? 
+                        WHERE 
+                            idLote = ?`, [
+                            Number(lote.cantidadAjustar),
+                            lote.idLote
+                        ]);
 
-                // Inserta registros en la tabla kardex para la entrada en el almacén de destino
-                await conec.execute(connection, `
-                INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    idTraslado,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    idInventario,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0001',
-                    'MK0002',
-                    idTraslado,
-                    'INGRESO POR TRASLADO',
-                    item.cantidad,
-                    producto[0].costo,
-                    idAlmacenDestino,
-                    inventarioDestino[0].idInventario,
-                    currentTime(),
-                    currentDate(),
-                    idUsuario
-                ]);
+                        // Inserta información en el Kardex con ID del lote de origen
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idTraslado,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            idLote,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            detalle.idProducto,
+                            'TK0002',
+                            'MK0002',
+                            idTraslado,
+                            `SALIDA POR TRASLADO (LOTE: ${lote.codigoLote})`,
+                            Number(lote.cantidadAjustar),
+                            producto[0].costo,
+                            idAlmacenOrigen,
+                            inventarioOrigen[0].idInventario,
+                            lote.idLote,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+
+                        // Inserta un nuevo registroo o actualizar en el inventario de destino
+                        const loteExist = await conec.execute(connection, `
+                            SELECT 
+                                idLote 
+                            FROM 
+                                lote 
+                            WHERE 
+                                idInventario = ? AND codigoLote = ?`, [
+                            inventarioDestino[0].idInventario,
+                            lote.codigoLote,
+                        ]);
+
+                        let idLote = null;
+
+                        if (loteExist.length === 0) {
+                            const [day, month, year] = lote.fechaVencimiento.split('/');
+                            const fecha = new Date(`${year}-${month}-${day}`);
+
+                            await conec.execute(connection, `
+                                INSERT INTO lote (
+                                    idInventario,
+                                    codigoLote,
+                                    fechaVencimiento,
+                                    cantidad
+                                ) VALUES(?,?,?,?)`, [
+                                inventarioDestino[0].idInventario,
+                                lote.codigoLote,
+                                fecha,
+                                Number(lote.cantidadAjustar),
+                            ]);
+
+                            // Obtener el ID insertado del lote de destino
+                            const [lastLote] = await conec.execute(connection, 'SELECT LAST_INSERT_ID() AS id');
+
+                            idLote = lastLote.id;
+
+                        } else {
+                            await conec.execute(connection, `
+                                UPDATE 
+                                    lote 
+                                SET 
+                                    cantidad = cantidad + ?
+                                WHERE 
+                                    idLote = ?`, [
+                                Number(lote.cantidadAjustar),
+                                loteExist[0].idLote
+                            ]);
+
+                            idLote = loteExist[0].idLote;
+                        }
+
+                        // Inserta información en el Kardex con ID del lote de destino
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idCompra,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            idLote,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            detalle.idProducto,
+                            'TK0001',
+                            'MK0002',
+                            idTraslado,
+                            `INGRESO POR TRASLADO (LOTE: ${lote.codigoLote})`,
+                            Number(lote.cantidadAjustar),
+                            producto[0].costo,
+                            idAlmacenDestino,
+                            inventarioDestino[0].idInventario,
+                            idLote,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+                    }
+                } else {
+                    // Inserta registros en la tabla kardex para la salida del almacén de origen
+                    await conec.execute(connection, `
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idTraslado,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        idInventario,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        detalle.idProducto,
+                        'TK0002',
+                        'MK0002',
+                        idTraslado,
+                        'SALIDA POR TRASLADO',
+                        cantidad,
+                        producto[0].costo,
+                        idAlmacenOrigen,
+                        inventarioOrigen[0].idInventario,
+                        date,
+                        time,
+                        idUsuario
+                    ]);
+
+                    // Inserta registros en la tabla kardex para la entrada en el almacén de destino
+                    await conec.execute(connection, `
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idTraslado,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        idInventario,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        detalle.idProducto,
+                        'TK0001',
+                        'MK0002',
+                        idTraslado,
+                        'INGRESO POR TRASLADO',
+                        cantidad,
+                        producto[0].costo,
+                        idAlmacenDestino,
+                        inventarioDestino[0].idInventario,
+                        date,
+                        time,
+                        idUsuario
+                    ]);
+                }
             }
 
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito
@@ -337,6 +477,8 @@ class Traslado {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+            console.log(error);
+
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

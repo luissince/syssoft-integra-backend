@@ -73,6 +73,7 @@ class Producto {
                 costo,
                 precio,
                 idTipoProducto,
+                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -179,6 +180,7 @@ class Producto {
                 idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
+                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -189,7 +191,7 @@ class Producto {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 idMedida,
@@ -204,6 +206,7 @@ class Producto {
                 idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
+                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -525,6 +528,7 @@ class Producto {
                 pc.valor AS precio,
                 p.costo,
                 p.idTipoProducto,
+                p.lote,
                 p.publicar,
                 p.negativo,
                 p.preferido,
@@ -674,6 +678,9 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const bucket = firebaseService.getBucket();
 
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND idProducto <> ?`, [
@@ -717,6 +724,47 @@ class Producto {
                 if (validateCodigoBarras.length !== 0) {
                     await conec.rollback(connection);
                     return sendClient(res, "No se puede haber 2 producto con el mismo código de barras.");
+                }
+            }
+
+            const validateProducto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            if (validateProducto[0].lote === 1 && req.body.lote === false) {
+                let validateLotes = [];
+                const inventarios = await conec.execute(connection, `
+                    SELECT 
+                        * 
+                    FROM 
+                        inventario AS i
+                    WHERE
+                        i.idProducto = ?`, [
+                    req.body.idProducto
+                ]);
+
+                for (const inventario of inventarios) {
+                    const lotes = await conec.execute(connection, `
+                        SELECT
+                            *
+                        FROM
+                            lote 
+                        WHERE 
+                            idInventario = ?`, [
+                        inventario.idInventario
+                    ]);
+
+                    for (const lote of lotes) {
+                        if (lote.estado === 1 && lote.cantidad > 0) {
+                            validateLotes.push(true);
+                            break;
+                        }
+                    }
+                }
+
+                if (validateLotes.length > 0) {
+                    await conec.rollback(connection);
+                    return sendClient(res, "El producto aún tiene lotes activos.");
                 }
             }
 
@@ -796,6 +844,7 @@ class Producto {
                 descripcionLarga = ?,
                 idTipoTratamientoProducto = ?,
                 costo = ?,
+                lote = ?,
                 publicar = ?,
                 negativo = ?,
                 preferido = ?,
@@ -818,13 +867,14 @@ class Producto {
                 req.body.descripcionLarga,
                 req.body.idTipoTratamientoProducto,
                 req.body.costo,
+                req.body.lote,
                 req.body.publicar,
                 req.body.negativo,
                 req.body.preferido,
                 req.body.estado,
                 imagen,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idProducto
             ]);
@@ -1002,8 +1052,8 @@ class Producto {
                     ) VALUES(?,?,?,?,?)`, [
                     req.body.idProducto,
                     color.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     req.body.idUsuario,
                 ])
             }
@@ -1019,8 +1069,8 @@ class Producto {
                     ) VALUES(?,?,?,?,?)`, [
                     req.body.idProducto,
                     talla.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     req.body.idUsuario,
                 ])
             }
@@ -1036,13 +1086,13 @@ class Producto {
                     ) VALUES(?,?,?,?,?)`, [
                     req.body.idProducto,
                     sabor.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     req.body.idUsuario,
                 ])
             }
 
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return sendSave(res, "Los datos se actualizarón correctamente.");
         } catch (error) {
             if (connection != null) {
@@ -1061,7 +1111,7 @@ class Producto {
 
             const idProducto = req.params.idProducto;
 
-            const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto  = ?`, [
+            const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto = ?`, [
                 idProducto
             ]);
 
@@ -1186,6 +1236,33 @@ class Producto {
         }
     }
 
+    async getLote(req, res) {
+        try {
+
+            const { idInventario } = req.params;
+
+            const result = await conec.query(`
+            SELECT 
+                l.idLote,
+                l.codigoLote, 
+                DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento, 
+                DATEDIFF(l.fechaVencimiento, CURDATE()) AS diasRestantes,
+                l.cantidad
+            FROM 
+                lote AS l
+            WHERE
+                l.idInventario = ? AND l.cantidad > 0 AND l.estado = 1
+            ORDER BY 
+                l.fechaVencimiento 
+            ASC`, [
+                idInventario
+            ]);
+            return sendSuccess(res, result);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/getLote", error);
+        }
+    }
+
     async filter(req, res) {
         try {
             const result = await conec.query(`
@@ -1258,6 +1335,7 @@ class Producto {
                 p.codigoBarras,
                 p.nombre,
                 a.nombre as almacen,
+                inv.idInventario,
                 inv.cantidad,
                 p.costo,
                 pc.valor AS precio,
@@ -1266,6 +1344,7 @@ class Producto {
                 me.nombre AS unidad,
                 p.idTipoTratamientoProducto,
                 p.idTipoProducto,
+                p.lote,
                 p.idMedida,
                 me.nombre AS unidad
             FROM 
@@ -1471,7 +1550,7 @@ class Producto {
                 sucursal 
             WHERE 
                 principal = 1`);
-                
+
             const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?)`, [
                 buscar,
                 categoriasCSV,
@@ -1495,19 +1574,19 @@ class Producto {
                       inventario AS inv ON inv.idAlmacen = alm.idAlmacen
                   WHERE 
                       alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
-                  sucursal.idSucursal,
-                  item.idProducto
+                    sucursal.idSucursal,
+                    item.idProducto
                 ]);
-              
+
                 return {
-                  ...item,
-                  imagen: bucket && item.imagen
-                    ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : null,
-                  id: (index + 1) + parseInt(posicionPagina),
-                  cantidad: inventario?.cantidad || 0,
+                    ...item,
+                    imagen: bucket && item.imagen
+                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
+                        : null,
+                    id: (index + 1) + parseInt(posicionPagina),
+                    cantidad: inventario?.cantidad || 0,
                 };
-              }));
+            }));
 
 
             const rows = await conec.procedure(`CALL Listar_Productos_Web_Count(?,?,?,?,?,?,?,?)`, [
@@ -1564,7 +1643,7 @@ class Producto {
                     sucursal 
                 WHERE 
                     principal = 1`);
-                    
+
             const producto = await conec.query(`
             SELECT 
                 p.idProducto,

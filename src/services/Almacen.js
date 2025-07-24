@@ -277,9 +277,12 @@ class Almacen {
                     a.idAlmacen, 
                     a.nombre, 
                     a.predefinido, 
-                    s.nombre as sucursal 
+                    ta.nombre AS tipoAlmacen,
+                    s.nombre AS sucursal 
                 FROM 
                     almacen AS a
+                INNER JOIN
+                    tipoAlmacen AS ta ON ta.idTipoAlmacen = a.idTipoAlmacen
                 INNER JOIN 
                     sucursal AS s ON s.idSucursal = a.idSucursal`);
                 return lista;
@@ -289,9 +292,12 @@ class Almacen {
                     a.idAlmacen, 
                     a.nombre, 
                     a.predefinido, 
-                    s.nombre as sucursal 
+                    ta.nombre AS tipoAlmacen,
+                    s.nombre AS sucursal 
                 FROM 
                     almacen AS a
+                INNER JOIN
+                    tipoAlmacen AS ta ON ta.idTipoAlmacen = a.idTipoAlmacen
                 INNER JOIN 
                     sucursal AS s ON s.idSucursal = a.idSucursal
                 WHERE 

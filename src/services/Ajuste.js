@@ -123,169 +123,193 @@ class Ajuste {
                 idSucursal,
                 observacion,
                 idUsuario,
-                detalle
+                detalles
             } = req.body;
+
+            const date = currentDate();
+            const time = currentTime();
 
             const result = await conec.execute(connection, 'SELECT idAjuste FROM ajuste');
             const idAjuste = generateAlphanumericCode("AJ0001", result, 'idAjuste');
 
             await conec.execute(connection, `
             INSERT INTO ajuste(
-                idAjuste,
-                idTipoAjuste,
-                idMotivoAjuste,
-                idAlmacen,
-                idSucursal,
-                observacion,
-                estado,
-                fecha,
-                hora,
+                idAjuste, 
+                idTipoAjuste, 
+                idMotivoAjuste, 
+                idAlmacen, 
+                idSucursal, 
+                observacion, 
+                fecha, 
+                hora, 
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?)`, [
                 idAjuste,
                 idTipoAjuste,
                 idMotivoAjuste,
                 idAlmacen,
                 idSucursal,
                 observacion,
-                1,
-                currentDate(),
-                currentTime(),
-                idUsuario,
+                date,
+                time,
+                idUsuario
             ]);
 
-            const resultVentaDetalle = await conec.execute(connection, 'SELECT idAjusteDetalle FROM ajusteDetalle');
-            let idAjusteDetalle = generateNumericCode(1, resultVentaDetalle, 'idAjusteDetalle');
+            const detalleIds = await conec.execute(connection, 'SELECT idAjusteDetalle FROM ajusteDetalle');
+            let idAjusteDetalle = generateNumericCode(1, detalleIds, 'idAjusteDetalle');
 
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
-            let idKardex = 0;
+            const kardexIds = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
-            for (const item of detalle) {
+            const tipoKardex = idTipoAjuste === "TA0001" ? "TK0001" : "TK0002";
+            const motivoKardex = "MK0002";
+            const detalleKardex = idTipoAjuste === "TA0001" ? "INGRESO POR AJUSTE" : "SALIDA POR AJUSTE";
+            const operacion = idTipoAjuste === "TA0001" ? 1 : -1;
+
+            for (const item of detalles) {
+                const cantidad = item.lotes
+                    ? item.lotes.reduce((acc, lote) => acc + Number(lote.cantidadAjustar), 0)
+                    : Number(item.cantidad);
+
                 await conec.execute(connection, `
                 INSERT INTO ajusteDetalle(
-                    idAjusteDetalle,
-                    idAjuste,
-                    idProducto,
+                    idAjusteDetalle, 
+                    idAjuste, 
+                    idProducto, 
                     cantidad
                 ) VALUES(?,?,?,?)`, [
-                    idAjusteDetalle,
+                    idAjusteDetalle++,
                     idAjuste,
                     item.idProducto,
-                    item.cantidad
-                ])
+                    cantidad
+                ]);
 
-                idAjusteDetalle++;
-
-                const inventario = await conec.execute(connection, `SELECT 
+                const [{ idInventario }] = await conec.execute(connection, `
+                SELECT 
                     idInventario 
-                    FROM inventario 
-                    WHERE idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    idAlmacen,
+                FROM 
+                    inventario 
+                WHERE 
+                    idProducto = ? AND idAlmacen = ?`, [
+                    item.idProducto, idAlmacen
                 ]);
 
-                const producto = await conec.execute(connection, `SELECT costo FROM producto WHERE idProducto = ?`, [
-                    item.idProducto,
+                const [{ costo }] = await conec.execute(connection, `
+                SELECT 
+                    costo 
+                FROM 
+                    producto 
+                WHERE 
+                    idProducto = ?`, [
+                    item.idProducto
                 ]);
 
-                if (idTipoAjuste === "TA0001") {
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idAjuste,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        hora,
-                        fecha,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0001',
-                        'MK0002',
-                        idAjuste,
-                        'INGRESO POR AJUSTE',
-                        item.cantidad,
-                        producto[0].costo,
-                        idAlmacen,
-                        inventario[0].idInventario,
-                        currentTime(),
-                        currentDate(),
-                        idUsuario
-                    ]);
+                const insertarKardex = async (loteId = null, cantidadAjuste = cantidad) => {
 
-                    await conec.execute(connection, `
-                    UPDATE 
-                        inventario 
-                    SET 
-                        cantidad = cantidad + ?
-                    WHERE 
-                        idInventario = ?`, [
-                        item.cantidad,
-                        inventario[0].idInventario
-                    ]);
+                    if (loteId) {
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex, 
+                            idProducto, 
+                            idTipoKardex, 
+                            idMotivoKardex, 
+                            idAjuste,
+                            detalle, 
+                            cantidad, 
+                            costo, 
+                            idAlmacen, 
+                            idInventario, 
+                            idLote,
+                            fecha, 
+                            hora, 
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            generarIdKardex(),
+                            item.idProducto,
+                            tipoKardex,
+                            motivoKardex,
+                            idAjuste,
+                            detalleKardex,
+                            cantidadAjuste,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            loteId,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+                    } else {
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex, 
+                            idProducto, 
+                            idTipoKardex, 
+                            idMotivoKardex, 
+                            idAjuste,
+                            detalle, 
+                            cantidad, 
+                            costo, 
+                            idAlmacen, 
+                            idInventario, 
+                            fecha, 
+                            hora, 
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            generarIdKardex(),
+                            item.idProducto,
+                            tipoKardex,
+                            motivoKardex,
+                            idAjuste,
+                            detalleKardex,
+                            cantidadAjuste,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+                    }
+                };
+
+                if (item.lotes) {
+                    for (const lote of item.lotes) {
+                        await conec.execute(connection, `
+                        UPDATE 
+                            lote 
+                        SET 
+                            cantidad = cantidad + ? 
+                        WHERE 
+                            idLote = ?`, [
+                            lote.cantidadAjustar * operacion,
+                            lote.idLote
+                        ]);
+                        await insertarKardex(lote.idLote, lote.cantidadAjustar);
+                    }
                 } else {
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idAjuste,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        hora,
-                        fecha,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0002',
-                        'MK0002',
-                        idAjuste,
-                        'SALIDA POR AJUSTE',
-                        item.cantidad,
-                        producto[0].costo,
-                        idAlmacen,
-                        inventario[0].idInventario,
-                        currentTime(),
-                        currentDate(),
-                        idUsuario
-                    ]);
-
-                    await conec.execute(connection, `
-                    UPDATE 
-                        inventario 
-                    SET 
-                        cantidad = cantidad - ?
-                    WHERE 
-                        idInventario = ?`, [
-                        item.cantidad,
-                        inventario[0].idInventario
-                    ]);
+                    await insertarKardex();
                 }
+
+                await conec.execute(connection, `
+                UPDATE 
+                    inventario 
+                SET 
+                    cantidad = cantidad + ? 
+                WHERE 
+                    idInventario = ?`, [
+                    cantidad * operacion,
+                    idInventario
+                ]);
             }
 
             await conec.commit(connection);
             return "create";
         } catch (error) {
-            if (connection != null) {
-                await conec.rollback(connection);
-            }
+            if (connection) await conec.rollback(connection);
+            
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }

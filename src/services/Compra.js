@@ -45,6 +45,10 @@ class Compra {
             // Inicia la transacción
             connection = await conec.beginTransaction();
 
+            // Obtener la fecha y hora actual
+            const date = currentDate();
+            const time = currentTime();
+
             // Extrae los datos del cuerpo de la solicitud
             const {
                 idComprobante,
@@ -252,8 +256,8 @@ class Compra {
                 observacion,
                 nota,
                 estado,
-                currentDate(),
-                currentTime()
+                date,
+                time,
             ]);
 
             // Genera un nuevo ID para los detalles de compra
@@ -279,6 +283,8 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
+                const cantidad = !item.lote ? item.cantidad : item.lotes.reduce((acumulador, lote) => acumulador + + Number(lote.cantidad.value), 0);
+
                 // Calcular es costo actual en base a la formula de costo promedio ponderado
                 const valorTotalInventarioInicial = await conec.execute(connection, `
                 SELECT 
@@ -297,9 +303,9 @@ class Compra {
                 let costo = 0;
 
                 if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
-                    const valorTotalNuevaCompra = item.costo * item.cantidad;
+                    const valorTotalNuevaCompra = item.costo * cantidad;
                     const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
-                    const sumaCantidades = item.cantidad + valorTotalInventarioInicial[0].cantidad;
+                    const sumaCantidades = cantidad + valorTotalInventarioInicial[0].cantidad;
                     const costoPromedio = sumaTotales / sumaCantidades;
                     costo = costoPromedio;
                 }
@@ -316,55 +322,39 @@ class Compra {
                     idAlmacen,
                 ]);
 
-                // Insertar kardex
-                await await conec.execute(connection, `
-                INSERT INTO compraDetalle(
-                    idCompraDetalle,
-                    idCompra,
-                    idProducto,
-                    costo,
-                    cantidad,
-                    idImpuesto
-                ) VALUES(?,?,?,?,?,?)`, [
-                    idCompraDetalle,
-                    idCompra,
-                    item.idProducto,
-                    item.costo,
-                    item.cantidad,
-                    item.idImpuesto
-                ]);
-
                 // Inserta información en el Kardex
-                await conec.execute(connection, `
-                INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    idCompra,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    idInventario,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0001',
-                    'MK0002',
-                    idCompra,
-                    'INGRESO POR COMPRA',
-                    item.cantidad,
-                    item.costo,
-                    idAlmacen,
-                    inventario[0].idInventario,
-                    currentTime(),
-                    currentDate(),
-                    idUsuario
-                ]);
+                if (!item.lote) {
+                    await conec.execute(connection, `
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idCompra,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        idInventario,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        item.idProducto,
+                        'TK0001',
+                        'MK0002',
+                        idCompra,
+                        'INGRESO POR COMPRA',
+                        cantidad,
+                        item.costo,
+                        idAlmacen,
+                        inventario[0].idInventario,
+                        date,
+                        time,
+                        idUsuario
+                    ]);
+                }
 
                 // Actualiza el inventario
                 await conec.execute(connection, `
@@ -374,9 +364,64 @@ class Compra {
                     cantidad = cantidad + ?
                 WHERE 
                     idInventario = ?`, [
-                    item.cantidad,
+                    cantidad,
                     inventario[0].idInventario
                 ]);
+
+                if (item.lote) {
+                    for (const lote of item.lotes) {
+                        await conec.execute(connection, `
+                        INSERT INTO lote (
+                            idInventario,
+                            codigoLote,
+                            fechaVencimiento,
+                            cantidad
+                        ) VALUES(?,?,?,?)`, [
+                            inventario[0].idInventario,
+                            lote.serie.value,
+                            lote.fechaVencimiento.value,
+                            lote.cantidad.value
+                        ]);
+
+                        // Obtener el ID insertado
+                        const [idLote] = await conec.execute(connection, 'SELECT LAST_INSERT_ID() AS id');
+
+                        // Inserta información en el Kardex con ID del lote
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idCompra,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            idLote,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            item.idProducto,
+                            'TK0001',
+                            'MK0002',
+                            idCompra,
+                            `INGRESO POR COMPRA (LOTE: ${lote.serie.value})`,
+                            lote.cantidad.value,
+                            item.costo,
+                            idAlmacen,
+                            inventario[0].idInventario,
+                            idLote.id,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+                    }
+
+                }
 
                 // Actualizar el costo del producto
                 if (costo > 0) {
@@ -393,6 +438,24 @@ class Compra {
 
                 }
 
+                // Insertar en la compra detalle
+                await await conec.execute(connection, `
+                INSERT INTO compraDetalle(
+                    idCompraDetalle,
+                    idCompra,
+                    idProducto,
+                    costo,
+                    cantidad,
+                    idImpuesto
+                ) VALUES(?,?,?,?,?,?)`, [
+                    idCompraDetalle,
+                    idCompra,
+                    item.idProducto,
+                    item.costo,
+                    cantidad,
+                    item.idImpuesto
+                ]);
+
                 idCompraDetalle++;
             }
 
@@ -408,19 +471,17 @@ class Compra {
                     idReferencia,
                     idSucursal,
                     nota,
-                    estado,
                     fecha,
                     hora,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?)`, [
                     idTransaccion,
                     'CP0002',
                     idCompra,
                     idSucursal,
                     notaTransacion,
-                    1,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario
                 ]);
 
@@ -485,7 +546,7 @@ class Compra {
                         idCompra,
                         plazo,
                         now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
-                        currentTime(),
+                        time,
                         monto,
                         0
                     ]);
@@ -514,8 +575,8 @@ class Compra {
                     idCompraOrdenCompra,
                     idCompra,
                     idOrdenCompra,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario
                 ]);
             }
@@ -581,6 +642,9 @@ class Compra {
             const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
+                p.idProducto,
+                p.lote,
+                c.idAlmacen,
                 p.imagen,
                 p.nombre AS producto,
                 md.nombre AS medida, 
@@ -595,6 +659,8 @@ class Compra {
             INNER JOIN 
                 producto AS p ON cd.idProducto = p.idProducto 
             INNER JOIN 
+                compra AS c ON c.idCompra = cd.idCompra
+            INNER JOIN 
                 medida AS md ON md.idMedida = p.idMedida 
             INNER JOIN 
                 categoria AS m ON p.idCategoria = m.idCategoria 
@@ -603,7 +669,8 @@ class Compra {
             WHERE 
                 cd.idCompra = ?
             ORDER BY 
-                cd.idCompraDetalle ASC`, [
+                cd.idCompraDetalle ASC
+            `, [
                 req.query.idCompra,
             ]);
 
@@ -619,6 +686,42 @@ class Compra {
                     ...item,
                 }
             });
+
+            for (const item of listaDetalles) {
+                if (item.lote === 1) {
+                    // Buscar el ID de inventario
+                    const inventario = await conec.query(`
+                    SELECT 
+                        idInventario 
+                    FROM 
+                        inventario 
+                    WHERE 
+                        idProducto = ? AND idAlmacen = ?`, [
+                        item.idProducto,
+                        item.idAlmacen
+                    ]);
+
+                    if (inventario.length > 0) {
+                        const lotes = await conec.query(`
+                        SELECT 
+                            codigoLote,
+                            DATE_FORMAT(fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
+                            cantidad
+                        FROM 
+                            lote
+                        WHERE 
+                            idInventario = ?`, [
+                            inventario[0].idInventario
+                        ]);
+
+                        item.lotes = lotes;
+                    } else {
+                        item.lotes = [];
+                    }
+                } else {
+                    item.lotes = null;
+                }
+            }
 
             // Obtener información de transaccion asociados a la compra
             const transaccion = await conec.query(`
@@ -671,6 +774,10 @@ class Compra {
             // Inicia una transacción
             connection = await conec.beginTransaction();
 
+            // Obtener fecha y hora actuales
+            const date = currentDate();
+            const time = currentTime();
+
             // Consulta la información de la compra que se va a cancelar
             const validate = await conec.execute(connection, `
             SELECT 
@@ -719,6 +826,7 @@ class Compra {
                 req.query.idCompra
             ]);
 
+            // Actualizar el estado de cuotas
             await conec.execute(connection, `
             UPDATE 
                 plazo 
@@ -729,6 +837,7 @@ class Compra {
                 req.query.idCompra
             ]);
 
+            // Obtener cuotas y eliminar transacciones relacionadas
             const plazos = await conec.execute(connection, `
             SELECT
                 idPlazo
@@ -763,7 +872,11 @@ class Compra {
             ]);
 
             // Genera el Id del kardex
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            const resultKardex = await conec.execute(connection, `
+                SELECT 
+                    idKardex 
+                FROM 
+                    kardex`);
             let idKardex = 0;
 
             if (resultKardex.length != 0) {
@@ -771,67 +884,119 @@ class Compra {
                 idKardex = Math.max(...quitarValor);
             }
 
-            // Itera sobre los detalles de la compra para realizar acciones en el kardex e inventario
-            for (const item of detalleCompra) {
+            // Procesar cada detalle de la compra
+            for (const detalle of detalleCompra) {
                 // Obtiene el kardex asociado
-                const kardex = await conec.execute(connection, `
+                const kardexes = await conec.execute(connection, `
                 SELECT 
                     k.idProducto,
                     k.cantidad,
                     k.costo,
                     k.idAlmacen,
-                    k.idInventario    
+                    k.idInventario,
+                    k.idLote  
                 FROM 
                     kardex AS k 
                 WHERE 
                     k.idCompra = ? AND k.idProducto = ?`, [
                     req.query.idCompra,
-                    item.idProducto,
+                    detalle.idProducto,
                 ]);
 
-                // Inserta un nuevo registro en el kardex
-                await conec.execute(connection, `
-                INSERT INTO kardex(
-                    idKardex,
-                    idProducto,
-                    idTipoKardex,
-                    idMotivoKardex,
-                    idCompra,
-                    detalle,
-                    cantidad,
-                    costo,
-                    idAlmacen,
-                    idInventario,
-                    hora,
-                    fecha,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
-                    item.idProducto,
-                    'TK0002',
-                    'MK0004',
-                    req.query.idCompra,
-                    'ANULACIÓN DE LA COMPRA',
-                    kardex[0].cantidad,
-                    kardex[0].costo,
-                    kardex[0].idAlmacen,
-                    kardex[0].idInventario,
-                    currentTime(),
-                    currentDate(),
-                    req.query.idUsuario
-                ]);
+                for (const kardex of kardexes) {
+                    // Si el producto tiene lote, restaurar la cantidad del lote
+                    if (kardex.idLote) {
+                        await conec.execute(connection, `
+                        UPDATE 
+                            lote 
+                        SET 
+                            cantidad = cantidad + ?,
+                            estado = 0
+                        WHERE 
+                            idLote = ?`, [
+                            kardex.cantidad,
+                            kardex.idLote
+                        ]);
 
-                // Actualiza la cantidad en el inventario
-                await conec.execute(connection, `
-                UPDATE 
-                    inventario 
-                SET 
-                    cantidad = cantidad - ?
-                WHERE 
-                    idInventario = ?`, [
-                    kardex[0].cantidad,
-                    kardex[0].idInventario
-                ]);
+                        // Inserta un nuevo registro en el kardex
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idCompra,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            idLote,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            kardex.idProducto,
+                            'TK0002',
+                            'MK0004',
+                            req.query.idCompra,
+                            'ANULACIÓN DE LA COMPRA',
+                            kardex.cantidad,
+                            kardex.costo,
+                            kardex.idAlmacen,
+                            kardex.idInventario,
+                            kardex.idLote,
+                            date,
+                            time,
+                            req.query.idUsuario
+                        ]);
+                    } else {
+                        // Inserta un nuevo registro en el kardex
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idCompra,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            idInventario,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            kardex.idProducto,
+                            'TK0002',
+                            'MK0004',
+                            req.query.idCompra,
+                            'ANULACIÓN DE LA COMPRA',
+                            kardex.cantidad,
+                            kardex.costo,
+                            kardex.idAlmacen,
+                            kardex.idInventario,
+                            date,
+                            time,
+                            req.query.idUsuario
+                        ]);
+                    }
+
+                    // Actualiza la cantidad en el inventario
+                    await conec.execute(connection, `
+                    UPDATE 
+                        inventario 
+                    SET 
+                        cantidad = cantidad - ?
+                    WHERE 
+                        idInventario = ?`, [
+                        kardex.cantidad,
+                        kardex.idInventario
+                    ]);
+                }
             }
 
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito

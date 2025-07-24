@@ -9,7 +9,7 @@ class TipoAlmacen {
             const lista = await conec.query(`
             SELECT 
                 idTipoAlmacen, 
-                nombre 
+                nombre,
             FROM 
                 tipoAlmacen`);        
             return lista;

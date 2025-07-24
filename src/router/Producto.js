@@ -18,6 +18,8 @@ router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
 router.get('/combo', async (req, res) => await producto.combo(req, res));
 
+router.get('/lote/:idInventario', async (req, res) => await producto.getLote(req, res));
+
 router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta(req, res));
 
 router.get('/filter', async (req, res) => await producto.filter(req, res));
