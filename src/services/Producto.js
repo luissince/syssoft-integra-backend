@@ -1977,6 +1977,8 @@ class Producto {
                 req.body.idAlmacen
             ]);
 
+            const bucket = firebaseService.getBucket();
+
             return sendSuccess(res, {
                 // Resumen Financiero Diario
                 "1": {
@@ -1985,7 +1987,15 @@ class Producto {
                 },
                 // Productos Vendidos con Detalles de Costo y Ganancia
                 "2": {
-                    data: result[1],
+                    data: result[1].length > 0 ? result[1].map((item) => {
+                        if (bucket && item.imagen) {
+                            return {
+                                ...item,
+                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                            }
+                        }
+                        return item;
+                    }) : [],
                     descripcion: "Productos Vendidos con Detalles de Costo y Ganancia"
                 },
                 // Productos Más Vendidos (Top 3)
@@ -2005,12 +2015,28 @@ class Producto {
                 },
                 // Productos con Bajo Inventario que Requieren Reorden
                 "6": {
-                    data: result[5],
+                    data: result[5].length > 0 ? result[5].map((item) => {
+                        if (bucket && item.imagen) {
+                            return {
+                                ...item,
+                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                            }
+                        }
+                        return item;
+                    }) : [],
                     descripcion: "Productos con Bajo Inventario que Requieren Reorden"
                 },
                 // Productos sin Ventas Hoy pero con Inventario Disponible
                 "7": {
-                    data: result[6],
+                    data: result[6].length > 0 ? result[6].map((item) => {
+                        if (bucket && item.imagen) {
+                            return {
+                                ...item,
+                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                            }
+                        }
+                        return item;
+                    }) : [],
                     descripcion: "Productos sin Ventas Hoy pero con Inventario Disponible"
                 },
             });
