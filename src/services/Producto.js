@@ -1968,6 +1968,57 @@ class Producto {
         }
     }
 
+    async dashboard(req, res) {
+        try {
+            const result = await conec.procedureAll(`CALL Dashboard_Producto(?,?,?,?)`, [
+                req.body.fechaInicio,
+                req.body.fechaFinal,
+                req.body.idSucursal,
+                req.body.idAlmacen
+            ]);
+
+            return sendSuccess(res, {
+                // Resumen Financiero Diario
+                "1": {
+                    data: result[0][0],
+                    descripcion: "Resumen Financiero Diario"
+                },
+                // Productos Vendidos con Detalles de Costo y Ganancia
+                "2": {
+                    data: result[1],
+                    descripcion: "Productos Vendidos con Detalles de Costo y Ganancia"
+                },
+                // Productos Más Vendidos (Top 3)
+                "3": {
+                    data: result[2],
+                    descripcion: "Productos Más Vendidos (Top 3)"
+                },
+                // Estado de Inventario para Productos con Movimiento
+                "4": {
+                    data: result[3][0],
+                    descripcion: "Estado de Inventario para Productos con Movimiento"
+                },
+                // Rendimiento por Categoría con Análisis de Margen
+                "5": {
+                    data: result[4],
+                    descripcion: "Rendimiento por Categoría con Análisis de Margen"
+                },
+                // Productos con Bajo Inventario que Requieren Reorden
+                "6": {
+                    data: result[5],
+                    descripcion: "Productos con Bajo Inventario que Requieren Reorden"
+                },
+                // Productos sin Ventas Hoy pero con Inventario Disponible
+                "7": {
+                    data: result[6],
+                    descripcion: "Productos sin Ventas Hoy pero con Inventario Disponible"
+                },
+            });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/dashboard", error);
+        }
+    }
+
 }
 
 module.exports = Producto;

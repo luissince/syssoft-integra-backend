@@ -75,7 +75,49 @@ class Inventario {
         }
     }
 
-    async obtenerStock(req) {
+    async summary(req) {
+        try {
+            const cantidades = await conec.query(`
+            SELECT
+                COUNT(*) AS totalProductos,
+                SUM(CASE WHEN i.cantidad <= i.cantidadMinima THEN 1 ELSE 0 END) AS totalStockCritico,
+                SUM(CASE WHEN i.cantidad BETWEEN i.cantidadMinima AND i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockOptimo,
+                SUM(CASE WHEN i.cantidad > i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockExcedente
+            FROM 
+                inventario i
+            INNER JOIN 
+                producto p ON p.idProducto = i.idProducto
+            WHERE 
+                i.idAlmacen = ?`, [
+                req.params.idAlmacen
+            ]);
+
+            const lote = await conec.query(`
+            SELECT 
+                COUNT(*) AS totalLotesPorVencer
+            FROM 
+                lote AS l
+            INNER JOIN 
+                inventario AS i ON i.idInventario = l.idInventario
+            INNER JOIN 
+                almacen AS a ON a.idAlmacen = i.idAlmacen
+            WHERE 
+                    i.idAlmacen = ?
+                AND 
+                    DATEDIFF(l.fechaVencimiento, CURDATE()) BETWEEN 0 AND 30;`, [
+                req.params.idAlmacen
+            ]);
+
+            return {
+                ...cantidades[0],
+                ...lote[0]
+            }
+        } catch (error) {
+            return "Se produjo un error de servidor, intente nuevamente.";
+        }
+    }
+
+    async getStock(req) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -94,7 +136,7 @@ class Inventario {
         }
     }
 
-    async actualizarStock(req) {
+    async updateStock(req) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();

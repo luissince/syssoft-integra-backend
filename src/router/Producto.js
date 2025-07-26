@@ -48,6 +48,8 @@ router.get("/documents/excel", async (req, res) => await producto.documentsPdfEx
 
 router.get("/documents/pdf/codbar", async (req, res) => await producto.documentsPdfCodBar(req, res));
 
+router.post("/dashboard", async (req, res) => await producto.dashboard(req, res));
+
 // router.get('/filtrar/venta', async function (req, res) {
     // return responseSSE(req, res, async (sendEvent) => {
     //     const result = await producto.filtrarParaVenta(req)

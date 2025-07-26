@@ -13,8 +13,17 @@ router.get('/list', async function (req, res) {
     }
 });
 
-router.put('/actualizar/stock', async function (req, res) {
-    const result = await inventario.actualizarStock(req)
+router.get('/summary/:idAlmacen', async function (req, res) {
+    const result = await inventario.summary(req)
+    if (typeof result === 'object') {
+        res.status(200).send(result)
+    } else {
+        res.status(500).send(result)
+    }
+});
+
+router.put('/update/stock', async function (req, res) {
+    const result = await inventario.updateStock(req)
     if (result === 'update') {
         res.status(201).send("Se actualizó correctamente el stock.");
     } else {
@@ -22,8 +31,8 @@ router.put('/actualizar/stock', async function (req, res) {
     }
 });
 
-router.get('/obtener/stock', async function (req, res) {
-    const result = await inventario.obtenerStock(req)
+router.get('/get/stock', async function (req, res) {
+    const result = await inventario.getStock(req)
     if (typeof result === 'object') {
         res.status(200).send(result)
     } else {
