@@ -821,13 +821,13 @@ class Producto {
                         }
                     });
                     await file.makePublic();
-
                     imagen = fileName;
                 }
             } else {
                 imagen = req.body.imagen.nombre;
             }
 
+            console.log(imagen);
             await conec.execute(connection, `
             UPDATE 
                 producto 
@@ -1092,7 +1092,7 @@ class Producto {
                 ])
             }
 
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return sendSave(res, "Los datos se actualizarón correctamente.");
         } catch (error) {
             if (connection != null) {

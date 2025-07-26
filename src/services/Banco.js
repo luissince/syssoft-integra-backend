@@ -149,7 +149,6 @@ class Banco {
             ]);
 
             await conec.commit(connection);
-
             return sendSave(res, "Se actualizó correctamente el banco.");
         } catch (error) {
             if (connection != null) {

@@ -1,6 +1,3 @@
-# Versión de la configuración de Docker Compose
-version: "3"
-
 # Definición de un servicio base reutilizable
 x-service-template: &backend-service
   # Configuración para construir la imagen del contenedor desde el contexto actual
@@ -31,9 +28,7 @@ services:
     image: sysintegra-backend-image
     # Nombre del contenedor
     container_name: sysintegra-backend
-    # Mapeo de puertos: Mapea el puerto 6001 del host al puerto 80 del contenedor (http)
-    ports:
-      - 6001:80
+    # Volumen de almacenamiento
     volumes:
       - sysintegra-backend-volumen:/app/src/path
 
@@ -44,9 +39,7 @@ services:
     image: importmuneli-backend-image
     # Nombre del contenedor
     container_name: importmuneli-backend
-    # Mapeo de puertos: Mapea el puerto 6011 del host al puerto 80 del contenedor (http)
-    ports:
-      - 6011:80
+    # Volumen de almacenamiento
     volumes:
       - importmuneli-backend-volumen:/app/src/path
 
@@ -57,9 +50,7 @@ services:
     image: leatsac-backend-image
     # Nombre del contenedor
     container_name: leatsac-backend
-
-    ports:
-      - 6031:80
+    # Volumen de almacenamiento
     volumes:
       - leatsac-backend-volumen:/app/src/path
     
@@ -70,9 +61,7 @@ services:
     image: ferreteria-rym-backend-image
     # Nombre del contenedor
     container_name: ferreteria-rym-backend
-    # Mapeo de puertos: Mapea el puerto 6035 del host al puerto 80 del contenedor (http)
-    ports:
-      - 6035:80
+    # Volumen de almacenamiento
     volumes:
       - ferreteria-rym-backend-volumen:/app/src/path
 
@@ -83,9 +72,7 @@ services:
     image: supermarketya-backend-image
     # Nombre del contenedor
     container_name: supermarketya-backend
-    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
-    ports:
-      - 6039:80
+    # Volumen de almacenamiento
     volumes:
       - supermarketya-backend-volumen:/app/src/path
 
@@ -96,9 +83,7 @@ services:
     image: dracoly-backend-image
     # Nombre del contenedor
     container_name: dracoly-backend
-    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
-    # ports:
-      # - 6040:80
+    # Volumen de almacenamiento
     volumes:
       - dracoly-backend-volumen:/app/src/path
 
@@ -109,9 +94,7 @@ services:
     image: main-backend-image
     # Nombre del contenedor
     container_name: main-backend
-    # Mapeo de puertos: mapea el puerto 6039 del host al puerto 80 del contenedor (http)
-    # ports:
-      # - 6041:80
+    # Volumen de almacenamiento
     volumes:
       - main-backend-volumen:/app/src/path
 
