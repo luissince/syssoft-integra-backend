@@ -5,6 +5,7 @@ const path = require('path');
 const cors = require('cors');
 const morgan = require('morgan');
 const { currentDate, currentTime } = require('./src/tools/Tools');
+const pkg = require('./package.json');
 
 require('dotenv').config();
 
@@ -61,7 +62,7 @@ app.use((req, res, next) => {
 // Ruta principal
 app.get('/', (_, res) => {
     res.json({
-        "Bienvenidos": "API SYSSOFT INTEGRA V.1.0.0",
+        "Bienvenidos": `API SYSSOFT INTEGRA V.${pkg.version}`, 
         "Fecha y hora actuales": new Date().toLocaleDateString(),
         "Entorno": process.env.ENVIRONMENT
     });

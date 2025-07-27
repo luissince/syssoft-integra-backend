@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "bash ./start-dev.sh"
+    "dev": "bash ./start-dev.sh",
+    "patch": "npm version patch",
+    "deploy:test": "git switch test && git merge development && git push origin test",
+    "deploy:prod": "git switch master && git merge development && git push origin master"
   },
   "dependencies": {
     "axios": "^1.6.8",
