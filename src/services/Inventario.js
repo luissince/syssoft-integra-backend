@@ -12,15 +12,17 @@ class Inventario {
                 buscar,
                 idSucursal,
                 idAlmacen,
+                estado,
                 posicionPagina,
                 filasPorPagina
             } = req.query;
 
-            const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 buscar,
                 idSucursal,
                 idAlmacen,
+                estado,
                 parseInt(posicionPagina),
                 parseInt(filasPorPagina)
             ]);
@@ -62,11 +64,12 @@ class Inventario {
                 };
             }));
 
-            const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?,?)`, [
                 parseInt(opcion),
                 buscar,
                 idSucursal,
                 idAlmacen,
+                estado,
             ]);
 
             return { "result": resultLista, "total": total[0].Total };
