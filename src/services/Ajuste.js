@@ -309,7 +309,7 @@ class Ajuste {
             return "create";
         } catch (error) {
             if (connection) await conec.rollback(connection);
-            
+
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
@@ -319,161 +319,102 @@ class Ajuste {
         try {
             connection = await conec.beginTransaction();
 
-            const ajuste = await conec.execute(connection, `
-            SELECT 
-                idTipoAjuste,
-                idAlmacen,
-                estado 
-            FROM 
-                ajuste 
-            WHERE 
-                idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
+            const date = currentDate();
+            const time = currentTime();
 
-            if (ajuste.length === 0) {
+            // Obtener ajuste
+            const [ajuste] = await conec.execute(connection, `
+            SELECT idTipoAjuste, idAlmacen, estado 
+            FROM ajuste 
+            WHERE idAjuste = ?`, [req.query.idAjuste]);
+
+            if (!ajuste) {
                 await conec.rollback(connection);
-                return "El ajuste no existe, verifique el código o actualiza la lista."
+                return "El ajuste no existe, verifique el código o actualiza la lista.";
             }
 
-            if (ajuste[0].estado === 0) {
+            if (ajuste.estado === 0) {
                 await conec.rollback(connection);
-                return "El ajuste ya se encuentra con estado cancelado."
+                return "El ajuste ya se encuentra con estado cancelado.";
             }
 
+            // Cancelar ajuste
             await conec.execute(connection, `
-            UPDATE 
-                ajuste 
-            SET 
-                estado = 0 
-            WHERE 
-                idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
+            UPDATE ajuste SET estado = 0 WHERE idAjuste = ?`, [req.query.idAjuste]);
 
-            const ajusteDetalle = await conec.execute(connection, `
-            SELECT 
-                idProducto,
-                cantidad 
-            FROM 
-                ajusteDetalle 
-            WHERE 
-                idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
 
-            const resultKardex = await conec.execute(connection, `
-            SELECT 
-                idKardex 
-            FROM 
-                kardex`);
-            let idKardex = 0;
+            // Obtener detalles del ajuste
+            const ajusteDetalles = await conec.execute(connection, `
+            SELECT idProducto, cantidad FROM ajusteDetalle WHERE idAjuste = ?`, [req.query.idAjuste]);
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            // Obtener ID kardex siguiente
+            const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
+            let idKardex = resultKardex.length > 0
+                ? Math.max(...resultKardex.map(k => parseInt(k.idKardex.replace("KD", ''))))
+                : 0;
 
-            for (const item of ajusteDetalle) {
-                const kardex = await conec.execute(connection, `
-                SELECT 
-                    k.idProducto,
-                    k.cantidad,
-                    k.costo,
-                    k.idAlmacen,
-                    k.idInventario    
-                FROM 
-                    kardex AS k 
-                WHERE 
-                    k.idAjuste = ? AND k.idProducto = ?`, [
-                    req.query.idAjuste,
-                    item.idProducto,
-                ]);
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
-                if (ajuste[0].idTipoAjuste === "TA0001") {
+            // Determinar operación inversa
+            const tipoKardex = ajuste.idTipoAjuste === "TA0001" ? "TK0002" : "TK0001";
+            const detalleKardex = ajuste.idTipoAjuste === "TA0001" ? "ANULAR AJUSTE DE INGRESO" : "ANULAR AJUSTE DE SALIDA";
+            const operacion = ajuste.idTipoAjuste === "TA0001" ? -1 : 1;
+
+            // Funciones reutilizables
+            const insertarKardex = async (k, cantidad) => {
+                if (k.idLote) {
                     await conec.execute(connection, `
                     INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idAjuste,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        hora,
-                        fecha,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0002',
-                        'MK0002',
-                        req.query.idAjuste,
-                        'ANULAR AJUSTE DE INGRESO',
-                        kardex[0].cantidad,
-                        kardex[0].costo,
-                        kardex[0].idAlmacen,
-                        kardex[0].idInventario,
-                        currentTime(),
-                        currentDate(),
-                        req.query.idUsuario
-                    ]);
-
-                    await conec.execute(connection, `
-                    UPDATE 
-                        inventario 
-                    SET 
-                        cantidad = cantidad - ?
-                    WHERE 
-                        idInventario = ?`, [
-                        kardex[0].cantidad,
-                        kardex[0].idInventario
+                        idKardex, idProducto, idTipoKardex, idMotivoKardex, idAjuste, detalle,
+                        cantidad, costo, idAlmacen, idInventario, idLote, fecha, hora, idUsuario
+                    ) VALUES (
+                        ?,?,?,?,?,?,
+                        ?,?,?,?,?,?,?,?
+                    )`, [
+                        generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
+                        cantidad, k.costo, k.idAlmacen, k.idInventario, k.idLote, date, time, req.query.idUsuario
                     ]);
                 } else {
                     await conec.execute(connection, `
                     INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idAjuste,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        hora,
-                        fecha,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0001',
-                        'MK0002',
-                        req.query.idAjuste,
-                        'ANULAR AJUSTE DE SALIDA',
-                        kardex[0].cantidad,
-                        kardex[0].costo,
-                        kardex[0].idAlmacen,
-                        kardex[0].idInventario,
-                        currentTime(),
-                        currentDate(),
-                        req.query.idUsuario
+                        idKardex, idProducto, idTipoKardex, idMotivoKardex, idAjuste, detalle,
+                        cantidad, costo, idAlmacen, idInventario, fecha, hora, idUsuario
+                    ) VALUES (
+                        ?,?,?,?,?,?,
+                        ?,?,?,?,?,?,?
+                    )`, [
+                        generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
+                        cantidad, k.costo, k.idAlmacen, k.idInventario, date, time, req.query.idUsuario
                     ]);
+                }
 
-                    await conec.execute(connection, `
-                    UPDATE 
-                        inventario 
-                    SET 
-                        cantidad = cantidad + ?
-                    WHERE 
-                        idInventario = ?`, [
-                        kardex[0].cantidad,
-                        kardex[0].idInventario
-                    ]);
+            };
+
+            const actualizarInventario = async (idInventario, cantidad) => {
+                await conec.execute(connection, `
+                UPDATE inventario SET cantidad = cantidad + ? WHERE idInventario = ?`,
+                    [cantidad * operacion, idInventario]
+                );
+            };
+
+            const actualizarLote = async (idLote, cantidad) => {
+                await conec.execute(connection, `
+                UPDATE lote SET cantidad = cantidad + ? WHERE idLote = ?`,
+                    [cantidad * operacion, idLote]
+                );
+            };
+
+            // Procesar cada detalle
+            for (const item of ajusteDetalles) {
+                const kardexes = await conec.execute(connection, `
+                    SELECT idProducto, cantidad, costo, idAlmacen, idInventario, idLote
+                    FROM kardex 
+                    WHERE idAjuste = ? AND idProducto = ?`, [req.query.idAjuste, item.idProducto]);
+
+                for (const k of kardexes) {
+                    if (k.idLote) await actualizarLote(k.idLote, k.cantidad);
+                    await insertarKardex(k, k.cantidad);
+                    await actualizarInventario(k.idInventario, k.cantidad);
                 }
             }
 

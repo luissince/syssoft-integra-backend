@@ -83,8 +83,8 @@ class Inventario {
             const cantidades = await conec.query(`
             SELECT
                 COUNT(*) AS totalProductos,
-                SUM(CASE WHEN i.cantidad <= i.cantidadMinima THEN 1 ELSE 0 END) AS totalStockCritico,
-                SUM(CASE WHEN i.cantidad BETWEEN i.cantidadMinima AND i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockOptimo,
+                SUM(CASE WHEN i.cantidad < i.cantidadMinima THEN 1 ELSE 0 END) AS totalStockCritico,
+                SUM(CASE WHEN i.cantidad >= i.cantidadMinima AND i.cantidad <= i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockOptimo,
                 SUM(CASE WHEN i.cantidad > i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockExcedente
             FROM 
                 inventario i
@@ -105,7 +105,7 @@ class Inventario {
             INNER JOIN 
                 almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE 
-                    i.idAlmacen = ?
+                    i.idAlmacen = ? AND l.estado = 1
                 AND 
                     DATEDIFF(l.fechaVencimiento, CURDATE()) BETWEEN 0 AND 30;`, [
                 req.params.idAlmacen

@@ -547,7 +547,7 @@ class Factura {
                             cantidad = item.precio / producto[0].precio;
                         }
 
-                        const lotes = inventario.lotes;
+                        const lotes = inventario.lotes || [];
 
                         if (lotes.length > 0) {
                             for (const lote of lotes) {

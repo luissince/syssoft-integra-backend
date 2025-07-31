@@ -871,22 +871,17 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            // Genera el Id del kardex
-            const resultKardex = await conec.execute(connection, `
-                SELECT 
-                    idKardex 
-                FROM 
-                    kardex`);
-            let idKardex = 0;
+            // Obtener ID kardex siguiente
+            const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
+            let idKardex = resultKardex.length > 0
+                ? Math.max(...resultKardex.map(k => parseInt(k.idKardex.replace("KD", ''))))
+                : 0;
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Procesar cada detalle de la compra
             for (const detalle of detalleCompra) {
-                // Obtiene el kardex asociado
+                // Obtener el kardex del compra por idProducto
                 const kardexes = await conec.execute(connection, `
                 SELECT 
                     k.idProducto,
@@ -935,8 +930,8 @@ class Compra {
                             fecha,
                             hora,
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            generarIdKardex(),
                             kardex.idProducto,
                             'TK0002',
                             'MK0004',
@@ -969,7 +964,7 @@ class Compra {
                             hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            generarIdKardex(),
                             kardex.idProducto,
                             'TK0002',
                             'MK0004',
