@@ -1734,7 +1734,7 @@ class Producto {
                 p.idProducto = ? OR p.codigo = ?
                 AND
                 (
-                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ?
+                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
                     OR
                     p.idTipoProducto = 'TP0002'
                 )
@@ -1933,7 +1933,7 @@ class Producto {
             WHERE
                 p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
                 (
-                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ?
+                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
                     OR
                     p.idTipoProducto = 'TP0002'
                 )
@@ -1943,9 +1943,10 @@ class Producto {
                 req.query.idProducto,
                 req.query.idCategoria,
                 sucursal.idSucursal,
-            ])
+            ]);
 
-            const resultLista = list.map(function (item, index) {
+
+            const resultLista = list.map(function (item) {
                 return {
                     ...item,
                     imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
