@@ -1880,45 +1880,87 @@ class Producto {
         try {
             const bucket = firebaseService.getBucket();
 
+            const [sucursal] = await conec.query(`
+                SELECT 
+                    idSucursal
+                FROM 
+                    sucursal 
+                WHERE 
+                    principal = 1`);
+
             const list = await conec.query(`
             SELECT 
                 p.idProducto,
+                p.nombre,
                 p.codigo,
                 p.sku,
                 p.codigoBarras,
-                p.nombre,
                 p.descripcionCorta,
+                p.descripcionLarga,
                 pc.valor AS precio,
                 p.imagen,
+                CASE 
+                    WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
+                    ELSE 0
+                END AS cantidad,
+                 CASE 
+                    WHEN p.idTipoProducto = 'TP0001' THEN 0
+                    ELSE 1
+                END AS servicio,
 
                 c.idCategoria,
-                c.nombre AS nombreCategoria
+                c.nombre AS categoriaNombre,
+
+                m.idMarca,
+                m.nombre AS marcaNombre,
+
+                me.idMedida,
+                me.nombre AS nombreMedida
             FROM 
-                producto AS p 
+                producto AS p
             INNER JOIN 
-                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             INNER JOIN 
-                categoria AS c ON p.idCategoria = c.idCategoria    
+                categoria AS c ON c.idCategoria = p.idCategoria
+            INNER JOIN  
+                medida AS me ON p.idMedida = me.idMedida
+            LEFT JOIN 
+                marca AS m ON m.idMarca = p.idMarca
+            LEFT JOIN 
+                inventario AS i ON i.idProducto = p.idProducto 
+            LEFT JOIN 
+                almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE
-                p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? 
+                p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
+                (
+                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ?
+                    OR
+                    p.idTipoProducto = 'TP0002'
+                )
             ORDER BY 
                 p.fecha DESC, p.hora DESC
             LIMIT 4`, [
                 req.query.idProducto,
-                req.query.idCategoria
+                req.query.idCategoria,
+                sucursal.idSucursal,
             ])
 
             const resultLista = list.map(function (item, index) {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        id: index + 1,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
-                    id: index + 1,
+                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    categoria: {
+                        idCategoria: item.idCategoria,
+                        nombre: item.categoriaNombre,
+                    },
+                    marca: {
+                        idMarca: item.idMarca,
+                        nombre: item.marcaNombre,
+                    },
+                    medida: {
+                        idMedida: item.idMedida,
+                        nombre: item.nombreMedida,
+                    },
                 }
             });
 
