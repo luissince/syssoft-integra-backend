@@ -38,6 +38,8 @@ router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res
 
 router.get('/filter/web/limit/:limit', async (req, res) => await producto.filterWebLimit(req, res));
 
+router.get('/filter/web/all', async (req, res) => await producto.filterWebAll(req, res));
+
 router.get('/filter/web/id', async (req, res) => await producto.filterWebId(req, res));
 
 router.get('/filter/web/related/id', async (req, res) => await producto.filterWebRelatedId(req, res));

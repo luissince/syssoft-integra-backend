@@ -669,8 +669,7 @@ class Compra {
             WHERE 
                 cd.idCompra = ?
             ORDER BY 
-                cd.idCompraDetalle ASC
-            `, [
+                cd.idCompraDetalle ASC`, [
                 req.query.idCompra,
             ]);
 
@@ -704,14 +703,17 @@ class Compra {
                     if (inventario.length > 0) {
                         const lotes = await conec.query(`
                         SELECT 
-                            codigoLote,
-                            DATE_FORMAT(fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
-                            cantidad
+                            l.codigoLote,
+                            DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
+                            l.cantidad
                         FROM 
-                            lote
+                            lote AS l
+                        INNER JOIN
+                            kardex AS k ON l.idLote = k.idLote
                         WHERE 
-                            idInventario = ?`, [
-                            inventario[0].idInventario
+                            l.idInventario = ? AND k.idCompra = ?`, [
+                            inventario[0].idInventario,
+                            req.query.idCompra,
                         ]);
 
                         item.lotes = lotes;

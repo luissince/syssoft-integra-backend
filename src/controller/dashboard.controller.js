@@ -4,7 +4,8 @@ const { sendSuccess, sendError } = require("../tools/Message");
 
 async function init(req, res) {
     try {
-        const data = await dashboard.init(req.query.idSucursal);
+        const { fechaInicio, fechaFinal, idSucursal } = req.query;
+        const data = await dashboard.init(fechaInicio, fechaFinal, idSucursal);
         return sendSuccess(res, data);
     } catch (error) {
         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Dashboard/init", error);

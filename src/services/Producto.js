@@ -1606,6 +1606,50 @@ class Producto {
         }
     }
 
+    async filterWebAll(req, res) {
+        try {
+            const bucket = firebaseService.getBucket();
+
+            const [sucursal] = await conec.query(`
+            SELECT 
+                idSucursal
+            FROM 
+                sucursal 
+            WHERE 
+                principal = 1`);
+
+            const list = await conec.procedure(`CALL Listar_Productos_Web_All()`);
+
+            const data = await Promise.all(list.map(async (item, index) => {
+                const [inventario] = await conec.query(`
+                  SELECT 
+                      inv.cantidad
+                  FROM 
+                      almacen AS alm 
+                  INNER JOIN 
+                      inventario AS inv ON inv.idAlmacen = alm.idAlmacen
+                  WHERE 
+                      alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
+                    sucursal.idSucursal,
+                    item.idProducto
+                ]);
+
+                return {
+                    ...item,
+                    imagen: bucket && item.imagen
+                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
+                        : null,
+                    id: (index + 1),
+                    cantidad: inventario?.cantidad || 0,
+                };
+            }));
+
+            return sendSuccess(res, data);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
+        }
+    }
+
     async filterWebLimit(req, res) {
         try {
             const limit = req.params.limit;

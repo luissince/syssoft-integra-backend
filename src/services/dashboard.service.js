@@ -3,24 +3,24 @@ const conec = new Conexion();
 
 class Dashboard {
 
-    async init(idSucursal) {
-        const result = await conec.procedureAll(`CALL Dashboard_Init(?)`, [
+    async init(fechaInicio, fechaFinal, idSucursal) {
+        const result = await conec.procedureAll(`CALL Dashboard_Init(?,?,?)`, [
+            fechaInicio,
+            fechaFinal,
             idSucursal,
         ]);
 
         return {
-            "totalVentas": result[0][0].total ?? 0,
-            "totalCompras": result[1][0].total ?? 0,
-            "totalCuentasPorCobrar": result[2][0].total ?? 0,
-            "totalCuentasPorPagar": result[3][0].total ?? 0,
-            "totalComprobantes": result[4][0].total ?? 0,
-            "totalComprobantesPorDeclarar": result[5][0].total ?? 0,
-            "totalCotizaciones": result[6][0].total ?? 0,
-            "totalCotizacionesLigadas": result[7][0].total ?? 0,
-            "sucursales": result[8] ?? [],
-            // "totalInventario": result[5][0].total ?? 0,
-            // "totalSucursales": result[6][0].total ?? 0,
-            // "inventarios": result[7] ?? [],
+            "totalSales": result[0][0].total ?? 0,
+            "totalPurchases": result[1][0].total ?? 0,
+            "creditSalesToCollect": result[2][0].total ?? 0,
+            "creditPurchasesToPay": result[3][0].total ?? 0,
+            "issuedDocuments": result[4][0].total ?? 0,
+            "documentsToDeclare": result[5][0].total ?? 0,
+            "createdQuotes": result[6][0].total ?? 0,
+            "quotesLinkedToSales": result[7][0].total ?? 0,
+            "branchPerformance": result[8] ?? [],
+            "bankBalances": result[9] ?? [],
         };
     }
 
