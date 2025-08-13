@@ -1712,13 +1712,18 @@ class Producto {
                 c.nombre AS categoriaNombre,
 
                 m.idMarca,
-                m.nombre AS marcaNombre
+                m.nombre AS marcaNombre,
+
+                me.idMedida,
+                me.nombre AS nombreMedida
             FROM 
                 producto AS p
             INNER JOIN 
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             INNER JOIN 
                 categoria AS c ON c.idCategoria = p.idCategoria
+            INNER JOIN  
+                medida AS me ON p.idMedida = me.idMedida
             LEFT JOIN 
                 marca AS m ON m.idMarca = p.idMarca
             LEFT JOIN 
@@ -1832,6 +1837,10 @@ class Producto {
                 marca: {
                     idMarca: producto[0].idMarca,
                     nombre: producto[0].marcaNombre,
+                },
+                medida: {
+                    idMedida: producto[0].idMedida,
+                    nombre: producto[0].nombreMedida,
                 },
                 detalles: detalles,
                 imagenes: newImagenes,
