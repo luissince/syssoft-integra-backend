@@ -1731,7 +1731,7 @@ class Producto {
             LEFT JOIN 
                 almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE 
-                p.codigo = ?
+                p.idProducto = ? OR p.codigo = ?
                 AND
                 (
                     p.idTipoProducto = 'TP0001' AND a.idSucursal = ?
@@ -1739,6 +1739,7 @@ class Producto {
                     p.idTipoProducto = 'TP0002'
                 )
                 `, [
+                req.query.codigo,
                 req.query.codigo,
                 sucursal.idSucursal,
             ]);
