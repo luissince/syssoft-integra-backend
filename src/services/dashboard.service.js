@@ -21,6 +21,7 @@ class Dashboard {
             "quotesLinkedToSales": result[7][0].total ?? 0,
             "branchPerformance": result[8] ?? [],
             "bankBalances": result[9] ?? [],
+            "salesForYear": result[10] ?? [],
         };
     }
 
