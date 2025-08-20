@@ -1265,45 +1265,7 @@ class Producto {
 
     async filter(req, res) {
         try {
-            const result = await conec.query(`
-            SELECT 
-                p.idProducto,
-                p.imagen,
-                p.codigo,
-                p.sku,
-                p.codigoBarras,
-                p.nombre,
-                p.costo,
-                pc.valor AS precio,
-                c.nombre AS categoria,
-                tp.nombre as tipoProducto,
-                p.idTipoTratamientoProducto,
-                p.idTipoProducto,
-                p.idMedida,
-                me.nombre AS unidad
-            FROM 
-                producto AS p
-            INNER JOIN 
-                medida AS me ON me.idMedida = p.idMedida
-            INNER JOIN 
-                categoria AS c ON c.idCategoria = p.idCategoria
-            INNER JOIN 
-                tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
-            INNER JOIN 
-                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
-            WHERE 
-                p.estado = 1 AND (
-                    (p.codigo LIKE CONCAT('%',?,'%'))
-                    OR
-                    (p.sku = ?)
-                    OR
-                    (p.codigoBarras = ?)
-                    OR 
-                    (p.nombre LIKE CONCAT('%',?,'%'))
-                )`, [
-                req.query.filtrar,
-                req.query.filtrar,
-                req.query.filtrar,
+            const result = await conec.procedure(`CALL Filtrar_Productos(?)`, [
                 req.query.filtrar,
             ]);
 
@@ -1326,56 +1288,9 @@ class Producto {
 
     async filterAlmacen(req, res) {
         try {
-            const result = await conec.query(`
-            SELECT 
-                p.idProducto,
-                p.imagen,
-                p.codigo,
-                p.sku,
-                p.codigoBarras,
-                p.nombre,
-                a.nombre as almacen,
-                inv.idInventario,
-                inv.cantidad,
-                p.costo,
-                pc.valor AS precio,
-                c.nombre AS categoria,
-                tp.nombre as tipoProducto,
-                me.nombre AS unidad,
-                p.idTipoTratamientoProducto,
-                p.idTipoProducto,
-                p.lote,
-                p.idMedida,
-                me.nombre AS unidad
-            FROM 
-                producto AS p
-            INNER JOIN 
-                medida AS me ON me.idMedida = p.idMedida
-            INNER JOIN 
-                categoria AS c ON c.idCategoria = p.idCategoria
-            INNER JOIN 
-                tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
-            INNER JOIN 
-                precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
-            INNER JOIN 
-                inventario AS inv ON inv.idProducto = p.idProducto  AND inv.idAlmacen = ?     
-            INNER JOIN
-                almacen AS a ON a.idAlmacen = inv.idAlmacen    
-            WHERE 
-                p.estado = 1 AND (
-                    (p.codigo LIKE CONCAT('%',?,'%'))
-                    OR
-                    (p.sku = ?)
-                    OR
-                    (p.codigoBarras = ?)
-                    OR 
-                    (p.nombre LIKE CONCAT('%',?,'%'))
-                )`, [
+            const result = await conec.procedure(`CALL Filtrar_Productos_Por_Almacen(?,?)`, [
                 req.query.idAlmacen,
-                req.query.filtrar,
-                req.query.filtrar,
-                req.query.filtrar,
-                req.query.filtrar,
+                req.query.filtrar
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -1703,10 +1618,7 @@ class Producto {
                     WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
                     ELSE 0
                 END AS cantidad,
-                 CASE 
-                    WHEN p.idTipoProducto = 'TP0001' THEN 0
-                    ELSE 1
-                END AS servicio,
+                p.idTipoProducto,
 
                 c.idCategoria,
                 c.nombre AS categoriaNombre,

@@ -46,6 +46,8 @@ class Pedido {
 
     async id(req, res) {
         try {
+            const { idPedido } = req.params;
+
             const cabecera = await conec.query(`
             SELECT 
                 p.idPersona,
@@ -57,14 +59,19 @@ class Pedido {
                 c.idComprobante,
                 c.idMoneda,
                 c.observacion,
-                c.nota
+                c.nota,
+                c.instruccion,
+                c.idTipoEntrega,
+                c.idTipoPedido,
+                c.fechaPedido,
+                c.horaPedido
             FROM 
                 pedido AS c
             INNER JOIN 
                 persona AS p ON p.idPersona = c.idCliente
             WHERE 
                 c.idPedido = ?`, [
-                req.query.idPedido,
+                idPedido
             ]);
 
             const detalles = await conec.query(`
@@ -97,7 +104,7 @@ class Pedido {
                 cd.idPedido = ?
             ORDER BY 
                 cd.idPedidoDetalle ASC`, [
-                req.query.idPedido,
+                idPedido
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -119,6 +126,8 @@ class Pedido {
 
     async detail(req, res) {
         try {
+            const { idPedido } = req.params;
+
             // Consulta la información principal del pedido
             const pedido = await conec.query(`
             SELECT 
@@ -136,6 +145,14 @@ class Pedido {
                 c.estado,
                 c.observacion,
                 c.nota,
+                c.instruccion,
+                c.idTipoEntrega,
+                te.nombre AS tipoEntrega,
+                
+                c.idTipoPedido,
+                tp.nombre AS tipoPedido,
+                c.fechaPedido,
+                c.horaPedido,
                 mo.codiso,
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
@@ -148,9 +165,13 @@ class Pedido {
                 persona AS cn ON cn.idPersona = c.idCliente
             INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
+            LEFT JOIN 
+                tipoEntrega AS te ON te.idTipoEntrega = c.idTipoEntrega
+            LEFT JOIN 
+                tipoPedido AS tp ON tp.idTipoPedido = c.idTipoPedido
             WHERE 
                 c.idPedido = ?`, [
-                req.query.idPedido,
+                idPedido
             ]);
 
             // Consulta los detalles del pedido
@@ -181,7 +202,7 @@ class Pedido {
                 cd.idPedido = ?
             ORDER BY 
                 cd.idPedidoDetalle ASC`, [
-                req.query.idPedido,
+                idPedido
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -223,7 +244,7 @@ class Pedido {
                     v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
                 ORDER BY 
                     v.fecha DESC, v.hora DESC`, [
-                req.query.idPedido,
+                idPedido
             ]);
 
             const vendidos = await conec.query(`
@@ -242,7 +263,7 @@ class Pedido {
                     vc.idPedido = ?
                 GROUP BY 
                     p.idProducto`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             // Devuelve un objeto con la información del pedido y los detalles 
@@ -463,12 +484,17 @@ class Pedido {
                 idMoneda,
                 serie,
                 numeracion,
+                idTipoEntrega,
+                idTipoPedido,
+                fechaPedido,
+                horaPedido,
                 observacion,
                 nota,
+                instruccion,
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPedido,
                 req.body.idCliente,
                 req.body.idUsuario,
@@ -477,8 +503,13 @@ class Pedido {
                 req.body.idMoneda,
                 comprobante[0].serie,
                 numeracion,
+                req.body.idTipoEntrega,
+                req.body.idTipoPedido,
+                req.body.fechaPedido || currentDate(),
+                req.body.horaPedido || currentTime(),
                 req.body.observacion,
                 req.body.nota,
+                req.body.instruccion,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -489,7 +520,195 @@ class Pedido {
             let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
             // Inserta los detalles de compra en la base de datos
-            for (const item of req.body.detalle) {
+            for (const item of req.body.detalles) {
+                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
+                    idProducto,
+                    idMedida,
+                    precio,
+                    cantidad,
+                    idImpuesto
+                ) VALUES(?,?,?,?,?,?,?)`, [
+                    idPedidoDetalle,
+                    idPedido,
+                    item.idProducto,
+                    item.idMedida,
+                    item.precio,
+                    item.cantidad,
+                    item.idImpuesto
+                ]);
+
+                idPedidoDetalle++;
+            }
+
+            await conec.commit(connection);
+            return sendSave(res, {
+                idPedido: idPedido,
+                message: "Se registró correctamente el pedido."
+            });
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/create", error)
+        }
+    }
+
+    async createWeb(req, res) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const persona = await conec.execute(connection, 'SELECT * FROM persona WHERE documento = ?', [
+                req.body.documento
+            ]);
+
+            let idCliente = "";
+
+            if (persona.length === 0) {
+                const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
+                const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
+
+                await conec.execute(connection, `INSERT INTO persona(
+                idPersona, 
+                idTipoCliente,
+                idTipoDocumento,
+                documento,
+                informacion,
+
+                cliente,
+                proveedor,
+                conductor,
+                licenciaConducir,
+
+                celular,
+                telefono,
+                fechaNacimiento,
+                email, 
+                genero, 
+                direccion,
+                idUbigeo, 
+                estadoCivil,
+                predeterminado,
+                estado, 
+                observacion,
+                fecha,
+                hora,
+                fupdate,
+                hupdate,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    idPersona,
+                    "TC0001",
+                    "TD0001",
+                    req.body.documento,
+                    req.body.informacion,
+
+                    true,
+                    false,
+                    false,
+                    "",
+
+                    req.body.celular,
+                    req.body.telefono,
+                    null,
+                    req.body.email,
+                    null,
+                    req.body.direccion,
+                    null,
+                    null,
+                    false,
+                    true,
+                    "",
+                    currentDate(),
+                    currentTime(),
+                    currentDate(),
+                    currentTime(),
+                    req.body.idUsuario,
+                ]);
+
+                idCliente = idPersona;
+            }else{
+                idCliente = persona[0].idPersona;
+            }
+
+            // Genera un nuevo ID para el pedido
+            const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
+            const idPedido = generateAlphanumericCode("PD0001", result, 'idPedido');
+
+            // Consulta datos del comprobante para generar la numeración
+            const comprobante = await conec.execute(connection, `
+            SELECT 
+                serie,
+                numeracion 
+            FROM 
+                comprobante 
+            WHERE 
+                idComprobante  = ?`, [
+                req.body.idComprobante
+            ]);
+
+            // Consulta numeraciones de los pedidos  asociadas al mismo comprobante
+            const pedidos = await conec.execute(connection, `
+            SELECT 
+                numeracion  
+            FROM 
+                pedido 
+            WHERE 
+                idComprobante = ?`, [
+                req.body.idComprobante
+            ]);
+
+            // Genera una nueva numeración para el pedido
+            const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
+
+            await conec.execute(connection, `INSERT INTO pedido(
+                idPedido,
+                idCliente,
+                idUsuario,
+                idComprobante,
+                idSucursal,
+                idMoneda,
+                serie,
+                numeracion,
+                idTipoEntrega,
+                idTipoPedido,
+                fechaPedido,
+                horaPedido,
+                observacion,
+                nota,
+                instruccion,
+                estado,
+                fecha,
+                hora
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                idPedido,
+                idCliente,
+                req.body.idUsuario,
+                req.body.idComprobante,
+                req.body.idSucursal,
+                req.body.idMoneda,
+                comprobante[0].serie,
+                numeracion,
+                req.body.idTipoEntrega,
+                req.body.idTipoPedido,
+                req.body.fechaPedido || currentDate(),
+                req.body.horaPedido || currentTime(),
+                req.body.observacion,
+                req.body.nota,
+                req.body.instruccion,
+                req.body.estado,
+                currentDate(),
+                currentTime(),
+            ]);
+
+            // Genera un nuevo ID para los detalles del pedido
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
+
+            // Inserta los detalles de compra en la base de datos
+            for (const item of req.body.detalles) {
                 await await conec.execute(connection, `INSERT INTO pedidoDetalle(
                     idPedidoDetalle,
                     idPedido,
@@ -556,6 +775,11 @@ class Pedido {
                 idMoneda = ?,
                 observacion = ?,
                 nota = ?,
+                instruccion = ?,
+                idTipoEntrega = ?,
+                idTipoPedido = ?,
+                fechaPedido = ?,
+                horaPedido = ?,
                 estado = ?,
                 fecha = ?,
                 hora = ?
@@ -567,6 +791,11 @@ class Pedido {
                 req.body.idMoneda,
                 req.body.observacion,
                 req.body.nota,
+                req.body.instruccion,
+                req.body.idTipoEntrega,
+                req.body.idTipoPedido,
+                req.body.fechaPedido,
+                req.body.horaPedido,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -585,7 +814,7 @@ class Pedido {
             let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
 
             // Inserta los detalles del pedido en la base de datos
-            for (const item of req.body.detalle) {
+            for (const item of req.body.detalles) {
                 await await conec.execute(connection, `
                 INSERT INTO pedidoDetalle(
                     idPedidoDetalle,
@@ -823,7 +1052,7 @@ class Pedido {
                         "serie": pedido[0].serie,
                         "numeracion": pedido[0].numeracion
                     },
-                    "proveedor": {
+                    "cliente": {
                         "documento": pedido[0].documento,
                         "informacion": pedido[0].informacion,
                         "direccion": pedido[0].direccion

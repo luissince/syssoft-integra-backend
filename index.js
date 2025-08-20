@@ -120,6 +120,8 @@ app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
 app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
 app.use('/api/tipopeso', require('./src/router/TipoPeso'));
 app.use('/api/tipoalmacen', require('./src/router/TipoAlmacen'));
+app.use('/api/tipo/pedido', require('./src/router/TipoPedido'));
+app.use('/api/tipo/entrega', require('./src/router/TipoEntrega'));
 app.use('/api/vehiculo', require('./src/router/Vehiculo'));
 app.use('/api/ordencompra', require('./src/router/OrdenCompra'));
 app.use('/api/pedido', require('./src/router/Pedido'));

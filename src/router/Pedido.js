@@ -8,13 +8,15 @@ const pedido = new Pedido();
 
 router.get('/list', async (req, res) => await pedido.list(req, res));
 
-router.get('/id', async (req, res) => await pedido.id(req, res));
+router.get('/id/:idPedido', async (req, res) => await pedido.id(req, res));
 
-router.get('/detail', async (req, res) => await pedido.detail(req, res));
+router.get('/detail/:idPedido', async (req, res) => await pedido.detail(req, res));
 
 router.get('/for-sale', async (req, res) => await pedido.forSale(req, res));
 
 router.post('/create', async (req, res) => await pedido.create(req, res));
+
+router.post('/create/web', async (req, res) => await pedido.createWeb(req, res));
 
 router.put('/update', async (req, res) => await pedido.update(req, res));
 
