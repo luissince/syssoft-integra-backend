@@ -298,8 +298,20 @@ class Catalogo {
                 WHERE 
                     nacional = 1;`);
 
+        const catalogo = await conec.query(`
+            SELECT 
+                c.pdf_key
+            FROM 
+                catalogo c
+            WHERE 
+                c.idCatalogo = ?`, [
+            data.idCatalogo
+        ]);
+            
+
         const productos = await conec.query(`
                 SELECT 
+                    
                     p.idProducto,
                     p.nombre,
                     p.codigo,
@@ -372,14 +384,27 @@ class Catalogo {
                         "distrito": sucursal[0].distrito
                     }
                 },
+                "catalog": catalogo[0],
                 "moneda": moneda[0],
                 "products": products
             },
-            responseType: 'arraybuffer'
+            // responseType: 'arraybuffer'
         };
 
         const response = await axios.request(options);
-        return response;
+
+        await conec.query(`
+        UPDATE
+            catalogo 
+        SET
+            pdf_key = ?
+        WHERE
+            idCatalogo = ?`, [
+            response.data.key,
+            data.idCatalogo
+        ]);
+
+        return response.data;
     }
 
 }
