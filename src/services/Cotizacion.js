@@ -492,7 +492,7 @@ class Cotizacion {
             let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
 
             // Inserta los detalles de compra en la base de datos
-            for (const item of req.body.detalle) {
+            for (const item of req.body.detalles) {
                 await await conec.execute(connection, `INSERT INTO cotizacionDetalle(
                     idCotizacionDetalle,
                     idCotizacion,
@@ -588,7 +588,7 @@ class Cotizacion {
             let idCotizacionDetalle = generateNumericCode(1, listaCotizacionDetalle, 'idCotizacionDetalle');
 
             // Inserta los detalles de compra en la base de datos
-            for (const item of req.body.detalle) {
+            for (const item of req.body.detalles) {
                 await await conec.execute(connection, `
                 INSERT INTO cotizacionDetalle(
                     idCotizacionDetalle,

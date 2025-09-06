@@ -192,6 +192,7 @@ class Persona {
                 telefono,
                 fechaNacimiento,
                 email, 
+                clave,
                 genero, 
                 direccion,
                 idUbigeo, 
@@ -204,7 +205,7 @@ class Persona {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPersona,
                 req.body.idTipoCliente,
                 req.body.idTipoDocumento,
@@ -220,6 +221,7 @@ class Persona {
                 req.body.telefono,
                 req.body.fechaNacimiento,
                 req.body.email,
+                req.body.clave,
                 req.body.genero,
                 req.body.direccion,
                 req.body.idUbigeo,
@@ -261,6 +263,7 @@ class Persona {
                 cn.telefono, 
                 IFNULL(DATE_FORMAT(cn.fechaNacimiento,'%Y-%m-%d'),'') as fechaNacimiento,
                 cn.email, 
+                cn.clave,
                 cn.genero,  
                 cn.direccion,
                 IFNULL(cn.idUbigeo,0) AS idUbigeo,
@@ -322,6 +325,7 @@ class Persona {
                 telefono=?,
                 fechaNacimiento=?,
                 email=?,
+                clave=?,
                 genero=?, 
                 direccion=?, 
                 idUbigeo=?,
@@ -347,6 +351,7 @@ class Persona {
                 req.body.telefono,
                 req.body.fechaNacimiento,
                 req.body.email,
+                req.body.clave,
                 req.body.genero,
                 req.body.direccion,
                 req.body.idUbigeo,
@@ -485,14 +490,12 @@ class Persona {
             ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/filtrar", error);;
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/filtrar", error);
         }
     }
 
     async predeterminado(req, res) {
         try {
-            console.log("Query:");
-            console.log(req.query);
             const result = await conec.query(`
             SELECT 
                 idPersona, 
@@ -520,7 +523,34 @@ class Persona {
             }
             return sendSuccess(res, "");
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);;
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);
+        }
+    }
+
+     async login(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT 
+                idPersona, 
+                documento, 
+                informacion,
+                IFNULL(telefono,'') AS telefono,
+                IFNULL(celular,'') AS celular,
+                IFNULL(email,'') AS email,
+                IFNULL(direccion,'') AS direccion
+            FROM 
+                persona
+            WHERE 
+                email = ? AND clave = ?`, [
+                req.body.email,
+                req.body.password,
+            ]);
+            if (result.length === 0) {
+                return sendClient(res, "Credenciales incorrectas.");
+            }
+            return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);
         }
     }
 

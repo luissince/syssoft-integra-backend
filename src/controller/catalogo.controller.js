@@ -49,7 +49,8 @@ async function update(req, res) {
 async function documentsPdfCatalog(req, res) {
     try{
         const data = await catalogo.documentsPdfCatalog(req.params);
-        return sendFile(res, data);
+        // return sendFile(res, data);
+        return sendSuccess(res, data);
     }catch(error){
         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/documentsPdfCatalog", error);
     }
