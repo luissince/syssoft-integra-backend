@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const Conexion = require('../database/Conexion');
 const { default: axios } = require('axios');
@@ -23,12 +23,25 @@ class Cotizacion {
                 parseInt(req.query.filasPorPagina)
             ])
 
-            const resultLista = lista.map(function (item, index) {
+            const resultLista = await Promise.all(lista.map(async function (item, index) {
+                const ligado = await conec.query(`
+                    SELECT 
+                        COUNT(*) AS total
+                    FROM 
+                        ventaCotizacion AS vc 
+                    INNER JOIN 
+                        venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3 
+                    WHERE 
+                        vc.idCotizacion = ?`, [
+                        item.idCotizacion
+                ]);
+
                 return {
                     ...item,
+                    ligado: ligado.length > 0 ? ligado[0].total : 0,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
-            });
+            }));
 
             const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
