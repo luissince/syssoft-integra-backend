@@ -815,7 +815,7 @@ class OrdenCompra {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
+                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/default.png`,
                             },
                             "medida": {
                                 "nombre": item.medida,

@@ -6,6 +6,7 @@ const {
 } = require('../tools/Tools');
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
+const { sendClient } = require('../tools/Message');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
@@ -261,6 +262,57 @@ class Catalogo {
     }
 
     async documentsPdfCatalog(data) {
+        const catalogo = await conec.query(`
+            SELECT 
+                c.idCatalogo,
+                c.pdf_key,
+                c.pdf_estado
+            FROM 
+                catalogo c
+            WHERE 
+                c.idCatalogo = ?`, [
+            data.idCatalogo
+        ]);
+
+        if (catalogo.length === 0) {
+            throw new Error("No se encontro registros de la catalogo.");
+        }
+
+        if (catalogo[0].pdf_estado === "PENDIENTE") {
+            throw new Error("El catálogo se está generando.");
+        }
+
+        if (catalogo[0].pdf_estado === "ERROR") {
+            throw new Error("Se produjo un error al generar el catálogo.");
+        }
+
+        if (catalogo[0].pdf_key) {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/product/pdf/catalog/get`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    "key": catalogo[0].pdf_key
+                },
+            };
+
+            const response = await axios.request(options);
+
+            return response.data;
+        }
+
+        await conec.query(`
+            UPDATE 
+                catalogo 
+            SET 
+                pdf_estado = 'PENDIENTE' 
+            WHERE 
+                idCatalogo = ?`, [
+            data.idCatalogo
+        ]);
+
         const empresa = await conec.query(`
                 SELECT
                     documento,
@@ -297,17 +349,6 @@ class Catalogo {
                     moneda 
                 WHERE 
                     nacional = 1;`);
-
-        const catalogo = await conec.query(`
-            SELECT 
-                c.pdf_key
-            FROM 
-                catalogo c
-            WHERE 
-                c.idCatalogo = ?`, [
-            data.idCatalogo
-        ]);
-            
 
         const productos = await conec.query(`
                 SELECT 
@@ -354,7 +395,7 @@ class Catalogo {
                 ...copy,
                 imagen: bucket && item.imagen
                     ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : `${process.env.APP_URL}/files/to/noimage.png`,
+                    : `${process.env.APP_URL}/files/to/default.png`,
                 medida: { nombre: nombreMedido },
                 precios,
             };
@@ -362,7 +403,7 @@ class Catalogo {
 
         const options = {
             method: 'POST',
-            url: `${process.env.APP_PDF}/product/pdf/catalog`,
+            url: `${process.env.APP_PDF}/product/pdf/catalog/process`,
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -386,25 +427,52 @@ class Catalogo {
                 },
                 "catalog": catalogo[0],
                 "moneda": moneda[0],
-                "products": products
+                "products": products,
+                "webhook": `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
             },
             // responseType: 'arraybuffer'
         };
 
-        const response = await axios.request(options);
+        axios
+            .request(options)
+            .catch(err => console.error("Error enviando a PDF service:", err.message));
 
-        await conec.query(`
-        UPDATE
-            catalogo 
-        SET
-            pdf_key = ?
-        WHERE
-            idCatalogo = ?`, [
-            response.data.key,
-            data.idCatalogo
-        ]);
+        return {
+            noPdf: true,
+            message: "El catálogo se está generando. Intente nuevamente en un par de minutos."
+        };
+    }
 
-        return response.data;
+    async updateCatalogPdf(data) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            await conec.execute(connection, `
+            UPDATE
+                catalogo 
+            SET
+                pdf_key = ?,
+                pdf_estado = ?
+            WHERE
+                idCatalogo = ?`, [
+                data.key,
+                data.status,
+                data.idCatalogo
+            ]);
+
+            await conec.commit(connection);
+
+            return {
+                message: 'Catalogo actualizado correctamente.',
+            }
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+
+            throw error;
+        }
     }
 
 }
