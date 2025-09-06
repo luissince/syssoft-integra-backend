@@ -6,7 +6,6 @@ const {
 } = require('../tools/Tools');
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
-const { sendClient } = require('../tools/Message');
 const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
@@ -279,7 +278,10 @@ class Catalogo {
         }
 
         if (catalogo[0].pdfEstado === "PENDIENTE") {
-            throw new Error("El catálogo se está generando.");
+            return {
+                status: "procesando",
+                message: "El catálogo se está generando. Intente nuevamente en un par de minutos.",
+            }
         }
 
         if (catalogo[0].pdfEstado === "ERROR") {
@@ -438,7 +440,7 @@ class Catalogo {
             .catch(err => console.error("Error enviando a PDF service:", err.message));
 
         return {
-            noPdf: true,
+            status: "procesando",
             message: "El catálogo se está generando. Intente nuevamente en un par de minutos."
         };
     }
