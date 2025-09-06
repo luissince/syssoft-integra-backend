@@ -1074,7 +1074,7 @@ class Pedido {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/noimage.png`,
+                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/default.png`,
                             },
                             "medida": {
                                 "nombre": item.medida,

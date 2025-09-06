@@ -14,4 +14,6 @@ router.post('/update', catalogo.update);
 
 router.get("/documents/pdf/:idCatalogo", catalogo.documentsPdfCatalog);
 
+router.post("/documents/pdf/webhook", catalogo.updateCatalogPdf);
+
 module.exports = router;
