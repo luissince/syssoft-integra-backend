@@ -66,6 +66,15 @@ async function updateCatalogPdf(req, res) {
     }
 }
 
+async function updateCatalogPdf(req, res) {
+    try{
+        const data = await catalogo.updateCatalogPdf(req.body);
+        return sendSuccess(res, data);
+    }catch(error){
+        return sendError(res, error.message || "Se produjo un error de servidor, intente nuevamente.", "Producto/updateCatalogPdf", error);
+    }
+}
+
 module.exports = {
     list,
     create,
