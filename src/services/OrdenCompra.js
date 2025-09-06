@@ -272,7 +272,6 @@ class OrdenCompra {
             const proveedor = await conec.query(`
                 SELECT                 
                     p.idPersona,
-                    p.idTipoCliente,     
                     p.idTipoDocumento,
                     p.documento,
                     p.informacion,

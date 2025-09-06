@@ -32,6 +32,8 @@ router.get('/predeterminado', async (req, res) => await persona.predeterminado(r
 
 router.post('/login', async (req, res) => await persona.login(req, res));
 
+router.patch('/:idPersona', async (req, res) => await persona.updateWeb(req, res));
+
 router.get("/cliente/documents/pdf/reports", async (req, res) => await persona.clienteDocumentsPdfReports(req, res));
 
 router.get("/cliente/documents/excel", async (req, res) => await persona.clienteDocumentsPdfExcel(req, res));
