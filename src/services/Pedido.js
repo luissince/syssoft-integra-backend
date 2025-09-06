@@ -16,7 +16,7 @@ class Pedido {
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
-                parseInt(req.query.estado),
+                req.query.estado,
 
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina)
@@ -35,12 +35,124 @@ class Pedido {
                 req.query.fechaInicio,
                 req.query.fechaFinal,
                 req.query.idSucursal,
-                parseInt(req.query.estado),
+                req.query.estado,
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
+        }
+    }
+
+    async listWeb(req, res) {
+        try {
+            const bucket = firebaseService.getBucket();
+
+            const list = await conec.query(`
+            SELECT 
+                c.idPedido,
+                DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
+                c.hora,
+                co.nombre AS comprobante,
+                c.serie,
+                c.numeracion,
+
+                c.idTipoEntrega,
+                te.nombre AS tipoEntrega,
+
+                DATE_FORMAT(c.fechaEntrega, '%d/%m/%Y') AS fechaEntrega,
+                c.horaEntrega,
+
+                td.nombre AS tipoDocumento,
+                cn.documento,
+                cn.informacion,
+                cn.celular,
+                cn.telefono,
+                cn.email,
+                cn.direccion,
+
+                c.estado,
+                mo.codiso,
+
+                c.nota,
+                c.instruccion
+            FROM 
+                pedido AS c
+            INNER JOIN
+                tipoEntrega AS te ON te.idTipoEntrega = c.idTipoEntrega
+            INNER JOIN 
+                comprobante AS co ON co.idComprobante = c.idComprobante
+            INNER JOIN 
+                persona AS cn ON cn.idPersona = c.idCliente
+            INNER JOIN
+                tipoDocumento AS td ON td.idTipoDocumento = cn.idTipoDocumento
+            INNER JOIN 
+                moneda AS mo ON mo.idMoneda = c.idMoneda
+            GROUP BY 
+                c.idPedido
+            ORDER BY 
+                c.fecha DESC, c.hora DESC`);
+
+            const newList = await Promise.all(list.map(async function (item, index) {
+                const details = await conec.query(`
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                    p.idProducto,
+                    p.nombre,
+                    p.codigo,
+                    p.sku,
+                    p.codigoBarras,
+                    p.imagen,
+
+                    tp.idTipoProducto,
+                    tp.nombre AS tipoProducto,
+
+                    m.idMedida,
+                    m.nombre AS medida,
+
+                    c.idCategoria,
+                    c.nombre AS categoria,
+
+                    i.idImpuesto,
+                    i.nombre AS impuesto,
+                    i.porcentaje,
+
+                    cd.cantidad,
+                    cd.precio
+                FROM 
+                    pedidoDetalle AS cd
+                INNER JOIN 
+                    producto AS p ON cd.idProducto = p.idProducto
+                INNER JOIN 
+                    tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN
+                    categoria AS c ON c.idCategoria = p.idCategoria
+                INNER JOIN 
+                    impuesto AS i ON cd.idImpuesto = i.idImpuesto
+                WHERE
+                    cd.idPedido = ?
+                ORDER BY 
+                    cd.idPedidoDetalle ASC`, [
+                    item.idPedido
+                ]);
+
+                return {
+                    ...item,
+                    detalles: details.map(detail => {
+                        return {
+                            ...detail,
+                            imagen: bucket && detail.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${detail.imagen}` : null,
+                        }
+                    }),
+                    id: (index + 1)
+                };
+            }));
+
+            return sendSuccess(res, newList);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/listWeb", error)
         }
     }
 
@@ -62,9 +174,8 @@ class Pedido {
                 c.nota,
                 c.instruccion,
                 c.idTipoEntrega,
-                c.idTipoPedido,
-                c.fechaPedido,
-                c.horaPedido
+                c.fechaEntrega,
+                c.horaEntrega
             FROM 
                 pedido AS c
             INNER JOIN 
@@ -149,8 +260,6 @@ class Pedido {
                 c.idTipoEntrega,
                 te.nombre AS tipoEntrega,
                 
-                c.idTipoPedido,
-                tp.nombre AS tipoPedido,
                 c.fechaPedido,
                 c.horaPedido,
                 mo.codiso,
@@ -167,8 +276,6 @@ class Pedido {
                 usuario AS us ON us.idUsuario = c.idUsuario 
             LEFT JOIN 
                 tipoEntrega AS te ON te.idTipoEntrega = c.idTipoEntrega
-            LEFT JOIN 
-                tipoPedido AS tp ON tp.idTipoPedido = c.idTipoPedido
             WHERE 
                 c.idPedido = ?`, [
                 idPedido
@@ -282,7 +389,7 @@ class Pedido {
                 FROM 
                     pedido
                 WHERE 
-                    idPedido = ? AND estado = 0`, [
+                    idPedido = ? AND estado IN ('pending', 'preparing', 'ready')`, [
                 req.query.idPedido
             ]);
 
@@ -293,7 +400,6 @@ class Pedido {
             const cliente = await conec.query(`
             SELECT                 
                 p.idPersona,
-                p.idTipoCliente,     
                 p.idTipoDocumento,
                 p.documento, 
                 p.informacion,
@@ -445,6 +551,9 @@ class Pedido {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             // Genera un nuevo ID para el pedido
             const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
             const idPedido = generateAlphanumericCode("PD0001", result, 'idPedido');
@@ -485,16 +594,14 @@ class Pedido {
                 serie,
                 numeracion,
                 idTipoEntrega,
-                idTipoPedido,
-                fechaPedido,
-                horaPedido,
+                fechaEntrega,
+                horaEntrega,
                 observacion,
                 nota,
                 instruccion,
-                estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPedido,
                 req.body.idCliente,
                 req.body.idUsuario,
@@ -504,15 +611,13 @@ class Pedido {
                 comprobante[0].serie,
                 numeracion,
                 req.body.idTipoEntrega,
-                req.body.idTipoPedido,
-                req.body.fechaPedido || currentDate(),
-                req.body.horaPedido || currentTime(),
+                req.body.fechaEntrega || date,
+                req.body.horaEntrega || time,
                 req.body.observacion,
                 req.body.nota,
                 req.body.instruccion,
-                req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             // Genera un nuevo ID para los detalles del pedido
@@ -560,8 +665,11 @@ class Pedido {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const persona = await conec.execute(connection, 'SELECT * FROM persona WHERE documento = ?', [
-                req.body.documento
+                req.body.cliente.documento
             ]);
 
             let idCliente = "";
@@ -570,66 +678,65 @@ class Pedido {
                 const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
                 const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-                await conec.execute(connection, `INSERT INTO persona(
-                idPersona, 
-                idTipoCliente,
-                idTipoDocumento,
-                documento,
-                informacion,
+                await conec.execute(connection, `
+                INSERT INTO persona(
+                    idPersona, 
+                    idTipoDocumento,
+                    documento,
+                    informacion,
 
-                cliente,
-                proveedor,
-                conductor,
-                licenciaConducir,
+                    cliente,
+                    proveedor,
+                    conductor,
+                    licenciaConducir,
 
-                celular,
-                telefono,
-                fechaNacimiento,
-                email, 
-                genero, 
-                direccion,
-                idUbigeo, 
-                estadoCivil,
-                predeterminado,
-                estado, 
-                observacion,
-                fecha,
-                hora,
-                fupdate,
-                hupdate,
-                idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    celular,
+                    telefono,
+                    fechaNacimiento,
+                    email, 
+                    clave,
+                    genero, 
+                    direccion,
+                    idUbigeo, 
+                    estadoCivil,
+                    predeterminado,
+                    observacion,
+                    fecha,
+                    hora,
+                    fupdate,
+                    hupdate,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     idPersona,
-                    "TC0001",
-                    "TD0001",
-                    req.body.documento,
-                    req.body.informacion,
+                    req.body.cliente.idTipoDocumento,
+                    req.body.cliente.documento,
+                    req.body.cliente.informacion,
 
                     true,
                     false,
                     false,
                     "",
 
-                    req.body.celular,
-                    req.body.telefono,
+                    req.body.cliente.celular,
+                    req.body.cliente.telefono,
                     null,
-                    req.body.email,
+                    req.body.cliente.email,
+                    req.body.cliente.clave,
                     null,
-                    req.body.direccion,
+                    req.body.cliente.direccion,
                     null,
                     null,
                     false,
-                    true,
                     "",
-                    currentDate(),
-                    currentTime(),
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
+                    date,
+                    time,
                     req.body.idUsuario,
                 ]);
 
                 idCliente = idPersona;
-            }else{
+            } else {
                 idCliente = persona[0].idPersona;
             }
 
@@ -663,7 +770,8 @@ class Pedido {
             // Genera una nueva numeración para el pedido
             const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
 
-            await conec.execute(connection, `INSERT INTO pedido(
+            await conec.execute(connection, `
+            INSERT INTO pedido(
                 idPedido,
                 idCliente,
                 idUsuario,
@@ -673,16 +781,14 @@ class Pedido {
                 serie,
                 numeracion,
                 idTipoEntrega,
-                idTipoPedido,
-                fechaPedido,
-                horaPedido,
+                fechaEntrega,
+                horaEntrega,
                 observacion,
                 nota,
                 instruccion,
-                estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPedido,
                 idCliente,
                 req.body.idUsuario,
@@ -692,16 +798,33 @@ class Pedido {
                 comprobante[0].serie,
                 numeracion,
                 req.body.idTipoEntrega,
-                req.body.idTipoPedido,
-                req.body.fechaPedido || currentDate(),
-                req.body.horaPedido || currentTime(),
+                req.body.fechaEntrega || date,
+                req.body.horaEntrega || time,
                 req.body.observacion,
                 req.body.nota,
                 req.body.instruccion,
-                req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
+
+            if (req.body.idTipoEntrega === "TE0001") {
+                await conec.execute(connection, `
+                    INSERT INTO pedidoEnvio(
+                        idPedido,
+                        email,
+                        telefono,
+                        celular,
+                        direccion,
+                        referencia
+                    ) VALUES(?,?,?,?,?,?)`, [
+                    idPedido,
+                    req.body.entrega.email,
+                    req.body.entrega.telefono,
+                    req.body.entrega.celular,
+                    req.body.entrega.direccion,
+                    req.body.entrega.referencia,
+                ]);
+            }
 
             // Genera un nuevo ID para los detalles del pedido
             const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
@@ -709,7 +832,8 @@ class Pedido {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalles) {
-                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
+                await await conec.execute(connection, `
+                INSERT INTO pedidoDetalle(
                     idPedidoDetalle,
                     idPedido,
                     idProducto,
@@ -748,6 +872,9 @@ class Pedido {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
             SELECT 
                 *
@@ -777,9 +904,8 @@ class Pedido {
                 nota = ?,
                 instruccion = ?,
                 idTipoEntrega = ?,
-                idTipoPedido = ?,
-                fechaPedido = ?,
-                horaPedido = ?,
+                fechaEntrega = ?,
+                horaEntrega = ?,
                 estado = ?,
                 fecha = ?,
                 hora = ?
@@ -793,12 +919,11 @@ class Pedido {
                 req.body.nota,
                 req.body.instruccion,
                 req.body.idTipoEntrega,
-                req.body.idTipoPedido,
-                req.body.fechaPedido,
-                req.body.horaPedido,
+                req.body.fechaEntrega,
+                req.body.horaEntrega,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idPedido,
             ]);
 
@@ -887,7 +1012,7 @@ class Pedido {
                 return sendClient(res, "No se encontro registros del pedido.");
             }
 
-            if (pedido[0].estado === 0) {
+            if (pedido[0].estado === 'cancelled') {
                 await conec.rollback(connection);
                 return sendClient(res, "El pedido ya se encuentra anulado.");
             }
@@ -896,7 +1021,7 @@ class Pedido {
             UPDATE 
                 pedido
             SET 
-                estado = 0
+                estado = 'cancelled'
             WHERE
                 idPedido = ?`, [
                 req.query.idPedido

@@ -178,7 +178,6 @@ class Persona {
 
             await conec.execute(connection, `INSERT INTO persona(
                 idPersona, 
-                idTipoCliente,
                 idTipoDocumento,
                 documento,
                 informacion,
@@ -205,9 +204,8 @@ class Persona {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPersona,
-                req.body.idTipoCliente,
                 req.body.idTipoDocumento,
                 req.body.documento,
                 req.body.informacion,
@@ -251,7 +249,6 @@ class Persona {
             const result = await conec.query(`
             SELECT 
                 cn.idPersona,
-                cn.idTipoCliente,
                 cn.idTipoDocumento,
                 cn.documento,
                 cn.informacion,
@@ -313,7 +310,6 @@ class Persona {
             UPDATE 
                 persona
             SET
-                idTipoCliente=?,
                 idTipoDocumento=?, 
                 documento=?,
                 informacion=?, 
@@ -337,7 +333,6 @@ class Persona {
                 idUsuario=?
             WHERE 
                 idPersona=?`, [
-                req.body.idTipoCliente,
                 req.body.idTipoDocumento,
                 req.body.documento,
                 req.body.informacion,
@@ -499,7 +494,6 @@ class Persona {
             const result = await conec.query(`
             SELECT 
                 idPersona, 
-                idTipoCliente,
                 idTipoDocumento,
                 documento, 
                 informacion,
@@ -532,6 +526,7 @@ class Persona {
             const result = await conec.query(`
             SELECT 
                 idPersona, 
+                idTipoDocumento,
                 documento, 
                 informacion,
                 IFNULL(telefono,'') AS telefono,
@@ -551,6 +546,64 @@ class Persona {
             return sendSuccess(res, result[0]);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);
+        }
+    }
+
+     async updateWeb(req, res) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const { idPersona } = req.params;
+
+            const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
+                req.body.idPersona,
+                req.body.documento,
+            ]);
+
+            if (validate.length > 0) {
+                await conec.rollback(connection);
+                return sendSuccess(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
+            }
+
+            await conec.execute(connection, `
+            UPDATE 
+                persona
+            SET
+                idTipoDocumento=?, 
+                documento=?,
+                informacion=?, 
+                celular=?,
+                telefono=?,
+                email=?,
+                clave=?,
+                direccion=?, 
+                fupdate=?,
+                hupdate=?
+            WHERE 
+                idPersona=?`, [
+                req.body.idTipoDocumento,
+                req.body.documento,
+                req.body.informacion,
+                req.body.celular,
+                req.body.telefono,
+                req.body.email,
+                !req.body.clave ? validate[0].clave : req.body.clave,
+                req.body.direccion,
+                currentDate(),
+                currentTime(),
+                idPersona
+            ]);
+
+            await conec.commit(connection)
+            return sendSuccess(res, {
+                message: "Persona actualizada correctamente.",
+            });
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/update", error);
         }
     }
 

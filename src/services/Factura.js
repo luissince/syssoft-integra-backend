@@ -196,7 +196,6 @@ class Factura {
                 }
             }
 
-            // 
             if (idPedido) {
                 const vendidos = await conec.query(`
                     SELECT 
@@ -383,7 +382,6 @@ class Factura {
                     await conec.execute(connection, `
                     INSERT INTO persona(
                         idPersona,
-                        idTipoCliente,
                         idTipoDocumento,
                         documento,
                         informacion,
@@ -401,7 +399,6 @@ class Factura {
                         idUsuario
                     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         idPersona,
-                        nuevoCliente.idTipoCliente,
                         nuevoCliente.idTipoDocumento,
                         nuevoCliente.numeroDocumento,
                         nuevoCliente.informacion,
@@ -1327,7 +1324,6 @@ class Factura {
             const cliente = await conec.query(`
             SELECT 
                 p.idPersona,
-                p.idTipoCliente,     
                 p.idTipoDocumento,
                 p.documento,
                 p.informacion,

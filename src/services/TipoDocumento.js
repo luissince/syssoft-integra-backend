@@ -6,14 +6,17 @@ class TipoDocumento {
 
     async combo(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idTipoDocumento,
-            nombre,
-            longitud,
-            obligado
-            FROM tipoDocumento 
+            const result = await conec.query(`
+            SELECT 
+                idTipoDocumento,
+                nombre,
+                longitud,
+                obligado,
+                tipoEntidad
+            FROM 
+                tipoDocumento 
             WHERE 
-            estado = 1`);
+                estado = 1`);
             return sendSuccess(res, result)
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.","TipoDocumento/combo", error);

@@ -8,6 +8,8 @@ const pedido = new Pedido();
 
 router.get('/list', async (req, res) => await pedido.list(req, res));
 
+router.get('/list/web', async (req, res) => await pedido.listWeb(req, res));
+
 router.get('/id/:idPedido', async (req, res) => await pedido.id(req, res));
 
 router.get('/detail/:idPedido', async (req, res) => await pedido.detail(req, res));

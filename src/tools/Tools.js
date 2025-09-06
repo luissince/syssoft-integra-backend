@@ -185,6 +185,8 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
         // Escribir la clave privada y el certificado en archivos separados
         // await writeFileAsync(path.join(fileDirectory, "privateKey.pem"), privateKeyPem);
         // await writeFileAsync(path.join(fileDirectory, "certificate.pem"), certPem);
+        // const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
+        // await writeFileAsync(path.join(fileDirectory, "certificate.cer"), Buffer.from(certDer, "binary"));
 
         // Devolver el nombre del archivo procesado
         // return nameFile;
