@@ -265,8 +265,8 @@ class Catalogo {
         const catalogo = await conec.query(`
             SELECT 
                 c.idCatalogo,
-                c.pdf_key,
-                c.pdf_estado
+                c.pdfKey,
+                c.pdfEstado
             FROM 
                 catalogo c
             WHERE 
@@ -278,15 +278,15 @@ class Catalogo {
             throw new Error("No se encontro registros de la catalogo.");
         }
 
-        if (catalogo[0].pdf_estado === "PENDIENTE") {
+        if (catalogo[0].pdfEstado === "PENDIENTE") {
             throw new Error("El catálogo se está generando.");
         }
 
-        if (catalogo[0].pdf_estado === "ERROR") {
+        if (catalogo[0].pdfEstado === "ERROR") {
             throw new Error("Se produjo un error al generar el catálogo.");
         }
 
-        if (catalogo[0].pdf_key) {
+        if (catalogo[0].pdfKey) {
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_PDF}/product/pdf/catalog/get`,
@@ -294,7 +294,7 @@ class Catalogo {
                     'Content-Type': 'application/json',
                 },
                 data: {
-                    "key": catalogo[0].pdf_key
+                    "key": catalogo[0].pdfKey
                 },
             };
 
@@ -307,7 +307,7 @@ class Catalogo {
             UPDATE 
                 catalogo 
             SET 
-                pdf_estado = 'PENDIENTE' 
+                pdfEstado = 'PENDIENTE' 
             WHERE 
                 idCatalogo = ?`, [
             data.idCatalogo
@@ -452,8 +452,8 @@ class Catalogo {
             UPDATE
                 catalogo 
             SET
-                pdf_key = ?,
-                pdf_estado = ?
+                pdfKey = ?,
+                pdfEstado = ?
             WHERE
                 idCatalogo = ?`, [
                 data.key,
