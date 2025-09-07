@@ -23,12 +23,23 @@ class Factura {
                 parseInt(req.query.filasPorPagina)
             ])
 
-            const resultLista = lista.map(function (item, index) {
+            const resultLista = await Promise.all(lista.map(async function (item, index) {
+                const guiaRemision = await conec.query(`
+                    SELECT 
+                        COUNT(*) AS total
+                    FROM 
+                        guiaRemision as gui 
+                    WHERE 
+                        gui.idVenta = ?`, [
+                    item.idVenta
+                ]);
+
                 return {
                     ...item,
+                    guiaRemision: guiaRemision.length > 0 ? guiaRemision[0].total : 0,
                     id: (index + 1) + parseInt(req.query.posicionPagina),
                 }
-            });
+            }));
 
             const total = await conec.procedure(`CALL Listar_Ventas_Count(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
