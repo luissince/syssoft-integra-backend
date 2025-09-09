@@ -1,4 +1,3 @@
-// require("@aws-sdk/client-s3");
 const Conexion = require('../database/Conexion');
 const {
     currentDate,
@@ -1761,27 +1760,7 @@ class Producto {
                 tallas,
                 sabores,
             };
-
-            // delete respuesta.categoriaNombre;
-            // delete respuesta.marcaNombre;
-
-            // const r2 = new S3Client({
-            //     region: 'auto',
-            //     endpoint: process.env.CLOUDFLARE_ACCOUNT_ID,
-            //     credentials: {
-            //         accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
-            //         secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
-            //     }
-            // });
-
-            // const url = await getSignedUrl(r2,
-            //     new GetObjectCommand({
-            //         Bucket: process.env.CLOUDFLARE_BUCKET_NAME,
-            //         Key: image.nombre
-            //     }),
-            //     { expiresIn: 3600 }
-            // );
-
+            
             return sendSuccess(res, respuesta);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
