@@ -45,6 +45,11 @@ jobs:
           TZ="${{secrets.TZ}}"
           ENVIRONMENT=${{vars.ENVIRONMENT}}
 
+          AWS_REGION_S3=${{ secrets.AWS_REGION_S3 }}
+          AWS_ACCESS_KEY_ID_S3=${{ secrets.AWS_ACCESS_KEY_ID_S3 }}
+          AWS_SECRET_ACCESS_KEY_S3=${{ secrets.AWS_SECRET_ACCESS_KEY_S3 }}
+          PDF_BUCKET=${{ secrets.PDF_BUCKET }}
+
           AMQP_PROTOCOL=${{ secrets.AMQP_PROTOCOL }}
           AMQP_HOSTNAME=${{ secrets.AMQP_HOSTNAME }}
           AMQP_PORT=${{ secrets.AMQP_PORT }}
