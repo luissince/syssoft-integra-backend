@@ -474,7 +474,7 @@ class Usuario {
             const token = await createToken({
                 ...user,
                 idPerfil: usuario[0].idPerfil,
-            }, process.env.TOKEN_ACCESSO);
+            }, process.env.TOKEN_ACCESS);
 
             // const connection = await amqp.connect({
             //     protocol: 'amqp',
@@ -601,7 +601,7 @@ class Usuario {
             const token = await createToken({
                 ...user,
                 idPerfil: usuario[0].idPerfil,
-            }, process.env.TOKEN_ACCESSO);
+            }, process.env.TOKEN_ACCESS);
 
             return {
                 ...user,
