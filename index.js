@@ -38,7 +38,7 @@ app.use(express.urlencoded({ extended: false }));
 // Middleware para validar rutas
 // app.use((req, res, next) => {
 //     console.log('===================== Middleware validar ruta ===================');
-//     const decoded = verifyToken(req, process.env.TOKEN_ACCESSO);
+//     const decoded = verifyToken(req, process.env.TOKEN_ACCESS);
 //     if(!decoded){
 //         return sendNoAutorizado(res, { message: 'Acceso no autorizado' });
 //     }

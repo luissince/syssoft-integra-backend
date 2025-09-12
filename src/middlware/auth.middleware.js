@@ -23,7 +23,7 @@ function authenticate(req, res, next) {
     }
 
     const token = bearerToken.split(" ")[1]; // Extraer el token.
-    const key = process.env.TOKEN_ACCESSO;
+    const key = process.env.TOKEN_ACCESS;
 
     if (!token || !key) {
         return sendForbidden(res, { message: 'Acceso denegado' });

@@ -30,18 +30,13 @@ jobs:
           APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
           APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
           APP_EMAIL="${{secrets.APP_EMAIL}}"
-          TOKEN_ACCESSO="${{secrets.TOKEN_ACCESSO}}"
+          TOKEN_ACCESS="${{secrets.TOKEN_ACCESS}}"
 
           DB_HOST="${{secrets.DB_HOST}}"
           DB_USER="${{secrets.DB_USER}}"
           DB_PASSWORD="${{secrets.DB_PASSWORD}}"
           DB_NAME="${{secrets.DB_NAME}}"
           DB_PORT="${{secrets.DB_PORT}}"
-          
-          CLOUDFLARE_ACCOUNT_ID="${{secrets.CLOUDFLARE_ACCOUNT_ID}}"
-          CLOUDFLARE_ACCESS_KEY_ID="${{secrets.CLOUDFLARE_ACCESS_KEY_ID}}"
-          CLOUDFLARE_SECRET_ACCESS_KEY="${{secrets.CLOUDFLARE_SECRET_ACCESS_KEY}}"
-          CLOUDFLARE_BUCKET_NAME="${{secrets.CLOUDFLARE_BUCKET_NAME}}"
 
           FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
           FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
@@ -49,6 +44,11 @@ jobs:
 
           TZ="${{secrets.TZ}}"
           ENVIRONMENT=${{vars.ENVIRONMENT}}
+
+          AWS_REGION_S3=${{ secrets.AWS_REGION_S3 }}
+          AWS_ACCESS_KEY_ID_S3=${{ secrets.AWS_ACCESS_KEY_ID_S3 }}
+          AWS_SECRET_ACCESS_KEY_S3=${{ secrets.AWS_SECRET_ACCESS_KEY_S3 }}
+          PDF_BUCKET=${{ secrets.PDF_BUCKET }}
 
           AMQP_PROTOCOL=${{ secrets.AMQP_PROTOCOL }}
           AMQP_HOSTNAME=${{ secrets.AMQP_HOSTNAME }}

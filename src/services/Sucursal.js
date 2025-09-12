@@ -465,8 +465,7 @@ class Sucursal {
         }
     }
 
-
-    async combo(res) {
+    async combo(req, res) {
         try {
             const sucursales = await conec.query(`
             SELECT 
@@ -481,7 +480,7 @@ class Sucursal {
         }
     }
 
-    async listForWeb(res) {
+    async listForWeb(req, res) {
         try {
             const bucket = firebaseService.getBucket();
 
