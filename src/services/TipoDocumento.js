@@ -1,6 +1,5 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { sendSuccess, sendError } = require('../tools/Message');
-const conec = new Conexion();
 
 class TipoDocumento {
 

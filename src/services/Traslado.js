@@ -1,7 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const FirebaseService = require('../tools/FiraseBaseService');
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 

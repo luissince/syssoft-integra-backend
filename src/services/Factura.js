@@ -1,9 +1,8 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const FirebaseService = require('../tools/FiraseBaseService');
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 class Factura {

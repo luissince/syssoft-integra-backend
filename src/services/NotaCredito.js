@@ -1,7 +1,4 @@
-const Conexion = require('../database/Conexion');
-const { currentDate, currentTime } = require('../tools/Tools');
-const { sendSuccess, sendClient, sendSave, sendError } = require('../tools/Message');
-const conec = new Conexion();
+const conec = require('../database/mysql-connection');
 
 class NotaCredito {
 

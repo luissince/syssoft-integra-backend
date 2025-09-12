@@ -1,7 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { sendClient, sendSave, sendError, sendSuccess } = require('../tools/Message');
-const conec = new Conexion();
 
 class Consulta {
 

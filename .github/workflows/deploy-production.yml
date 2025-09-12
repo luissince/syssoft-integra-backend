@@ -26,33 +26,6 @@ jobs:
 
     environment: ${{ matrix.environment }}
     
-    env:  
-      PORT: ${{ secrets.PORT }}
-      APP_URL: ${{secrets.APP_URL}}
-      APP_PDF: ${{secrets.APP_PDF}}
-      APP_CPE_SUNAT: ${{secrets.APP_CPE_SUNAT}}
-      APP_APIS_PERU: ${{secrets.APP_APIS_PERU}}
-      APP_EMAIL: ${{secrets.APP_EMAIL}}
-      TOKEN_ACCESSO: ${{secrets.TOKEN_ACCESSO}}
-
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
-      CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
-      CLOUDFLARE_BUCKET_NAME: ${{ secrets.CLOUDFLARE_BUCKET_NAME }}
-
-      FIREBASE_BUCKET: ${{ secrets.FIREBASE_BUCKET }}
-      FIREBASE_URL_PUBLIC: ${{ secrets.FIREBASE_URL_PUBLIC }}
-      FIREBASE_FILE_ACCOUNT_NAME: ${{ secrets.FIREBASE_FILE_ACCOUNT_NAME }}
-
-      TZ: ${{ secrets.TZ }}
-      ENVIRONMENT: ${{ vars.ENVIRONMENT }}
-    
     steps:
       - name: Checkout código
         uses: actions/checkout@v3
@@ -60,31 +33,39 @@ jobs:
       - name: Crear archivo .env
         run: |
           cat > .env <<EOL
-          PORT="${{env.PORT}}"
-          APP_URL="${{env.APP_URL}}"
-          APP_PDF="${{env.APP_PDF}}"
-          APP_CPE_SUNAT="${{env.APP_CPE_SUNAT}}"
-          APP_APIS_PERU="${{env.APP_APIS_PERU}}"
+          PORT="${{secrets.PORT}}"
+
+          APP_URL="${{secrets.APP_URL}}"
+          APP_PDF="${{secrets.APP_PDF}}"
+          APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
+          APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
           APP_EMAIL="${{secrets.APP_EMAIL}}"
           TOKEN_ACCESSO="${{secrets.TOKEN_ACCESSO}}"
 
-          DB_HOST="${{env.DB_HOST}}"
-          DB_USER="${{env.DB_USER}}"
-          DB_PASSWORD="${{env.DB_PASSWORD}}"
-          DB_NAME="${{env.DB_NAME}}"
-          DB_PORT="${{env.DB_PORT}}"
+          DB_HOST="${{secrets.DB_HOST}}"
+          DB_USER="${{secrets.DB_USER}}"
+          DB_PASSWORD="${{secrets.DB_PASSWORD}}"
+          DB_NAME="${{secrets.DB_NAME}}"
+          DB_PORT="${{secrets.DB_PORT}}"
+          
+          CLOUDFLARE_ACCOUNT_ID="${{secrets.CLOUDFLARE_ACCOUNT_ID}}"
+          CLOUDFLARE_ACCESS_KEY_ID="${{secrets.CLOUDFLARE_ACCESS_KEY_ID}}"
+          CLOUDFLARE_SECRET_ACCESS_KEY="${{secrets.CLOUDFLARE_SECRET_ACCESS_KEY}}"
+          CLOUDFLARE_BUCKET_NAME="${{secrets.CLOUDFLARE_BUCKET_NAME}}"
 
-          CLOUDFLARE_ACCOUNT_ID="${{env.CLOUDFLARE_ACCOUNT_ID}}"
-          CLOUDFLARE_ACCESS_KEY_ID="${{env.CLOUDFLARE_ACCESS_KEY_ID}}"
-          CLOUDFLARE_SECRET_ACCESS_KEY="${{env.CLOUDFLARE_SECRET_ACCESS_KEY}}"
-          CLOUDFLARE_BUCKET_NAME="${{env.CLOUDFLARE_BUCKET_NAME}}"
+          FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
+          FIREBASE_FILE_ACCOUNT_NAME="${{secrets.FIREBASE_FILE_ACCOUNT_NAME}}"
 
-          FIREBASE_BUCKET="${{env.FIREBASE_BUCKET}}"
-          FIREBASE_URL_PUBLIC="${{env.FIREBASE_URL_PUBLIC}}"
-          FIREBASE_FILE_ACCOUNT_NAME="${{env.FIREBASE_FILE_ACCOUNT_NAME}}"
+          TZ="${{secrets.TZ}}"
+          ENVIRONMENT=${{vars.ENVIRONMENT}}
 
-          TZ="${{env.TZ}}"
-          ENVIRONMENT=${{env.ENVIRONMENT}}
+          AMQP_PROTOCOL=${{ secrets.AMQP_PROTOCOL }}
+          AMQP_HOSTNAME=${{ secrets.AMQP_HOSTNAME }}
+          AMQP_PORT=${{ secrets.AMQP_PORT }}
+          AMQP_USERNAME=${{ secrets.AMQP_USERNAME }}
+          AMQP_PASSWORD=${{ secrets.AMQP_PASSWORD }}
+          AMQP_VHOST=${{ secrets.AMQP_VHOST }}
           EOL
     
       - name: Creando y ejecutando contenedor
