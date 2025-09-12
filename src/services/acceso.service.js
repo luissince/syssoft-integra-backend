@@ -1,7 +1,5 @@
-const { sendSuccess, sendError } = require('../tools/Message');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { currentDate, currentTime } = require('../tools/Tools');
-const conec = new Conexion();
 
 class Acceso {
 

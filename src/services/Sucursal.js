@@ -1,18 +1,11 @@
 const {
     currentDate,
     currentTime,
-    isDirectory,
-    removeFile,
-    mkdir,
-    chmod,
     generateAlphanumericCode,
-    processImage,
 } = require('../tools/Tools');
-const path = require("path");
 const { sendSuccess, sendSave, sendClient, sendError } = require('../tools/Message');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const FirebaseService = require('../tools/FiraseBaseService');
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 class Sucursal {
@@ -422,7 +415,7 @@ class Sucursal {
 
             const bucket = firebaseService.getBucket();
 
-            const newLista = lista.map(function (item, index) {
+            const newLista = lista.map(function (item) {
                 if(bucket && item.imagen){
                     return {
                         ...item,
@@ -459,7 +452,7 @@ class Sucursal {
 
             const bucket = firebaseService.getBucket();
 
-            const newLista = lista.map(function (item, index) {
+            const newLista = lista.map(function (item) {
                 return {
                     ...item,
                       imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
@@ -473,7 +466,7 @@ class Sucursal {
     }
 
 
-    async combo(req, res) {
+    async combo(res) {
         try {
             const sucursales = await conec.query(`
             SELECT 
@@ -488,7 +481,7 @@ class Sucursal {
         }
     }
 
-    async listForWeb(req, res) {
+    async listForWeb(res) {
         try {
             const bucket = firebaseService.getBucket();
 

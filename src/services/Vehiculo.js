@@ -1,7 +1,6 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendClient, sendError, sendSave } = require('../tools/Message');
-const conec = new Conexion();
 
 class Vehiculo {
 

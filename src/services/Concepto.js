@@ -1,7 +1,6 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient } = require('../tools/Message');
-const Conexion = require('../database/Conexion');
-const conec = new Conexion();
+const conec = require('../database/mysql-connection');
 
 class Concepto {
 

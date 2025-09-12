@@ -1,6 +1,5 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
-const conec = new Conexion();
 
 class Almacen {
 

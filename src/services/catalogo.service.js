@@ -1,4 +1,4 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const {
     currentDate,
     currentTime,
@@ -6,8 +6,9 @@ const {
 } = require('../tools/Tools');
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
-const conec = new Conexion();
+const RabbitMQ = require('../common/rabbitmq');
 const firebaseService = new FirebaseService();
+const amqp = require('amqplib');
 
 class Catalogo {
 
@@ -280,7 +281,7 @@ class Catalogo {
         if (catalogo[0].pdfEstado === "PENDIENTE") {
             return {
                 status: "procesando",
-                message: "El catálogo se está generando. Intente nuevamente en un par de minutos.",
+                message: "Aun no se ha completado la generación del catálogo. Intente nuevamente en un par de minutos.",
             }
         }
 
@@ -403,45 +404,45 @@ class Catalogo {
             };
         }));
 
-        const options = {
-            method: 'POST',
-            url: `${process.env.APP_PDF}/product/pdf/catalog/process`,
-            headers: {
-                'Content-Type': 'application/json',
+        const payload = {
+            "company": {
+                ...empresa[0],
+                rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
             },
-            data: {
-                "company": {
-                    ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
-                },
-                "branch": {
-                    "nombre": sucursal[0].nombre,
-                    "telefono": sucursal[0].telefono,
-                    "celular": sucursal[0].celular,
-                    "email": sucursal[0].email,
-                    "paginaWeb": sucursal[0].paginaWeb,
-                    "direccion": sucursal[0].direccion,
-                    "ubigeo": {
-                        "departamento": sucursal[0].departamento,
-                        "provincia": sucursal[0].provincia,
-                        "distrito": sucursal[0].distrito
-                    }
-                },
-                "catalog": catalogo[0],
-                "moneda": moneda[0],
-                "products": products,
-                "webhook": `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
+            "branch": {
+                "nombre": sucursal[0].nombre,
+                "telefono": sucursal[0].telefono,
+                "celular": sucursal[0].celular,
+                "email": sucursal[0].email,
+                "paginaWeb": sucursal[0].paginaWeb,
+                "direccion": sucursal[0].direccion,
+                "ubigeo": {
+                    "departamento": sucursal[0].departamento,
+                    "provincia": sucursal[0].provincia,
+                    "distrito": sucursal[0].distrito
+                }
             },
-            // responseType: 'arraybuffer'
+            "catalog": catalogo[0],
+            "moneda": moneda[0],
+            "products": products,
+            "webhook": `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
         };
 
-        axios
-            .request(options)
-            .catch(err => console.error("Error enviando a PDF service:", err.message));
+        // Obtener la instancia Singleton de RabbitMQ
+        const rabbit = RabbitMQ.getInstance();
+
+        // Nombre de la cola donde se publicará el mensaje
+        const queue = "catalog_pdf_queue";
+
+        // Enviar el mensaje a la cola
+        rabbit.publish(queue, {
+            pattern: queue,
+            data: payload
+        });
 
         return {
             status: "procesando",
-            message: "El catálogo se está generando. Intente nuevamente en un par de minutos."
+            message: "Se ha enviado el mensaje a la cola. Intente nuevamente en un par de minutos."
         };
     }
 
