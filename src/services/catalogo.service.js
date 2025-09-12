@@ -306,7 +306,7 @@ class Catalogo {
 
             // return response.data;
 
-            const url = await S3Singleton.getSignedUrlFromS3(key);
+            const url = await S3Singleton.getSignedUrlFromS3(catalogo[0].pdfKey);
             return { url };
         }
 
