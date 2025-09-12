@@ -296,19 +296,15 @@ class Categoria {
         estado = 1`);
 
       const newData = result.map(item => {
-        if (bucket && item.imagen) {
-          return {
-            ...item,
-            imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-          }
-        }
         return {
           ...item,
+          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null
         }
       });
 
       return sendSuccess(res, newData);
     } catch (error) {
+      console.log(error);
       return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/combo", error);
     }
   }
