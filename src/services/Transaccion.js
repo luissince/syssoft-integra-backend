@@ -1,8 +1,7 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { sendError, sendSuccess, sendFile } = require('../tools/Message');
 const { default: axios } = require('axios');
 const FirebaseService = require('../tools/FiraseBaseService');
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 class Transaccion {

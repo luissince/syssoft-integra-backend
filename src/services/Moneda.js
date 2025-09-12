@@ -1,7 +1,6 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { currentDate, currentTime } = require('../tools/Tools');
 const { sendSuccess, sendClient, sendError, sendSave, sendNotFound } = require('../tools/Message');
-const conec = new Conexion();
 
 class Moneda {
 

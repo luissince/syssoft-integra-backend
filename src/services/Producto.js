@@ -1,4 +1,4 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const {
     currentDate,
     currentTime,
@@ -8,7 +8,6 @@ const {
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const FirebaseService = require('../tools/FiraseBaseService');
 const { default: axios } = require("axios");
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 class Producto {

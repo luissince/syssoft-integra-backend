@@ -5,12 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "worker": "node worker.js",
     "dev": "bash ./start-dev.sh",
     "patch": "npm version patch",
     "deploy:test": "git switch test && git merge development && git push origin test",
     "deploy:prod": "git switch master && git merge development && git push origin master"
   },
   "dependencies": {
+    "amqplib": "^0.10.9",
     "axios": "^1.6.8",
     "bcrypt": "5.1.1",
     "cors": "2.8.5",

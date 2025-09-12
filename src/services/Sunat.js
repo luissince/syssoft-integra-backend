@@ -3,10 +3,9 @@ const { sendSuccess, sendError, sendFile, sendClient } = require('../tools/Messa
 const Factura = require('./Factura');
 const GuiaRemision = require('./GuiaRemision');
 const { default: axios } = require('axios');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const ErrorResponse = require('../tools/ErrorAxios');
 
-const conec = new Conexion();
 const factura = new Factura();
 const guiaRemision = new GuiaRemision();
 

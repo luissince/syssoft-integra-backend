@@ -1,10 +1,9 @@
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const { createToken } = require('../tools/Jwt');
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { ClientError } = require('../tools/Error');
-const conec = new Conexion();
 
 class Usuario {
 

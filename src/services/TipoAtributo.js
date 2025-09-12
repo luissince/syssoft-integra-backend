@@ -1,6 +1,4 @@
-const Conexion = require('../database/Conexion');
-const { currentDate, currentTime } = require('../tools/Tools');
-const conec = new Conexion();
+const conec = require('../database/mysql-connection');
 
 class TipoAtributo {
 

@@ -1,8 +1,7 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const { sendClient, sendSuccess, sendError, sendFile } = require('../tools/Message');
 const { default: axios } = require('axios');
-const conec = new Conexion();
 
 class Persona {
 

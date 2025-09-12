@@ -16,9 +16,8 @@ const {
     isFile
 } = require('../tools/Tools');
 const path = require("path");
-const Conexion = require('../database/Conexion');
+const conec = require('../database/mysql-connection');
 const FirebaseService = require('../tools/FiraseBaseService');
-const conec = new Conexion();
 const firebaseService = new FirebaseService();
 
 class Empresa {
