@@ -2,8 +2,7 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode 
 const conec = require('../database/mysql-connection');
 const { sendSuccess, sendError, sendSave, sendClient } = require('../tools/Message');
 const { default: axios } = require('axios');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class GuiaRemision {
 

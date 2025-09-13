@@ -4,11 +4,8 @@ const {
     currentTime,
     generateAlphanumericCode,
 } = require('../tools/Tools');
-const FirebaseService = require('../tools/FiraseBaseService');
-const { default: axios } = require("axios");
+const firebaseService = require('../common/fire-base');
 const RabbitMQ = require('../common/rabbitmq');
-const firebaseService = new FirebaseService();
-const amqp = require('amqplib');
 const S3Singleton = require('../common/s3');
 
 class Catalogo {
