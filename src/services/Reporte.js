@@ -2,8 +2,7 @@ const { currentTime, currentDate } = require('../tools/Tools');
 const { sendPdf, sendError } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class Reporte {
     async generarPreFacturacion(req, res, tipo) {

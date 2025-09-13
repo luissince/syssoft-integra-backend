@@ -6,9 +6,8 @@ const {
     generateNumericCode,
 } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
-const FirebaseService = require('../tools/FiraseBaseService');
+const firebaseService = require('../common/fire-base');
 const { default: axios } = require("axios");
-const firebaseService = new FirebaseService();
 
 class Producto {
 

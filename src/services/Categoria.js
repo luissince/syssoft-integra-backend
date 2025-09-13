@@ -1,8 +1,7 @@
 const conec = require('../database/mysql-connection');
-const FirebaseService = require("../tools/FiraseBaseService");
+const firebaseService = require('../common/fire-base');
 const { sendError, sendSuccess, sendSave, sendClient } = require("../tools/Message");
 const { currentDate, currentTime, generateAlphanumericCode } = require("../tools/Tools");
-const firebaseService = new FirebaseService();
 
 class Categoria {
 

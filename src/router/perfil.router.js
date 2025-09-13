@@ -3,7 +3,7 @@ const router = express.Router();
 const perfil = require('../controller/perfil.controller');
 const authenticate = require('../middlware/auth.middleware');
 const validRoute = require('../middlware/valid-routes.middleware');
-const { MENUS, SUBMENUS, PRIVILEGIOS } = require('../tools/constants');
+const { MENUS, SUBMENUS, PRIVILEGIOS } = require('../config/constants');
 
 router.get('/list', authenticate, validRoute(MENUS.SEGURIDAD, SUBMENUS.PERFIL, PRIVILEGIOS.LISTAR_PERFIL), perfil.list);
 

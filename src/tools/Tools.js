@@ -25,15 +25,33 @@ function formatNumberWithZeros(numero) {
     return numero < 0 ? `-${numeroFormateado}` : numeroFormateado;
 }
 
+/**
+ * Verifica si el valor es un número.
+ * 
+ * @param {*} value 
+ * @returns 
+ */
 function isNumber(value) {
     return typeof value === 'number';
 }
 
+/**
+ * Varifica si el valor es un email.
+ * 
+ * @param {*} value 
+ * @returns 
+ */
 function isEmail(value) {
     const validRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/;
     return value.match(validRegex) != null ? true : false;
 }
 
+/**
+ * Verifica si el archivo es un directorio.
+ * 
+ * @param {*} file 
+ * @returns 
+ */
 async function isDirectory(file) {
     try {
         const stats = await lstatAsync(file);
@@ -43,6 +61,12 @@ async function isDirectory(file) {
     }
 }
 
+/**
+ * Verifica si el archivo es un archivo.
+ * 
+ * @param {*} file 
+ * @returns 
+ */
 async function isFile(file) {
     try {
         const stats = await lstatAsync(file);
@@ -52,12 +76,26 @@ async function isFile(file) {
     }
 }
 
+/**
+ * Elimina un archivo.
+ * 
+ * @param {*} file 
+ * @returns 
+ */
 async function removeFile(file) {
     if (fs.existsSync(file)) {
         await unlinkFileAsync(file);
     }
 }
 
+/**
+ * Escribe un archivo.
+ * 
+ * @param {*} file 
+ * @param {*} data 
+ * @param {*} options 
+ * @returns 
+ */
 async function writeFile(file, data, options = 'base64') {
     try {
         await writeFileAsync(file, data, options);
@@ -67,6 +105,12 @@ async function writeFile(file, data, options = 'base64') {
     }
 }
 
+/**
+ * Crea un directorio.
+ * 
+ * @param {*} file 
+ * @returns 
+ */
 async function mkdir(file) {
     try {
         await mkdirAsync(file);
@@ -75,6 +119,13 @@ async function mkdir(file) {
     }
 }
 
+/**
+ * Cambia el modo de un archivo.
+ * 
+ * @param {*} file 
+ * @param {*} mode 
+ * @returns 
+ */
 async function chmod(file, mode = 0o755) {
     try {
         await chmodAsync(file, mode);
@@ -106,6 +157,12 @@ function currentTime() {
     return formatted_time; // Retorna la hora formateada
 }
 
+/**
+ * 
+ * 
+ * @param {*} value 
+ * @returns 
+ */
 function dateFormat(value) {
     var parts = value.split("-");
     let today = new Date(parts[0], parts[1] - 1, parts[2]);
