@@ -291,21 +291,6 @@ class Catalogo {
         }
 
         if (catalogo[0].pdfKey) {
-            // const options = {
-            //     method: 'POST',
-            //     url: `${process.env.APP_PDF}/product/pdf/catalog/get`,
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     data: {
-            //         "key": catalogo[0].pdfKey
-            //     },
-            // };
-
-            // const response = await axios.request(options);
-
-            // return response.data;
-
             const url = await S3Singleton.getSignedUrlFromS3(catalogo[0].pdfKey);
             return { url };
         }
