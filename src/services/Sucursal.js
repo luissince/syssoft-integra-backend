@@ -5,8 +5,7 @@ const {
 } = require('../tools/Tools');
 const { sendSuccess, sendSave, sendClient, sendError } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class Sucursal {
 

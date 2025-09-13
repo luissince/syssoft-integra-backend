@@ -1,6 +1,5 @@
 const conec = require('../database/mysql-connection');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class Inventario {
 

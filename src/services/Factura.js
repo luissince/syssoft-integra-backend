@@ -2,8 +2,7 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode 
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class Factura {
 

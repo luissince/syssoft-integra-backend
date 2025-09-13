@@ -4,11 +4,8 @@ const {
     currentTime,
     generateAlphanumericCode,
 } = require('../tools/Tools');
-const FirebaseService = require('../tools/FiraseBaseService');
-const { default: axios } = require("axios");
+const firebaseService = require('../common/fire-base');
 const RabbitMQ = require('../common/rabbitmq');
-const firebaseService = new FirebaseService();
-const amqp = require('amqplib');
 const S3Singleton = require('../common/s3');
 
 class Catalogo {
@@ -291,21 +288,6 @@ class Catalogo {
         }
 
         if (catalogo[0].pdfKey) {
-            // const options = {
-            //     method: 'POST',
-            //     url: `${process.env.APP_PDF}/product/pdf/catalog/get`,
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            //     data: {
-            //         "key": catalogo[0].pdfKey
-            //     },
-            // };
-
-            // const response = await axios.request(options);
-
-            // return response.data;
-
             const url = await S3Singleton.getSignedUrlFromS3(catalogo[0].pdfKey);
             return { url };
         }

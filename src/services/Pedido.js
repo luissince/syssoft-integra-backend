@@ -2,8 +2,7 @@ const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode,
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
-const FirebaseService = require('../tools/FiraseBaseService');
-const firebaseService = new FirebaseService();
+const firebaseService = require('../common/fire-base');
 
 class Pedido {
 
