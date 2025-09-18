@@ -406,7 +406,7 @@ class Factura {
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         idPersona,
                         nuevoCliente.idTipoDocumento,
                         nuevoCliente.numeroDocumento,
