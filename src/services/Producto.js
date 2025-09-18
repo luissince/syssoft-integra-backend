@@ -824,7 +824,6 @@ class Producto {
                 imagen = req.body.imagen.nombre;
             }
 
-            console.log(imagen);
             await conec.execute(connection, `
             UPDATE 
                 producto 
@@ -1102,99 +1101,33 @@ class Producto {
     async delete(req, res) {
         let connection = null;
         try {
+            const { idProducto, idUsuario } = req.query;
+
             connection = await conec.beginTransaction();
 
-            const bucket = firebaseService.getBucket();
-
-            const idProducto = req.params.idProducto;
-
-            const producto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto = ?`, [
-                idProducto
+            await conec.execute(connection, `    
+                INSERT INTO auditoria(
+                    idReferencia,
+                    idUsuario,
+                    tipo,
+                    descripción
+                ) VALUES(?,?,?,?)`, [
+                idProducto,
+                idUsuario,
+                'ELIMINAR',
+                'ELIMINACIÓN DEL PRODUCTO',
+                idProducto,
+                currentDate(),
+                currentTime(),
             ]);
 
-            if (producto.length === 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "El producto ya se encuentra eliminado.");
-            }
-
-            const inventario = await conec.execute(connection, `SELECT * FROM kardex WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            if (inventario.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "El producto no se puede eliminar porque tiene un historial de ingresos y salidas en el kardex.");
-            }
-
-            const compra = await conec.execute(connection, `SELECT * FROM compraDetalle WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            if (compra.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "El producto no se puede eliminar porque tiene una compra asociada.");
-            }
-
-
-            const venta = await conec.execute(connection, `SELECT * FROM ventaDetalle WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            if (venta.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede eliminar el producto ya que esta ligado a una venta.");
-            }
-
-            await conec.execute(connection, `DELETE FROM inventario WHERE idProducto  = ?`, [
-                idProducto
-            ]);
-
-            await conec.execute(connection, `DELETE FROM precio WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            if (producto[0].imagen) {
-                if (bucket) {
-                    const file = bucket.file(producto[0].imagen);
-                    await file.delete();
-                }
-            }
-
-            const cacheImagenes = await conec.execute(connection, `
-                SELECT 
-                    idImagen,
-                    idProducto,
-                    nombre,
-                    extension,
-                    ancho,
-                    alto
-                FROM
-                    productoImagen
-                WHERE
+            await conec.execute(connection, `
+                UPDATE 
+                    producto 
+                SET 
+                    estado = -1 
+                WHERE 
                     idProducto = ?`, [
-                idProducto
-            ]);
-
-            for (const imagen of cacheImagenes) {
-                if (imagen.nombre) {
-                    const file = bucket.file(imagen.nombre);
-                    await file.delete();
-                }
-            }
-
-            await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            await conec.execute(connection, `DELETE FROM productoDetalle WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            await conec.execute(connection, `DELETE FROM productoAtributo WHERE idProducto = ?`, [
-                idProducto
-            ]);
-
-            await conec.execute(connection, `DELETE FROM producto WHERE idProducto  = ?`, [
                 idProducto
             ]);
 
@@ -1226,7 +1159,7 @@ class Producto {
             INNER JOIN 
                 medida as m ON m.idMedida = p.idMedida
             WHERE 
-                p.idTipoProducto <> 'TP0003'`);
+                p.idTipoProducto <> 'TP0003' AND p.estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/combo", error);
@@ -1235,7 +1168,6 @@ class Producto {
 
     async getLote(req, res) {
         try {
-
             const { idInventario } = req.params;
 
             const result = await conec.query(`
@@ -1640,7 +1572,7 @@ class Producto {
             LEFT JOIN 
                 almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE 
-                p.idProducto = ? OR p.codigo = ?
+                p.estado = 1 AND p.idProducto = ? OR p.codigo = ?
                 AND
                 (
                     p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
@@ -1758,7 +1690,7 @@ class Producto {
                 tallas,
                 sabores,
             };
-            
+
             return sendSuccess(res, respuesta);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
@@ -1820,7 +1752,7 @@ class Producto {
             LEFT JOIN 
                 almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE
-                p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
+                p.estado = 1 AND p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
                 (
                     p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
                     OR
@@ -1833,7 +1765,6 @@ class Producto {
                 req.query.idCategoria,
                 sucursal.idSucursal,
             ]);
-
 
             const resultLista = list.map(function (item) {
                 return {

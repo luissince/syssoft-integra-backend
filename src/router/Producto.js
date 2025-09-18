@@ -12,7 +12,7 @@ router.get('/id/:idProducto', async (req, res) => await producto.id(req, res));
 
 router.put('/', async (req, res) => await producto.update(req, res));
 
-router.delete('/:idProducto', async (req, res) => await producto.delete(req, res));
+router.delete('/', async (req, res) => await producto.delete(req, res));
 
 router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
