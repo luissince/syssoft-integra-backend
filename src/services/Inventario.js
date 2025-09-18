@@ -87,7 +87,7 @@ class Inventario {
             FROM 
                 inventario i
             INNER JOIN 
-                producto p ON p.idProducto = i.idProducto
+                producto p ON p.idProducto = i.idProducto AND p.estado <> -1
             WHERE 
                 i.idAlmacen = ?`, [
                 req.params.idAlmacen

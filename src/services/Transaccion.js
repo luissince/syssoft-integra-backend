@@ -197,16 +197,6 @@ class Transaccion {
         }
     }
 
-    calculateTaxBruto(tax, amount) {
-        return amount / ((tax + 100) * 0.01);
-    }
-
-    calculateTax(porcent, amount) {
-        const tax = porcent / 100.0;
-        return amount * tax;
-    }
-
-
 }
 
 module.exports = Transaccion;
