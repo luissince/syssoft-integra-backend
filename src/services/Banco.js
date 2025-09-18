@@ -53,13 +53,14 @@ class Banco {
                 preferido,
                 vuelto,
                 reporte,
+                compartir,
                 estado,
                 fecha,
                 hora,
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idBanco,
                 req.body.nombre,
                 req.body.tipoCuenta,
@@ -70,6 +71,7 @@ class Banco {
                 req.body.preferido,
                 req.body.vuelto,
                 req.body.reporte,
+                req.body.compartir,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -126,6 +128,7 @@ class Banco {
                 preferido=?,
                 vuelto=?,
                 reporte=?,
+                compartir=?,
                 estado=?,
                 fupdate=?,
                 hupdate=?,
@@ -140,6 +143,7 @@ class Banco {
                 req.body.preferido,
                 req.body.vuelto,
                 req.body.reporte,
+                req.body.compartir,
                 req.body.estado,
                 currentDate(),
                 currentTime(),
@@ -166,6 +170,7 @@ class Banco {
                 ba.tipoCuenta,
                 ba.numCuenta,
                 ba.cci,
+                ba.compartir,
                 ba.estado,
                 mo.nombre as moneda,
                 mo.codiso
@@ -217,21 +222,27 @@ class Banco {
         try {
             connection = await conec.beginTransaction();
 
-            const detalles = await conec.execute(connection, `
-            SELECT 
-                idBanco
-            FROM 
-                bancoDetalle 
-            WHERE 
-                idBanco = ?`, [
+            const transaccion = await conec.execute(connection, `
+                SELECT 
+                    * 
+                FROM 
+                    transaccionDetalle 
+                WHERE 
+                    idBanco = ?`, [
                 req.query.idBanco
             ]);
 
-            if (detalles.length !== 0) {
-                return sendClient(res, "No se puedo borrar el banco porque, tiene ligado una lista de ingresos.")
+            if (transaccion.length !== 0) {
+                return sendClient(res, "No se puede eliminar el banco porque tiene una transacción asociada.");
             }
 
-            await conec.execute(connection, `DELETE FROM banco WHERE idBanco = ?`, [
+            await conec.execute(connection, `
+                UPDATE  
+                    banco
+                SET
+                    estado = -1
+                 WHERE 
+                    idBanco = ?`, [
                 req.query.idBanco
             ]);
 
@@ -241,6 +252,7 @@ class Banco {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/delete", error);
         }
     }
@@ -256,7 +268,12 @@ class Banco {
             FROM 
                 banco   
             WHERE 
-                estado = 1 AND idSucursal = ?`,[
+                estado = 1 AND 
+                (
+                    (compartir = 1) 
+                    OR
+                    (compartir = 0 AND idSucursal = ?)
+                )`,[
                     req.params.idSucursal
                 ]);
             return sendSuccess(res, result);

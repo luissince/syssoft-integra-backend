@@ -1156,7 +1156,7 @@ class Pedido {
                 FROM
                     banco
                 WHERE 
-                    reporte = 1 AND idSucursal = ?`, [
+                    reporte = 1 AND estado <> -1 AND idSucursal = ?`, [
                 pedido[0].idSucursal
             ]);
 
