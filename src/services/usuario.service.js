@@ -15,7 +15,6 @@ class Usuario {
                 u.nombres,
                 u.apellidos,
                 u.telefono,
-                u.email,
                 u.representante,
                 IFNULL(p.descripcion,'-') AS perfil,
                 u.estado
