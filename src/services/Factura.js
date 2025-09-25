@@ -1964,7 +1964,7 @@ class Factura {
 
     async documentsPdfInvoices(req, _) {
         try {
-            const { idVenta, size } = req.params;
+            const { idVenta, size, outputType = "pdf" } = req.params;
 
             const bucket = firebaseService.getBucket();
 
@@ -2080,6 +2080,7 @@ class Factura {
 
             return {
                 "size": size,
+                "outputType": outputType,
                 "company": {
                     ...empresa[0],
                     rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,

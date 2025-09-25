@@ -30,7 +30,7 @@ router.delete("/cancel/accounts/receivable", async (req, res) => await factura.c
 
 router.get("/dashboard", async (req, res) => await factura.dashboard(req, res));
 
-router.get("/documents/pdf/invoices/:idVenta/:size", async (req, res) => {
+router.get("/documents/pdf/invoices/:idVenta/:size/:outputType", async (req, res) => {
     try {
         const data = await factura.documentsPdfInvoices(req, res);
 
