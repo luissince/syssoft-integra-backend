@@ -86,7 +86,7 @@ class Producto {
                 sabores
             } = req.body;
 
-            const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ?`, [
+            const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND estado <> -1`, [
                 codigo
             ]);
 
@@ -95,7 +95,7 @@ class Producto {
                 return sendClient(res, "No se puede haber 2 producto con la misma clave.");
             }
 
-            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ?`, [
+            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND estado <> -1`, [
                 nombre
             ]);
 
@@ -105,7 +105,7 @@ class Producto {
             }
 
             if (sku) {
-                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ?`, [
+                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ? AND estado <> -1`, [
                     sku
                 ]);
 
@@ -116,7 +116,7 @@ class Producto {
             }
 
             if (codigoBarras) {
-                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ?`, [
+                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ? AND estado <> -1`, [
                     codigoBarras
                 ]);
 
@@ -680,7 +680,7 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
 
-            const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND idProducto <> ?`, [
+            const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND idProducto <> ? AND estado <> -1`, [
                 req.body.codigo,
                 req.body.idProducto
             ]);
@@ -690,7 +690,7 @@ class Producto {
                 return sendClient(res, "No se puede haber 2 producto con la misma clave.");
             }
 
-            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND idProducto <> ?`, [
+            const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND idProducto <> ? AND estado <> -1`, [
                 req.body.nombre,
                 req.body.idProducto
             ]);
@@ -701,7 +701,7 @@ class Producto {
             }
 
             if (req.body.sku) {
-                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ? AND idProducto <> ?`, [
+                const validateSku = await conec.execute(connection, `SELECT * FROM producto WHERE sku = ? AND idProducto <> ? AND estado <> -1`, [
                     req.body.sku,
                     req.body.idProducto
                 ]);
@@ -713,7 +713,7 @@ class Producto {
             }
 
             if (req.body.codigoBarras) {
-                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ? AND idProducto <> ?`, [
+                const validateCodigoBarras = await conec.execute(connection, `SELECT * FROM producto WHERE codigoBarras = ? AND idProducto <> ? AND estado <> -1`, [
                     req.body.codigoBarras,
                     req.body.idProducto
                 ]);
