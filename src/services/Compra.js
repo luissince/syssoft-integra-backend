@@ -530,6 +530,16 @@ class Compra {
                     i++;
                     plazo++;
 
+                    const newPlazo = [
+                        idPlazo,
+                        idCompra,
+                        plazo,
+                        now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
+                        time,
+                        monto,
+                        0
+                    ];
+
                     await conec.execute(connection, `
                     INSERT INTO plazo(
                         idPlazo,
@@ -539,15 +549,7 @@ class Compra {
                         hora,
                         monto,
                         estado
-                    ) VALUES(?,?,?,?,?,?,?)`, [
-                        idPlazo,
-                        idCompra,
-                        plazo,
-                        now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
-                        time,
-                        monto,
-                        0
-                    ]);
+                    ) VALUES(?,?,?,?,?,?,?)`, newPlazo);
 
                     idPlazo++;
                     current = now;

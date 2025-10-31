@@ -62,7 +62,7 @@ app.use((req, res, next) => {
 // Ruta principal
 app.get('/', (_, res) => {
     res.json({
-        "Bienvenidos": `API SYSSOFT INTEGRA V.${pkg.version}`, 
+        "Bienvenidos": `API SYSSOFT INTEGRA V.${pkg.version}`,
         "Fecha y hora actuales": new Date().toLocaleDateString(),
         "Entorno": process.env.ENVIRONMENT
     });
@@ -135,6 +135,6 @@ app.use('/api/consulta', require('./src/router/Consulta'));
 // });
 
 // Iniciar el servidor
-app.listen(app.get("port"), () => {
+app.listen(app.get("port"), "0.0.0.0", () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 });

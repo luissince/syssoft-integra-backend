@@ -87,16 +87,16 @@ services:
     volumes:
       - dracoly-backend-volumen:/app/src/path
 
-  main-services:
+  masa-y-miga-services:
     # Configuración para construir la imagen del contenedor desde el contexto actual
     <<: *backend-service
     # Nombre de la imagen de la imagen generada
-    image: main-backend-image
+    image: masa-y-miga-backend-image
     # Nombre del contenedor
-    container_name: main-backend
+    container_name: masa-y-miga-backend
     # Volumen de almacenamiento
     volumes:
-      - main-backend-volumen:/app/src/path
+      - masa-y-miga-backend-volumen:/app/src/path
 
 # Definición de redes
 networks:
@@ -112,4 +112,4 @@ volumes:
   importmuneli-backend-volumen:
   supermarketya-backend-volumen:
   dracoly-backend-volumen:
-  main-backend-volumen:
+  masa-y-miga-backend-volumen:
