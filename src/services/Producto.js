@@ -1103,6 +1103,9 @@ class Producto {
         try {
             const { idProducto, idUsuario } = req.query;
 
+            const date = currentDate();
+            const time = currentTime();
+
             connection = await conec.beginTransaction();
 
             await conec.execute(connection, `    
@@ -1116,9 +1119,8 @@ class Producto {
                 idUsuario,
                 'ELIMINAR',
                 'ELIMINACIÓN DEL PRODUCTO',
-                idProducto,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             await conec.execute(connection, `

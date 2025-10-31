@@ -59,6 +59,7 @@ class Pedido {
         try {
             const bucket = firebaseService.getBucket();
 
+            // Consulta datos del pedido
             const list = await conec.query(`
             SELECT 
                 c.idPedido,
@@ -104,7 +105,24 @@ class Pedido {
             ORDER BY 
                 c.fecha DESC, c.hora DESC`);
 
+            // Consulta los detalles del pedido
             const newList = await Promise.all(list.map(async function (item, index) {
+                // Consultar envio de pedido
+                const delivery = await conec.query(`
+                SELECT 
+                    e.email,
+                    e.telefono,
+                    e.celular,
+                    e.direccion,
+                    e.referencia
+                FROM 
+                    pedidoEnvio AS e
+                WHERE 
+                    e.idPedido = ?`, [
+                    item.idPedido
+                ]);
+
+                // Consultar detalles del pedido
                 const details = await conec.query(`
                 SELECT 
                     ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
@@ -151,6 +169,7 @@ class Pedido {
 
                 return {
                     ...item,
+                    envio: delivery[0],
                     detalles: details.map(detail => {
                         return {
                             ...detail,
@@ -253,42 +272,55 @@ class Pedido {
             // Consulta la información principal del pedido
             const pedido = await conec.query(`
             SELECT 
-                DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
-                c.hora,
                 co.nombre AS comprobante,
-                c.serie,
-                c.numeracion,
+                p.serie,
+                p.numeracion,
                 cn.documento,
                 cn.informacion,
                 cn.telefono,
                 cn.celular,
                 cn.email,
                 cn.direccion,                
-                c.estado,
-                c.observacion,
-                c.nota,
-                c.instruccion,
-                c.idTipoEntrega,
+                p.estado,
+                p.observacion,
+                p.nota,
+                p.instruccion,
+                p.idTipoEntrega,
                 te.nombre AS tipoEntrega,
                 
-                c.fechaPedido,
-                c.horaPedido,
+                DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
+                p.hora,
                 mo.codiso,
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
-                pedido AS c
+                pedido AS p
             INNER JOIN 
-                comprobante AS co ON co.idComprobante = c.idComprobante
+                comprobante AS co ON co.idComprobante = p.idComprobante
             INNER JOIN 
-                moneda AS mo ON mo.idMoneda = c.idMoneda
+                moneda AS mo ON mo.idMoneda = p.idMoneda
             INNER JOIN 
-                persona AS cn ON cn.idPersona = c.idCliente
+                persona AS cn ON cn.idPersona = p.idCliente
             INNER JOIN 
-                usuario AS us ON us.idUsuario = c.idUsuario 
+                usuario AS us ON us.idUsuario = p.idUsuario 
             LEFT JOIN 
-                tipoEntrega AS te ON te.idTipoEntrega = c.idTipoEntrega
+                tipoEntrega AS te ON te.idTipoEntrega = p.idTipoEntrega
             WHERE 
-                c.idPedido = ?`, [
+                p.idPedido = ?`, [
+                idPedido
+            ]);
+
+            // Consultar envio de pedido
+            const envio = await conec.query(`
+            SELECT 
+                e.email,
+                e.telefono,
+                e.celular,
+                e.direccion,
+                e.referencia
+            FROM 
+                pedidoEnvio AS e
+            WHERE 
+                e.idPedido = ?`, [
                 idPedido
             ]);
 
@@ -385,7 +417,7 @@ class Pedido {
             ]);
 
             // Devuelve un objeto con la información del pedido y los detalles 
-            return sendSuccess(res, { cabecera: pedido[0], detalles: listaDetalles, ventas, vendidos });
+            return sendSuccess(res, { cabecera: pedido[0], envio ,detalles: listaDetalles, ventas, vendidos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -864,6 +896,21 @@ class Pedido {
 
                 idPedidoDetalle++;
             }
+
+            await conec.execute(connection, `    
+                INSERT INTO auditoria(
+                    idReferencia,
+                    idUsuario,
+                    tipo,
+                    descripción
+                ) VALUES(?,?,?,?)`, [
+                idPedido,
+                req.body.idUsuario,
+                'INSERTAR',
+                'CREAR UN NUEVO PEDIDO DESDE LA WEB',
+                date,
+                time,
+            ]);
 
             await conec.commit(connection);
             return sendSave(res, {

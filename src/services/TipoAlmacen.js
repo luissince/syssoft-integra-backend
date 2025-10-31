@@ -7,11 +7,11 @@ class TipoAlmacen {
             const lista = await conec.query(`
             SELECT 
                 idTipoAlmacen, 
-                nombre,
+                nombre
             FROM 
                 tipoAlmacen`);        
             return lista;
-        } catch (error) {        
+        } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
     }
