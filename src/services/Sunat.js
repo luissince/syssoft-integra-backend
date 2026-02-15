@@ -1,13 +1,11 @@
 const { currentDate } = require('../tools/Tools');
 const { sendSuccess, sendError, sendFile, sendClient } = require('../tools/Message');
-const Factura = require('./Factura');
-const GuiaRemision = require('./GuiaRemision');
+const firebaseService = require('../common/fire-base');
+
 const { default: axios } = require('axios');
 const conec = require('../database/mysql-connection');
 const ErrorResponse = require('../tools/ErrorAxios');
 
-const factura = new Factura();
-const guiaRemision = new GuiaRemision();
 
 class Sunat {
 
@@ -747,15 +745,204 @@ class Sunat {
         try {
             let responseInvoices;
 
-            if (req.params.tipo === "fac") {
-                const params = {
-                    idVenta: req.params.idComprobante,
-                    size: "A4"
-                }
+            const outputType = "pdf";
+            const size = "A4";
 
-                const data = await factura.documentsPdfInvoices({
-                    params: params
-                });
+            const bucket = firebaseService.getBucket();
+
+            const empresa = await conec.query(`
+                SELECT
+                    documento,
+                    razonSocial,
+                    nombreEmpresa,
+                    rutaLogo,
+                    tipoEnvio
+                FROM 
+                    empresa
+                LIMIT 
+                    1`);
+
+            if (req.params.tipo === "fac") {
+                const idVenta = req.params.idComprobante;
+
+                const venta = await conec.query(`
+                SELECT 
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha, 
+                    v.hora,
+                    v.idSucursal,
+                    v.nota,
+                    --
+                    c.nombre AS comprobante,
+                    v.serie,
+                    v.numeracion,
+                    c.facturado,
+                    --
+                    cp.documento,
+                    cp.informacion,
+                    cp.direccion,
+                    --
+                    fp.nombre AS formaPago,
+                    pl.nombre AS plazo,
+                    IFNULL(DATE_FORMAT(v.fechaVencimiento, '%d/%m/%Y') , '') AS fechaVencimiento,
+                    --
+                    m.nombre AS moneda,
+                    m.simbolo,
+                    m.codiso,
+                    --
+                    u.apellidos,
+                    u.nombres
+                FROM 
+                    venta AS v
+                INNER JOIN
+                    comprobante AS c ON c.idComprobante = v.idComprobante
+                INNER JOIN
+                    persona AS cp ON cp.idPersona = v.idCliente
+                INNER JOIN
+                    moneda AS m ON m.idMoneda = v.idMoneda
+                INNER JOIN
+                    usuario AS u ON u.idUsuario = v.idUsuario
+                INNER JOIN
+                    formaPago AS fp ON fp.idFormaPago = v.idFormaPago
+                LEFT JOIN
+                    plazo as pl ON pl.idPlazo = v.idPlazo
+                WHERE 
+                    v.idVenta = ?`, [
+                    idVenta
+                ]);
+
+                const sucursal = await conec.query(`
+                SELECT 
+                    s.nombre,
+                    s.telefono,
+                    s.celular,
+                    s.email,
+                    s.paginaWeb,
+                    s.direccion,
+    
+                    ub.departamento,
+                    ub.provincia,
+                    ub.distrito
+                FROM 
+                    sucursal AS s
+                INNER JOIN
+                    ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+                WHERE 
+                    s.idSucursal = ?`, [
+                    venta[0].idSucursal
+                ]);
+
+                const detalles = await conec.query(` 
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY gd.idVentaDetalle ASC) AS id,
+                    p.codigo,
+                    p.nombre,
+                    gd.cantidad,
+                    gd.precio,
+                    m.nombre AS medida,
+                    i.idImpuesto,
+                    i.nombre AS impuesto,
+                    i.porcentaje
+                FROM 
+                    ventaDetalle AS gd
+                INNER JOIN 
+                    producto AS p ON gd.idProducto = p.idProducto
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
+                INNER JOIN
+                    impuesto AS i ON i.idImpuesto = gd.idImpuesto
+                WHERE 
+                    gd.idVenta = ?
+                ORDER BY 
+                    gd.idVentaDetalle ASC`, [
+                    idVenta
+                ]);
+
+                const bancos = await conec.query(`
+                SELECT 
+                    nombre,
+                    numCuenta,
+                    cci
+                FROM
+                    banco
+                WHERE 
+                    reporte = 1 AND idSucursal = ?`, [
+                    venta[0].idSucursal
+                ]);
+
+                const body = {
+                    "size": size,
+                    "outputType": outputType,
+                    "company": {
+                        ...empresa[0],
+                        rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    },
+                    "branch": {
+                        "nombre": sucursal[0].nombre,
+                        "telefono": sucursal[0].telefono,
+                        "celular": sucursal[0].celular,
+                        "email": sucursal[0].email,
+                        "paginaWeb": sucursal[0].paginaWeb,
+                        "direccion": sucursal[0].direccion,
+                        "ubigeo": {
+                            "departamento": sucursal[0].departamento,
+                            "provincia": sucursal[0].provincia,
+                            "distrito": sucursal[0].distrito
+                        }
+                    },
+                    "sale": {
+                        "fecha": venta[0].fecha,
+                        "hora": venta[0].hora,
+                        "nota": venta[0].nota,
+                        "comprobante": {
+                            "nombre": venta[0].comprobante,
+                            "serie": venta[0].serie,
+                            "numeracion": venta[0].numeracion,
+                            "facturado": venta[0].facturado
+                        },
+                        "cliente": {
+                            "documento": venta[0].documento,
+                            "informacion": venta[0].informacion,
+                            "direccion": venta[0].direccion
+                        },
+                        "formaPago": {
+                            "nombre": venta[0].formaPago
+                        },
+                        "plazo": !venta[0].plazo ? null : {
+                            "nombre": venta[0].plazo,
+                        },
+                        "fechaVencimiento": venta[0].fechaVencimiento,
+                        "moneda": {
+                            "nombre": venta[0].moneda,
+                            "simbolo": venta[0].simbolo,
+                            "codiso": venta[0].codiso
+                        },
+                        "usuario": {
+                            "apellidos": venta[0].apellidos,
+                            "nombres": venta[0].nombres
+                        },
+                        "ventaDetalles": detalles.map(item => {
+                            return {
+                                "id": item.id,
+                                "cantidad": item.cantidad,
+                                "precio": item.precio,
+                                "producto": {
+                                    "codigo": item.codigo,
+                                    "nombre": item.nombre,
+                                    "medida": {
+                                        "nombre": item.medida,
+                                    }
+                                },
+                                "impuesto": {
+                                    "idImpuesto": item.idImpuesto,
+                                    "nombre": item.impuesto,
+                                    "porcentaje": item.porcentaje,
+                                },
+
+                            }
+                        }),
+                    },
+                    "banks": bancos
+                };
 
                 const optionsInvoices = {
                     method: 'POST',
@@ -763,20 +950,233 @@ class Sunat {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    data: data,
+                    data: body,
                     responseType: 'arraybuffer'
                 };
 
                 responseInvoices = await axios.request(optionsInvoices);
-            } else {
-                const params = {
-                    idGuiaRemision: req.params.idComprobante,
-                    size: "A4"
-                }
+            } else {               
+                const idGuiaRemision = req.params.idComprobante;
 
-                const data = await guiaRemision.documentsPdfInvoices({
-                    params: params
-                });
+                const guiaRemision = await conec.query(`
+                SELECT
+                    DATE_FORMAT(gui.fecha,'%d/%m/%Y') AS fecha,
+                    gui.hora,
+                    gui.idSucursal,
+                    --
+                    cgui.nombre AS comprobante,
+                    gui.serie,
+                    gui.numeracion,
+                    cgui.facturado,
+                    --
+                    mdt.nombre AS modalidadTraslado,
+                    --
+                    mvt.nombre AS motivoTraslado,
+                    --
+                    DATE_FORMAT(gui.fechaTraslado,'%d/%m/%Y') AS fechaTraslado,
+                    --
+                    tp.nombre AS tipoPeso,
+                    --
+                    gui.peso,
+                    --
+                    vh.marca,
+                    vh.numeroPlaca,
+                    --
+                    cd.documento AS documentoConductor,
+                    cd.informacion AS informacionConductor,
+                    cd.licenciaConducir,
+                    --
+                    gui.direccionPartida,
+                    --
+                    up.departamento AS departamentoPartida,
+                    up.provincia AS provinciaPartida,
+                    up.distrito AS distritoPartida,
+                    up.ubigeo AS ubigeoPartida,
+                    --
+                    gui.direccionLlegada,
+                    --
+                    ul.departamento AS departamentoLlegada,
+                    ul.provincia AS provinciaLlegada,
+                    ul.distrito AS distritoLlegada,
+                    ul.ubigeo AS ubigeoLlegada,
+                    --
+                    u.apellidos,
+                    u.nombres,
+                    --
+                    v.serie AS serieRef,
+                    v.numeracion AS numeracionRef,
+                    cv.nombre AS comprobanteRef,
+                    --
+                    cl.documento AS documentoCliente,
+                    cl.informacion AS informacionCliente,
+                    --
+                    gui.codigoHash
+                FROM
+                    guiaRemision AS gui
+                INNER JOIN 
+                    comprobante AS cgui on cgui.idComprobante = gui.idComprobante
+                INNER JOIN 
+                    modalidadTraslado AS mdt ON mdt.idModalidadTraslado = gui.idModalidadTraslado
+                INNER JOIN 
+                    motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
+                INNER JOIN 
+                    tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
+                INNER JOIN 
+                    vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+                INNER JOIN 
+                    persona AS cd ON cd.idPersona = gui.idConductor
+                INNER JOIN 
+                    ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+                INNER JOIN 
+                    ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+                INNER JOIN 
+                    usuario AS u ON u.idUsuario = gui.idUsuario
+                INNER JOIN 
+                    venta AS v ON v.idVenta = gui.idVenta
+                INNER JOIN 
+                    comprobante AS cv on cv.idComprobante = v.idComprobante
+                INNER JOIN 
+                    persona AS cl ON cl.idPersona = v.idCliente
+                WHERE 
+                    gui.idGuiaRemision = ?`, [
+                    idGuiaRemision
+                ]);
+
+                const sucursal = await conec.query(`
+                SELECT 
+                    s.nombre,
+                    s.telefono,
+                    s.celular,
+                    s.email,
+                    s.paginaWeb,
+                    s.direccion,
+    
+                    ub.departamento,
+                    ub.provincia,
+                    ub.distrito
+                FROM 
+                    sucursal AS s
+                INNER JOIN
+                    ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+                WHERE 
+                    s.idSucursal = ?`, [
+                    guiaRemision[0].idSucursal
+                ]);
+
+                const detalles = await conec.query(` 
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY gd.idGuiaRemisionDetalle ASC) AS id,
+                    p.codigo,
+                    p.nombre AS producto,
+                    gd.cantidad,
+                    m.nombre AS medida 
+                FROM 
+                    guiaRemisionDetalle AS gd
+                INNER JOIN 
+                    producto AS p ON gd.idProducto = p.idProducto
+                INNER JOIN 
+                    medida AS m ON m.idMedida = p.idMedida
+                WHERE 
+                    gd.idGuiaRemision = ?
+                ORDER BY 
+                    gd.idGuiaRemisionDetalle ASC`, [
+                    idGuiaRemision
+                ]);
+
+                const body = {
+                    "size": size,
+                    "outputType": outputType,
+                    "company": {
+                        ...empresa[0],
+                        rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    },
+                    "branch": {
+                        "nombre": sucursal[0].nombre,
+                        "telefono": sucursal[0].telefono,
+                        "celular": sucursal[0].celular,
+                        "email": sucursal[0].email,
+                        "paginaWeb": sucursal[0].paginaWeb,
+                        "direccion": sucursal[0].direccion,
+                        "ubigeo": {
+                            "departamento": sucursal[0].departamento,
+                            "provincia": sucursal[0].provincia,
+                            "distrito": sucursal[0].distrito
+                        }
+                    },
+                    "dispatchGuide": {
+                        "fecha": guiaRemision[0].fecha,
+                        "hora": guiaRemision[0].hora,
+                        "comprobante": {
+                            "nombre": guiaRemision[0].comprobante,
+                            "serie": guiaRemision[0].serie,
+                            "numeracion": guiaRemision[0].numeracion,
+                            "facturado": guiaRemision[0].facturado
+                        },
+                        "modalidadTraslado": {
+                            "nombre": guiaRemision[0].modalidadTraslado
+                        },
+                        "motivoTraslado": {
+                            "nombre": guiaRemision[0].motivoTraslado
+                        },
+                        "fechaTraslado": guiaRemision[0].fechaTraslado,
+                        "tipoPeso": {
+                            "nombre": guiaRemision[0].tipoPeso,
+                        },
+                        "peso": guiaRemision[0].peso,
+                        "vehiculo": {
+                            "marca": guiaRemision[0].marca,
+                            "numeroPlaca": guiaRemision[0].numeroPlaca,
+                        },
+                        "conductor": {
+                            "documento": guiaRemision[0].documentoConductor,
+                            "informacion": guiaRemision[0].informacionConductor,
+                            "licenciaConducir": guiaRemision[0].licenciaConducir
+                        },
+                        "direccionPartida": guiaRemision[0].direccionPartida,
+                        "ubigeoPartida": {
+                            "departamento": guiaRemision[0].departamentoPartida,
+                            "provincia": guiaRemision[0].provinciaPartida,
+                            "distrito": guiaRemision[0].distritoPartida,
+                            "ubigeo": guiaRemision[0].ubigeoPartida,
+                        },
+                        "direccionLlegada": guiaRemision[0].direccionLlegada,
+                        "ubigeoLlegada": {
+                            "departamento": guiaRemision[0].departamentoLlegada,
+                            "provincia": guiaRemision[0].provinciaLlegada,
+                            "distrito": guiaRemision[0].distritoLlegada,
+                            "ubigeo": guiaRemision[0].ubigeoLlegada,
+                        },
+                        "usuario": {
+                            "apellidos": guiaRemision[0].apellidos,
+                            "nombres": guiaRemision[0].nombres
+                        },
+                        "venta": {
+                            "comprobante": {
+                                "nombre": guiaRemision[0].comprobanteRef,
+                                "serie": guiaRemision[0].serieRef,
+                                "numeracion": guiaRemision[0].numeracionRef,
+                            },
+                            "cliente": {
+                                "documento": guiaRemision[0].documentoCliente,
+                                "informacion": guiaRemision[0].informacionCliente,
+                            }
+                        },
+                        "codigoHash": guiaRemision[0].codigoHash,
+                        "guiaRemisionDetalles": detalles.map(item => {
+                            return {
+                                "id": item.id,
+                                "cantidad": item.cantidad,
+                                "producto": {
+                                    "codigo": item.codigo,
+                                    "nombre": item.producto,
+                                    "medida": {
+                                        "nombre": item.medida,
+                                    },
+                                },
+                            }
+                        }),
+                    },
+                };
 
                 const optionsInvoices = {
                     method: 'POST',
@@ -784,23 +1184,12 @@ class Sunat {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    data: data,
+                    data: body,
                     responseType: 'arraybuffer'
                 };
 
                 responseInvoices = await axios.request(optionsInvoices);
             }
-
-            const empresa = await conec.query(`
-                SELECT 
-                    documento,
-                    razonSocial,
-                    nombreEmpresa,
-                    email
-                FROM 
-                    empresa
-                LIMIT 
-                    1`);
 
             const xml = await conec.query(`
                 SELECT 

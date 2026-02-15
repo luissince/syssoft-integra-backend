@@ -1,0 +1,62 @@
+name: Docker Image CI - SySoftIntegra BackEnd Preview
+
+on:
+  push:
+    branches: 
+      - "preview"
+
+jobs:
+  build-and-deploy-preview:
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        include:
+          - environment: popular-safi
+            service: popular-safi-services
+
+    environment: ${{ matrix.environment }}
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+    
+      - name: Crear archivo .env
+        run: |
+          cat > .env <<EOL
+          PORT="${{secrets.PORT}}"
+
+          APP_URL="${{secrets.APP_URL}}"
+          APP_PDF="${{secrets.APP_PDF}}"
+          APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
+          APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
+          APP_EMAIL="${{secrets.APP_EMAIL}}"
+          TOKEN_ACCESS="${{secrets.TOKEN_ACCESS}}"
+
+          DB_HOST="${{secrets.DB_HOST}}"
+          DB_USER="${{secrets.DB_USER}}"
+          DB_PASSWORD="${{secrets.DB_PASSWORD}}"
+          DB_NAME="${{secrets.DB_NAME}}"
+          DB_PORT="${{secrets.DB_PORT}}"
+
+          FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
+          FIREBASE_FILE_ACCOUNT_NAME="${{secrets.FIREBASE_FILE_ACCOUNT_NAME}}"
+
+          TZ="${{secrets.TZ}}"
+          ENVIRONMENT=${{vars.ENVIRONMENT}}
+
+          AWS_REGION_S3=${{ secrets.AWS_REGION_S3 }}
+          AWS_ACCESS_KEY_ID_S3=${{ secrets.AWS_ACCESS_KEY_ID_S3 }}
+          AWS_SECRET_ACCESS_KEY_S3=${{ secrets.AWS_SECRET_ACCESS_KEY_S3 }}
+          PDF_BUCKET=${{ secrets.PDF_BUCKET }}
+
+          AMQP_PROTOCOL=${{ secrets.AMQP_PROTOCOL }}
+          AMQP_HOSTNAME=${{ secrets.AMQP_HOSTNAME }}
+          AMQP_PORT=${{ secrets.AMQP_PORT }}
+          AMQP_USERNAME=${{ secrets.AMQP_USERNAME }}
+          AMQP_PASSWORD=${{ secrets.AMQP_PASSWORD }}
+          AMQP_VHOST=${{ secrets.AMQP_VHOST }}
+          EOL
+    
+      - name: Creando y ejecutando contenedor
+        run: docker compose -f docker-compose.yml up --build ${{ matrix.service }} -d

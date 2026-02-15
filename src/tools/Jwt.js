@@ -12,7 +12,7 @@ function createToken(user, key, expiresIn = '10h') {
     return new Promise((resolve, reject) => {
         jwt.sign(user, key, { expiresIn: expiresIn }, (error, token) => {
             if (error) {
-                reject("error");
+                reject(error);
             } else {
                 resolve(token);
             }

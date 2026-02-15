@@ -1,4 +1,5 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep, } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, } = require('../tools/Tools');
+const { PRODUCT_TREATMENTS, PRODUCT_TREATMENTS_DIRECT, KARDEX_TYPES, KARDEX_MOTIVOS } = require('../config/constants');
 const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
@@ -8,9 +9,11 @@ class Compra {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
                 req.query.idSucursal,
 
                 parseInt(req.query.posicionPagina),
@@ -24,13 +27,14 @@ class Compra {
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?,?,?)`, [
                 parseInt(req.query.opcion),
                 req.query.buscar,
+                req.query.fechaInicio,
+                req.query.fechaFinal,
                 req.query.idSucursal,
             ]);
 
-            // return { "result": resultLista, "total": total[0].Total };
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/list", error);
@@ -63,13 +67,13 @@ class Compra {
 
                 idFormaPago,
                 bancosAgregados,
-                numeroCuotas,
-                frecuenciaPago,
-                notaTransacion,
-                importeTotal
+                idPlazo,
+                notaTransacion
             } = req.body;
 
+            // Verifica si se ha proporcionado una orden de compra
             if (idOrdenCompra) {
+                // Obtener las ordenes de compra ya existentes
                 const comprados = await conec.query(`
                     SELECT 
                         p.idProducto,
@@ -87,6 +91,7 @@ class Compra {
                     GROUP BY 
                         p.idProducto`, [idOrdenCompra]);
 
+                // Obtener los detalles de la orden de compra
                 const ordenCompraDetalles = await conec.query(`
                     SELECT 
                         cd.idProducto,
@@ -97,6 +102,7 @@ class Compra {
                     WHERE
                         cd.idOrdenCompra = ?`, [idOrdenCompra]);
 
+                // Verificar si hay algún producto que no se encuentre en la orden de compra
                 const newDetallesOrdenCompra = ordenCompraDetalles.map((detalle) => {
                     const item = comprados.find(pro => pro.idProducto === detalle.idProducto);
                     if (item) {
@@ -131,16 +137,16 @@ class Compra {
                         const cantidad = item.inventarios.reduce((sum, inventario) => {
                             let cantidad = 0;
 
-                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                            if (PRODUCT_TREATMENTS_DIRECT.includes(item.idTipoTratamientoProducto)) {
                                 cantidad = inventario.cantidad;
-                            } else if (item.idTipoTratamientoProducto === "TT0002") {
+                            } else if (item.idTipoTratamientoProducto === PRODUCT_TREATMENTS.VALOR_MONETARIO) {
                                 cantidad = item.precio / producto[0].precio;
                             }
 
                             return sum + cantidad;
                         }, 0);
 
-                        newDetallesVenta.push({
+                        newDetallesCompra.push({
                             idProducto: item.idProducto,
                             cantidad
                         });
@@ -218,6 +224,26 @@ class Compra {
             // Genera una nueva numeración para la compra
             const numeracion = generateNumericCode(comprobante[0].numeracion, compras, "numeracion");
 
+            let fechaVencimiento = null;
+
+            if (idPlazo) {
+                const plazo = await conec.execute(connection, `
+                SELECT 
+                    dias 
+                FROM 
+                    plazo 
+                WHERE 
+                    idPlazo = ?`, [
+                    idPlazo
+                ]);
+
+                if (plazo.length > 0) {
+                    const current = new Date();
+                    current.setDate(current.getDate() + parseInt(plazo[0].dias, 10));
+                    fechaVencimiento = current;
+                }
+            }
+
             // Inserta la información principal de la compra en la base de datos
             await conec.execute(connection, `
             INSERT INTO compra(
@@ -231,8 +257,8 @@ class Compra {
                 serie,
                 numeracion,
                 idFormaPago,
-                numeroCuota,
-                frecuenciaPago,
+                idPlazo,
+                fechaVencimiento,
                 observacion,
                 nota,
                 estado,
@@ -249,8 +275,8 @@ class Compra {
                 comprobante[0].serie,
                 numeracion,
                 idFormaPago,
-                !numeroCuotas ? 0 : numeroCuotas,
-                !frecuenciaPago ? null : frecuenciaPago,
+                idPlazo,
+                fechaVencimiento,
                 observacion,
                 nota,
                 estado,
@@ -259,182 +285,18 @@ class Compra {
             ]);
 
             // Genera un nuevo ID para los detalles de compra
-            const listaCompraDetalle = await conec.execute(connection, `
-            SELECT 
-                idCompraDetalle 
-            FROM 
-                compraDetalle`);
-            let idCompraDetalle = generateNumericCode(1, listaCompraDetalle, 'idCompraDetalle');
+            const listaIdCompraDetalle = await conec.execute(connection, `SELECT idCompraDetalle FROM compraDetalle`);
+            let idCompraDetalle = generateNumericCode(1, listaIdCompraDetalle, 'idCompraDetalle');
 
             // Consulta el último ID de Kardex
-            const resultKardex = await conec.execute(connection, `
-            SELECT 
-                idKardex 
-            FROM 
-                kardex`);
-            let idKardex = 0;
+            const kardexIds = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
-                const cantidad = !item.lote ? item.cantidad : item.lotes.reduce((acumulador, lote) => acumulador + + Number(lote.cantidad.value), 0);
-
-                // Calcular es costo actual en base a la formula de costo promedio ponderado
-                const valorTotalInventarioInicial = await conec.execute(connection, `
-                SELECT 
-                    i.cantidad,
-                    IFNULL(SUM(i.cantidad * p.costo), 0) AS total
-                FROM 
-                    inventario as i
-                JOIN
-                    producto as p ON i.idProducto = p.idProducto
-                WHERE 
-                    i.idProducto = ? and i.idAlmacen = ?`, [
-                    item.idProducto,
-                    idAlmacen
-                ]);
-
-                let costo = 0;
-
-                if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
-                    const valorTotalNuevaCompra = item.costo * cantidad;
-                    const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
-                    const sumaCantidades = cantidad + valorTotalInventarioInicial[0].cantidad;
-                    const costoPromedio = sumaTotales / sumaCantidades;
-                    costo = costoPromedio;
-                }
-
-                // Obtener inventario
-                const inventario = await conec.execute(connection, `
-                SELECT 
-                    idInventario 
-                FROM 
-                    inventario 
-                WHERE 
-                    idProducto = ? AND idAlmacen = ?`, [
-                    item.idProducto,
-                    idAlmacen,
-                ]);
-
-                // Inserta información en el Kardex
-                if (!item.lote) {
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idCompra,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0001',
-                        'MK0002',
-                        idCompra,
-                        'INGRESO POR COMPRA',
-                        cantidad,
-                        item.costo,
-                        idAlmacen,
-                        inventario[0].idInventario,
-                        date,
-                        time,
-                        idUsuario
-                    ]);
-                }
-
-                // Actualiza el inventario
-                await conec.execute(connection, `
-                UPDATE 
-                    inventario 
-                SET 
-                    cantidad = cantidad + ?
-                WHERE 
-                    idInventario = ?`, [
-                    cantidad,
-                    inventario[0].idInventario
-                ]);
-
-                if (item.lote) {
-                    for (const lote of item.lotes) {
-                        await conec.execute(connection, `
-                        INSERT INTO lote (
-                            idInventario,
-                            codigoLote,
-                            fechaVencimiento,
-                            cantidad
-                        ) VALUES(?,?,?,?)`, [
-                            inventario[0].idInventario,
-                            lote.serie.value,
-                            lote.fechaVencimiento.value,
-                            lote.cantidad.value
-                        ]);
-
-                        // Obtener el ID insertado
-                        const [idLote] = await conec.execute(connection, 'SELECT LAST_INSERT_ID() AS id');
-
-                        // Inserta información en el Kardex con ID del lote
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            idLote,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
-                            item.idProducto,
-                            'TK0001',
-                            'MK0002',
-                            idCompra,
-                            `INGRESO POR COMPRA (LOTE: ${lote.serie.value})`,
-                            lote.cantidad.value,
-                            item.costo,
-                            idAlmacen,
-                            inventario[0].idInventario,
-                            idLote.id,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-                    }
-
-                }
-
-                // Actualizar el costo del producto
-                if (costo > 0) {
-                    await conec.execute(connection, `
-                        UPDATE 
-                            producto 
-                        SET 
-                            costo = ?
-                        WHERE 
-                            idProducto = ?`, [
-                        costo,
-                        item.idProducto
-                    ]);
-
-                }
+                const cantidad = item.inventarioDetalles.reduce((acumulador, inventarioDetalle) => acumulador + Number(inventarioDetalle.cantidad.value), 0);
 
                 // Insertar en la compra detalle
                 await await conec.execute(connection, `
@@ -455,12 +317,108 @@ class Compra {
                 ]);
 
                 idCompraDetalle++;
+
+                // Calcular es costo actual en base a la formula de costo promedio ponderado
+                const valorTotalInventarioInicial = await conec.execute(connection, `
+                SELECT 
+                    IFNULL(
+                        SUM(
+                            CASE 
+                                WHEN i.idTipoKardex = 'TK0001' THEN i.cantidad
+                                ELSE -i.cantidad
+                            END
+                        ),0
+                    ) AS cantidad,
+
+                    IFNULL(
+                        SUM(
+                            CASE 
+                                WHEN i.idTipoKardex = 'TK0001' THEN i.cantidad * p.costo
+                                ELSE -i.cantidad * p.costo
+                            END
+                        ),0
+                    ) AS total
+                FROM 
+                    kardex AS i
+                INNER JOIN 
+                    producto AS p ON p.idProducto = i.idProducto
+                WHERE 
+                        i.idProducto = ?
+                    AND 
+                        i.idAlmacen = ?`, [
+                    item.idProducto,
+                    idAlmacen
+                ]);
+
+                let costo = 0;
+
+                if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
+                    const valorTotalNuevaCompra = item.costo * cantidad;
+                    const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
+                    const sumaCantidades = cantidad + valorTotalInventarioInicial[0].cantidad;
+                    const costoPromedio = sumaTotales / sumaCantidades;
+                    costo = costoPromedio;
+                } else {
+                    costo = item.costo;
+                }
+
+                for (const inventarioDetalle of item.inventarioDetalles) {
+                    // Inserta información en el Kardex con ID del lote
+                    await conec.execute(connection, `
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idCompra,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        lote,
+                        idUbicacion,
+                        fechaVencimiento,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        generarIdKardex(),
+                        item.idProducto,
+                        KARDEX_TYPES.INGRESO,
+                        KARDEX_MOTIVOS.AJUSTE,
+                        idCompra,
+                        `INGRESO POR COMPRA`,
+                        Number(inventarioDetalle.cantidad.value),
+                        item.costo,
+                        idAlmacen,
+                        inventarioDetalle?.lote?.value ?? null,
+                        inventarioDetalle?.idUbicacion?.value ?? null,
+                        inventarioDetalle?.fechaVencimiento?.value ?? null,
+                        date,
+                        time,
+                        idUsuario
+                    ]);
+                }
+
+                // Actualizar el costo del producto
+                if (costo > 0) {
+                    await conec.execute(connection, `
+                        UPDATE 
+                            producto 
+                        SET 
+                            costo = ?
+                        WHERE 
+                            idProducto = ?`, [
+                        costo,
+                        item.idProducto
+                    ]);
+                }
             }
 
             // Si el tipo de compra es contado
             if (idFormaPago === 'FP0001') {
                 const listaTransaccion = await conec.execute(connection, 'SELECT idTransaccion FROM transaccion');
-                let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
+                const idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
 
                 await conec.execute(connection, `
                 INSERT INTO transaccion(
@@ -507,55 +465,6 @@ class Compra {
                 }
             }
 
-            // Si el tipo de compra es crédito
-            if (idFormaPago === "FP0002") {
-                const listPlazos = await conec.execute(connection, 'SELECT idPlazo FROM plazo');
-                let idPlazo = generateNumericCode(1, listPlazos, 'idPlazo');
-
-                let current = new Date();
-
-                let monto = importeTotal / parseFloat(numeroCuotas);
-
-                let i = 0;
-                let plazo = 0;
-                while (i < numeroCuotas) {
-                    let now = new Date(current);
-
-                    if (parseInt(frecuenciaPago) > 15) {
-                        now.setDate(now.getDate() + 30);
-                    } else {
-                        now.setDate(now.getDate() + 15);
-                    }
-
-                    i++;
-                    plazo++;
-
-                    const newPlazo = [
-                        idPlazo,
-                        idCompra,
-                        plazo,
-                        now.getFullYear() + "-" + ((now.getMonth() + 1) < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1)) + "-" + now.getDate(),
-                        time,
-                        monto,
-                        0
-                    ];
-
-                    await conec.execute(connection, `
-                    INSERT INTO plazo(
-                        idPlazo,
-                        idCompra,
-                        plazo,
-                        fecha,
-                        hora,
-                        monto,
-                        estado
-                    ) VALUES(?,?,?,?,?,?,?)`, newPlazo);
-
-                    idPlazo++;
-                    current = now;
-                }
-            }
-
             // Si la compra está asociada a una orden de compra
             if (idOrdenCompra) {
                 const listaIdCompraOrdenCompra = await conec.execute(connection, 'SELECT idCompraOrdenCompra FROM compraOrdenCompra');
@@ -569,9 +478,7 @@ class Compra {
                         fecha, 
                         hora,
                         idUsuario
-                    ) 
-                    VALUES
-                        (?,?,?,?,?,?)`, [
+                    ) VALUES (?,?,?,?,?,?)`, [
                     idCompraOrdenCompra,
                     idCompra,
                     idOrdenCompra,
@@ -598,6 +505,8 @@ class Compra {
 
     async detail(req, res) {
         try {
+            const { idCompra } = req.query;
+
             // Consulta la información principal de la compra
             const compra = await conec.query(`
             SELECT 
@@ -606,6 +515,7 @@ class Compra {
                 co.nombre AS comprobante,
                 c.serie,
                 c.numeracion,
+                td.nombre AS tipoDocumento, 
                 cn.documento,
                 cn.informacion,
                 cn.telefono,
@@ -613,7 +523,7 @@ class Compra {
                 cn.email,
                 cn.direccion,                
                 al.nombre AS almacen,
-                fc.nombre AS tipo,
+                fc.idFormaPago,
                 c.estado,
                 c.observacion,
                 c.nota,
@@ -632,10 +542,12 @@ class Compra {
             INNER JOIN 
                 persona AS cn ON cn.idPersona = c.idProveedor
             INNER JOIN 
+                tipoDocumento AS td ON td.idTipoDocumento = cn.idTipoDocumento 
+            INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCompra = ?`, [
-                req.query.idCompra,
+                idCompra,
             ]);
 
             // Consulta los detalles de la compra
@@ -643,9 +555,9 @@ class Compra {
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
                 p.idProducto,
-                p.lote,
                 c.idAlmacen,
                 p.imagen,
+                p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
@@ -670,7 +582,7 @@ class Compra {
                 cd.idCompra = ?
             ORDER BY 
                 cd.idCompraDetalle ASC`, [
-                req.query.idCompra,
+                idCompra,
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -687,47 +599,39 @@ class Compra {
             });
 
             for (const item of listaDetalles) {
-                if (item.lote === 1) {
-                    // Buscar el ID de inventario
-                    const inventario = await conec.query(`
-                    SELECT 
-                        idInventario 
-                    FROM 
-                        inventario 
-                    WHERE 
-                        idProducto = ? AND idAlmacen = ?`, [
-                        item.idProducto,
-                        item.idAlmacen
-                    ]);
+                // Buscar el ID de inventario
+                const inventarioDetalles = await conec.query(`
+                SELECT 
+                    k.lote,
+                    k.cantidad,
+                    CASE 
+                        WHEN 
+                            k.fechaVencimiento IS NULL THEN NULL
+                        ELSE 
+                            DATE_FORMAT(k.fechaVencimiento, '%d/%m/%Y')
+                    END AS fechaVencimiento,
+                    iu.descripcion AS ubicacion,
+                    k.costo
+                FROM 
+                    kardex AS k
+                LEFT JOIN 
+                    ubicacion AS iu ON iu.idUbicacion = k.idUbicacion
+                WHERE 
+                        k.idCompra = ?
+                    AND 
+                        k.idProducto = ?
+                ORDER BY 
+                    k.idKardex ASC`, [
+                    idCompra,
+                    item.idProducto
+                ]);
 
-                    if (inventario.length > 0) {
-                        const lotes = await conec.query(`
-                        SELECT 
-                            l.codigoLote,
-                            DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
-                            l.cantidad
-                        FROM 
-                            lote AS l
-                        INNER JOIN
-                            kardex AS k ON l.idLote = k.idLote
-                        WHERE 
-                            l.idInventario = ? AND k.idCompra = ?`, [
-                            inventario[0].idInventario,
-                            req.query.idCompra,
-                        ]);
-
-                        item.lotes = lotes;
-                    } else {
-                        item.lotes = [];
-                    }
-                } else {
-                    item.lotes = null;
-                }
+                item.inventarioDetalles = inventarioDetalles;
             }
 
             // Obtener información de transaccion asociados a la compra
             const transaccion = await conec.query(`
-                SELECT 
+            SELECT 
                 t.idTransaccion,
                 DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
                 t.hora,
@@ -741,8 +645,8 @@ class Compra {
             INNER JOIN 
                 usuario AS us ON us.idUsuario = t.idUsuario 
             WHERE 
-                t.idReferencia = ?`, [
-                req.query.idCompra
+                t.idReferencia = ? AND t.estado = 1`, [
+                idCompra
             ]);
 
             for (const item of transaccion) {
@@ -773,6 +677,8 @@ class Compra {
     async cancel(req, res) {
         let connection = null;
         try {
+            const { idCompra, idUsuario } = req.query;
+
             // Inicia una transacción
             connection = await conec.beginTransaction();
 
@@ -789,7 +695,7 @@ class Compra {
                 compra 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra,
             ]);
 
             // Verifica si la compra existe
@@ -797,13 +703,6 @@ class Compra {
                 // Si no existe, realiza un rollback y devuelve un mensaje de error
                 await conec.rollback(connection);
                 return sendClient(res, "La compra no existe, verifique el código o actualiza la lista.");
-            }
-
-            // Verifica si la compra ya está anulada
-            if (validate[0].estado === 3) {
-                // Si ya está anulada, realiza un rollback y devuelve un mensaje de error
-                await conec.rollback(connection);
-                return sendClient(res, "La compra ya se encuentra anulada.");
             }
 
             // Actualiza el estado de la compra a anulado
@@ -814,7 +713,7 @@ class Compra {
                 estado = 3 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             // Actualiza el estado de la transacción asociada a la compra
@@ -825,40 +724,8 @@ class Compra {
                 estado = 0 
             WHERE 
                 idReferencia = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
-
-            // Actualizar el estado de cuotas
-            await conec.execute(connection, `
-            UPDATE 
-                plazo 
-            SET 
-                estado = 0 
-            WHERE 
-                idCompra = ?`, [
-                req.query.idCompra
-            ]);
-
-            // Obtener cuotas y eliminar transacciones relacionadas
-            const plazos = await conec.execute(connection, `
-            SELECT
-                idPlazo
-            FROM
-                plazo
-            WHERE
-                idCompra = ?`, [
-                req.query.idCompra
-            ]);
-
-            for (const plazo of plazos) {
-                await conec.execute(connection, `
-                    DELETE FROM 
-                        plazoTransaccion 
-                    WHERE 
-                        idPlazo = ?`, [
-                    plazo.idPlazo,
-                ]);
-            }
 
             // Obtiene los detalles de la compra
             const detalleCompra = await conec.execute(connection, `
@@ -870,14 +737,12 @@ class Compra {
                 compraDetalle 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             // Obtener ID kardex siguiente
             const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
-            let idKardex = resultKardex.length > 0
-                ? Math.max(...resultKardex.map(k => parseInt(k.idKardex.replace("KD", ''))))
-                : 0;
+            let idKardex = resultKardex.length ? Math.max(...resultKardex.map(k => parseInt(k.idKardex.replace("KD", '')))) : 0;
 
             const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
@@ -890,114 +755,75 @@ class Compra {
                     k.cantidad,
                     k.costo,
                     k.idAlmacen,
-                    k.idInventario,
-                    k.idLote  
+                    k.lote,
+                    k.idUbicacion,
+                    k.fechaVencimiento
                 FROM 
                     kardex AS k 
                 WHERE 
                     k.idCompra = ? AND k.idProducto = ?`, [
-                    req.query.idCompra,
+                    idCompra,
                     detalle.idProducto,
                 ]);
 
                 for (const kardex of kardexes) {
-                    // Si el producto tiene lote, restaurar la cantidad del lote
-                    if (kardex.idLote) {
-                        await conec.execute(connection, `
-                        UPDATE 
-                            lote 
-                        SET 
-                            cantidad = cantidad + ?,
-                            estado = 0
-                        WHERE 
-                            idLote = ?`, [
-                            kardex.cantidad,
-                            kardex.idLote
-                        ]);
-
-                        // Inserta un nuevo registro en el kardex
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            idLote,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            kardex.idProducto,
-                            'TK0002',
-                            'MK0004',
-                            req.query.idCompra,
-                            'ANULACIÓN DE LA COMPRA',
-                            kardex.cantidad,
-                            kardex.costo,
-                            kardex.idAlmacen,
-                            kardex.idInventario,
-                            kardex.idLote,
-                            date,
-                            time,
-                            req.query.idUsuario
-                        ]);
-                    } else {
-                        // Inserta un nuevo registro en el kardex
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            kardex.idProducto,
-                            'TK0002',
-                            'MK0004',
-                            req.query.idCompra,
-                            'ANULACIÓN DE LA COMPRA',
-                            kardex.cantidad,
-                            kardex.costo,
-                            kardex.idAlmacen,
-                            kardex.idInventario,
-                            date,
-                            time,
-                            req.query.idUsuario
-                        ]);
-                    }
-
-                    // Actualiza la cantidad en el inventario
                     await conec.execute(connection, `
-                    UPDATE 
-                        inventario 
-                    SET 
-                        cantidad = cantidad - ?
-                    WHERE 
-                        idInventario = ?`, [
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idCompra,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        lote,
+                        idUbicacion,
+                        fechaVencimiento,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        generarIdKardex(),
+                        kardex.idProducto,
+                        KARDEX_TYPES.SALIDA,
+                        KARDEX_MOTIVOS.DEVOLUCION,
+                        idCompra,
+                        'ANULACIÓN DE LA COMPRA',
                         kardex.cantidad,
-                        kardex.idInventario
+                        kardex.costo,
+                        kardex.idAlmacen,
+                        kardex.lote,
+                        kardex.idUbicacion,
+                        kardex.fechaVencimiento,
+                        date,
+                        time,
+                        idUsuario
                     ]);
                 }
             }
 
+            // Registrar auditoría
+            await conec.execute(connection, `    
+            INSERT INTO auditoria(
+                idReferencia,
+                idUsuario,
+                tipo,
+                descripción
+            ) VALUES(?,?,?,?)`, [
+                idCompra,
+                idUsuario,
+                "ELIMINAR",
+                "SE ANULO LA COMPRA",
+                date,
+                time,
+            ]);
+
             // Realiza un rollback para confirmar la operación y devuelve un mensaje de éxito
             await conec.commit(connection);
+
+            // Enviar respuesta exitosa
             return sendSave(res, "Se anuló correctamente la compra.");
         } catch (error) {
             // Manejo de errores: Si hay un error, realiza un rollback y devuelve un mensaje de error
@@ -1045,27 +871,26 @@ class Compra {
             const result = await conec.query(`
             SELECT
                 v.idCompra, 
+                DATE_FORMAT(v.fecha, '%d/%m/%Y') as fecha,
+                v.hora, 
                 com.nombre AS comprobante,
-                com.codigo as codigoCompra,
                 v.serie,
                 v.numeracion,
-                td.nombre AS tipoDoc,      
-                td.codigo AS codigoCliente,      
+                td.nombre AS tipoDocumento,       
                 c.documento,
                 c.informacion,
                 c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
-                DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-                v.hora, 
-                v.idFormaPago, 
-                v.numeroCuota,
-                v.frecuenciaPago,
+                p.nombre AS plazo,
+                DATE_FORMAT(v.fechaVencimiento, '%d/%m/%Y') as fechaVencimiento,
                 v.estado, 
-                m.simbolo,
+                v.observacion,
+                v.nota,
                 m.codiso,
-                m.nombre as moneda
+                CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 compra AS v 
+            INNER JOIN
+                plazo AS p ON p.idPlazo = v.idPlazo
             INNER JOIN 
                 persona AS c ON v.idProveedor = c.idPersona
             INNER JOIN 
@@ -1083,30 +908,35 @@ class Compra {
 
             const detalles = await conec.query(`
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY vd.idCompraDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
+                p.idProducto,
+                c.idAlmacen,
                 p.imagen,
+                 p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
-                vd.costo,
-                vd.cantidad,
-                vd.idImpuesto,
+                cd.costo,
+                cd.cantidad,
+                cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
             FROM 
-                compraDetalle AS vd 
+                compraDetalle AS cd 
             INNER JOIN 
-                producto AS p ON vd.idProducto = p.idProducto 
+                producto AS p ON cd.idProducto = p.idProducto 
+            INNER JOIN 
+                compra AS c ON c.idCompra = cd.idCompra
             INNER JOIN 
                 medida AS md ON md.idMedida = p.idMedida 
             INNER JOIN 
                 categoria AS m ON p.idCategoria = m.idCategoria 
             INNER JOIN 
-                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
+                impuesto AS imp ON cd.idImpuesto = imp.idImpuesto  
             WHERE 
-                vd.idCompra = ?
+                cd.idCompra = ?
             ORDER BY 
-                vd.idCompraDetalle ASC`, [
+                cd.idCompraDetalle ASC`, [
                 req.query.idCompra
             ]);
 
@@ -1123,6 +953,37 @@ class Compra {
                 }
             });
 
+            for (const item of listaDetalles) {
+                const inventarioDetalles = await conec.query(`
+                    SELECT 
+                        invd.lote,
+                        invd.cantidad,
+                        CASE 
+                            WHEN invd.fechaVencimiento IS NULL THEN NULL
+                            ELSE DATE_FORMAT(invd.fechaVencimiento, '%d/%m/%Y')
+                        END AS fechaVencimiento,
+                        iu.descripcion AS ubicacion,
+                        k.cantidad AS cantidadKardex,
+                        k.costo
+                    FROM 
+                        kardex AS k
+                    INNER JOIN 
+                        inventarioDetalle AS invd ON invd.idInventarioDetalle = k.idInventarioDetalle AND invd.porDefecto <> 1
+                    LEFT JOIN ubicacion AS iu 
+                        ON iu.idUbicacion = invd.idUbicacion
+                    WHERE 
+                        k.idCompra = ?
+                        AND k.idProducto = ?
+                    ORDER BY 
+                        k.idKardex ASC`, [
+                    req.query.idCompra,
+                    item.idProducto
+                ]);
+
+                item.inventarioDetalles = inventarioDetalles;
+            }
+
+            // Obtener el resumen de pagado
             const resumen = await conec.query(`
             SELECT 
                 SUM(cd.cantidad * cd.costo) AS total,
@@ -1135,7 +996,7 @@ class Compra {
                         transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
                     WHERE 
                         t.idReferencia = c.idCompra AND t.estado = 1
-                ) AS cobrado
+                ) AS pagado
             FROM 
                 compra AS c 
             INNER JOIN 
@@ -1145,66 +1006,45 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            const plazos = await conec.query(`
-            SELECT 
-                idPlazo,
-                plazo,
-                DATE_FORMAT(fecha, '%d/%m/%Y') AS fecha,
-                monto,
-                estado
-            FROM 
-                plazo 
-            WHERE 
-                idCompra = ?`, [
+            // Obtener información de transaccion asociados a la compra
+            const transaccion = await conec.query(`
+                SELECT 
+                    t.idTransaccion,
+                    DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
+                    t.hora,
+                    c.nombre AS concepto,
+                    t.nota,
+                    CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                FROM 
+                    transaccion t            
+                INNER JOIN
+                    concepto c ON c.idConcepto = t.idConcepto
+                INNER JOIN 
+                    usuario AS us ON us.idUsuario = t.idUsuario 
+                WHERE 
+                    t.idReferencia = ? AND t.estado = 1`, [
                 req.query.idCompra
             ]);
 
-            for (const plazo of plazos) {
+            for (const item of transaccion) {
                 const transacciones = await conec.query(`
                     SELECT 
-                        t.idTransaccion,
-                        DATE_FORMAT(t.fecha, '%d/%m/%Y') AS fecha,
-                        t.hora,
-                        c.nombre AS concepto,
-                        t.nota,
-                        CONCAT(us.nombres,' ',us.apellidos) AS usuario   
-                    FROM 
-                        plazo AS p
+                        b.nombre,
+                        td.monto,
+                        td.observacion
+                    FROM
+                        transaccionDetalle td
                     INNER JOIN 
-                        plazoTransaccion AS pi ON pi.idPlazo = p.idPlazo
-                    INNER JOIN 
-                        transaccion AS t ON t.idTransaccion = pi.idTransaccion
-                    INNER JOIN
-                        concepto c ON c.idConcepto = t.idConcepto
-                    INNER JOIN 
-                        usuario AS us ON us.idUsuario = t.idUsuario 
+                        banco b on td.idBanco = b.idBanco     
                     WHERE 
-                        t.estado = 1 AND p.idPlazo = ?`, [
-                    plazo.idPlazo
+                        td.idTransaccion = ?`, [
+                    item.idTransaccion
                 ]);
 
-                for (const item of transacciones) {
-                    const detalles = await conec.query(`
-                        SELECT 
-                            b.nombre,
-                            td.monto,
-                            td.observacion
-                        FROM
-                            transaccionDetalle td
-                        INNER JOIN 
-                            banco b on td.idBanco = b.idBanco     
-                        WHERE 
-                            td.idTransaccion = ?`, [
-                        item.idTransaccion
-                    ]);
-
-                    item.detalles = detalles;
-                }
-
-                plazo.transacciones = transacciones;
+                item.detalles = transacciones;
             }
 
-            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, plazos });
+            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, transaccion });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountsPayable", error);
         }
@@ -1217,67 +1057,29 @@ class Compra {
 
             const {
                 idCompra,
-                idPlazo,
+                idSucursal,
                 idUsuario,
                 monto,
                 notaTransacion,
                 bancosAgregados,
             } = req.body;
 
-            const plazo = await conec.execute(connection, `SELECT monto FROM plazo WHERE idPlazo = ?`, [
-                idPlazo
-            ]);
+            const fecha = currentDate();
+            const hora = currentTime();
 
-            const plazoTransaccion = await conec.execute(connection, `
+            const resumen = await conec.execute(connection, `
             SELECT 
-                SUM(td.monto) AS monto
-            FROM 
-                plazoTransaccion AS ct
-            INNER JOIN 
-                plazo as cu ON cu.idPlazo = ct.idPlazo
-            INNER JOIN 
-                transaccion as tn ON tn.idTransaccion = ct.idTransaccion
-            INNER JOIN
-                transaccionDetalle AS td ON td.idTransaccion = tn.idTransaccion
-            WHERE 
-                ct.idPlazo = ? AND tn.estado = 1`, [
-                idPlazo
-            ]);
-
-            const plazoMonto = plazo[0].monto;
-
-            const plazoEchos = plazoTransaccion.reduce((accumulator, item) => accumulator + item.monto, 0)
-
-            if (monto + plazoEchos >= plazoMonto) {
-                await conec.execute(connection, `
-                UPDATE 
-                    plazo
-                SET 
-                    estado = 1
-                WHERE 
-                    idPlazo = ?`, [
-                    idPlazo
-                ]);
-            }
-
-            const transacciones = await conec.execute(connection, `
-                SELECT 
-                    SUM(td.monto) AS monto
-                FROM 
-                    transaccion AS t
-                INNER JOIN
-                    transaccionDetalle AS td ON td.idTransaccion = t.idTransaccion
-                WHERE 
-                    t.idReferencia = ? AND t.estado = 1`, [
-                idCompra
-            ]);
-
-            const sumaTransacciones = transacciones.reduce((accumulator, item) => accumulator + item.monto, 0);
-
-            const compra = await conec.query(`
-            SELECT 
-                c.idSucursal,
-                SUM(cd.cantidad * cd.costo) AS total
+                SUM(cd.cantidad * cd.costo) AS total,
+                (
+                    SELECT 
+                        IFNULL(SUM(td.monto), 0)
+                    FROM 
+                        transaccion AS t
+                    INNER JOIN 
+                        transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+                    WHERE 
+                        t.idReferencia = c.idCompra AND t.estado = 1
+                ) AS pagado
             FROM 
                 compra AS c 
             INNER JOIN 
@@ -1287,7 +1089,7 @@ class Compra {
                 idCompra
             ]);
 
-            if (sumaTransacciones + monto >= compra[0].total) {
+            if (monto + resumen[0].pagado >= resumen[0].total) {
                 await conec.execute(connection, `
                 UPDATE 
                     compra
@@ -1318,21 +1120,12 @@ class Compra {
                 idTransaccion,
                 'CP0004',
                 idCompra,
-                compra[0].idSucursal,
+                idSucursal,
                 notaTransacion,
                 1,
-                currentDate(),
-                currentTime(),
+                fecha,
+                hora,
                 idUsuario
-            ]);
-
-            await conec.execute(connection, `
-                INSERT INTO plazoTransaccion(
-                    idPlazo,
-                    idTransaccion
-                ) VALUES(?,?)`, [
-                idPlazo,
-                idTransaccion
             ]);
 
             const listaTransaccionDetalle = await conec.execute(connection, 'SELECT idTransaccionDetalle FROM transaccionDetalle');
@@ -1365,7 +1158,6 @@ class Compra {
             }
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/createAccountsPayable", error);
         }
-
     }
 
     async cancelAccountsPayable(req, res) {
@@ -1373,40 +1165,8 @@ class Compra {
         try {
             connection = await conec.beginTransaction();
 
-            const validate = await conec.execute(connection, `
-                SELECT * FROM 
-                    plazoTransaccion 
-                WHERE 
-                    idPlazo = ? AND idTransaccion = ?`, [
-                req.query.idPlazo,
-                req.query.idTransaccion,
-            ]);
-
-            if (validate.length === 0) {
-                // Si no existe, realiza un rollback y devuelve un mensaje de error
-                await conec.rollback(connection);
-                return sendClient(res, "El pago no existe, actualize su vista.");
-            }
-
-            const plazo = await conec.execute(connection, `SELECT monto FROM plazo WHERE idPlazo = ?`, [
-                req.query.idPlazo,
-            ]);
-
-            const plazoTransaccion = await conec.execute(connection, `
-                SELECT 
-                    SUM(td.monto) AS monto
-                FROM 
-                    plazoTransaccion AS ct
-                INNER JOIN 
-                    plazo as cu ON cu.idPlazo = ct.idPlazo
-                INNER JOIN 
-                    transaccion as tn ON tn.idTransaccion = ct.idTransaccion
-                INNER JOIN
-                    transaccionDetalle AS td ON td.idTransaccion = tn.idTransaccion
-                WHERE 
-                    ct.idPlazo = ? AND tn.estado = 1`, [
-                req.query.idPlazo,
-            ]);
+            const date = currentDate();
+            const time = currentTime();
 
             const transaccion = await conec.execute(connection, `
                 SELECT 
@@ -1418,43 +1178,6 @@ class Compra {
                 WHERE 
                     t.idTransaccion = ?`, [
                 req.query.idTransaccion,
-            ]);
-
-            const plazoMonto = plazo[0].monto;
-
-            const plazoEchos = plazoTransaccion.reduce((accumulator, item) => accumulator + item.monto, 0);
-
-            const monto = transaccion[0].monto;
-
-            if (plazoEchos - monto < plazoMonto) {
-                await conec.execute(connection, `
-                    UPDATE 
-                        plazo 
-                    SET 
-                        estado = 0 
-                    WHERE 
-                        idPlazo = ?`, [
-                    req.query.idPlazo
-                ]);
-            }
-
-            await conec.execute(connection, `
-                DELETE FROM 
-                    plazoTransaccion 
-                WHERE 
-                    idPlazo = ? AND idTransaccion = ?`, [
-                req.query.idPlazo,
-                req.query.idTransaccion,
-            ]);
-
-            await conec.execute(connection, `
-                UPDATE 
-                    transaccion 
-                SET 
-                    estado = 0 
-                WHERE 
-                    idTransaccion = ?`, [
-                req.query.idTransaccion
             ]);
 
             const transacciones = await conec.execute(connection, `
@@ -1483,7 +1206,7 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            if (sumaTransacciones - monto < compra[0].total) {
+            if (sumaTransacciones - transaccion[0].monto < compra[0].total) {
                 await conec.execute(connection, `
                 UPDATE 
                     compra
@@ -1494,6 +1217,31 @@ class Compra {
                     req.query.idCompra
                 ]);
             }
+
+            await conec.execute(connection, `
+                UPDATE 
+                    transaccion 
+                SET 
+                    estado = 0 
+                WHERE 
+                    idTransaccion = ?`, [
+                req.query.idTransaccion
+            ]);
+
+            await conec.execute(connection, `    
+                INSERT INTO auditoria(
+                    idReferencia,
+                    idUsuario,
+                    tipo,
+                    descripción
+                ) VALUES(?,?,?,?)`, [
+                req.query.idTransaccion,
+                req.query.idUsuario,
+                "ELIMINAR",
+                "SE ANULO LA TRANSACCIÓN DE COMPRA",
+                date,
+                time,
+            ]);
 
             await conec.commit(connection);
             return sendSuccess(res, "Se anuló correctamente su pago.");
@@ -1712,8 +1460,6 @@ class Compra {
 
     async documentsPdfAccountsPayable(req, res) {
         try {
-            console.log(req.params.idPlazo);
-            console.log(req.params.idCompra);
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_PDF}/purchase/pdf/account/payable`,

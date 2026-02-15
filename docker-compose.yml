@@ -98,6 +98,17 @@ services:
     volumes:
       - masa-y-miga-backend-volumen:/app/src/path
 
+  popular-safi-services:
+    # Configuración para construir la imagen del contenedor desde el contexto actual
+    <<: *backend-service
+    # Nombre de la imagen de la imagen generada
+    image: popular-safi-backend-image
+    # Nombre del contenedor
+    container_name: popular-safi-backend
+    # Volumen de almacenamiento
+    volumes:
+      - popular-safi-backend-volumen:/app/src/path
+
 # Definición de redes
 networks:
   # Red llamada 'luis'
@@ -113,3 +124,4 @@ volumes:
   supermarketya-backend-volumen:
   dracoly-backend-volumen:
   masa-y-miga-backend-volumen:
+  popular-safi-backend-volumen:

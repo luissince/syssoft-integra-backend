@@ -38,13 +38,17 @@ class Perfil {
             }
         });
 
-        const total = await conec.query(`SELECT COUNT(*) AS Total 
-            FROM perfil AS p 
-            INNER JOIN empresa AS s ON s.idEmpresa = p.idEmpresa 
+        const total = await conec.query(`
+            SELECT 
+                COUNT(*) AS Total 
+            FROM 
+                perfil AS p 
+            INNER JOIN 
+                empresa AS s ON s.idEmpresa = p.idEmpresa 
             WHERE 
-            ? = 0
+                ? = 0
             OR
-            ? = 1 and p.descripcion like concat(?,'%')`, [
+                ? = 1 and p.descripcion like concat(?,'%')`, [
             parseInt(data.opcion),
 
             parseInt(data.opcion),
@@ -62,16 +66,17 @@ class Perfil {
             const result = await conec.execute(connection, 'SELECT idPerfil FROM perfil');
             const idPerfil = generateAlphanumericCode("PF0001", result, 'idPerfil');
 
-            await conec.execute(connection, `INSERT INTO perfil(
-            idPerfil, 
-            idEmpresa, 
-            descripcion,
-            fecha,
-            hora,
-            fupdate,
-            hupdate,
-            idUsuario) 
-            VALUES(?,?,?,?,?,?,?,?)`, [
+            await conec.execute(connection, `
+            INSERT INTO perfil(
+                idPerfil, 
+                idEmpresa, 
+                descripcion,
+                fecha,
+                hora,
+                fupdate,
+                hupdate,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?)`, [
                 idPerfil,
                 data.idEmpresa,
                 data.descripcion,
@@ -214,8 +219,13 @@ class Perfil {
         }
     }
 
-    async combo() {
-        const result = await conec.query('SELECT idPerfil,descripcion FROM perfil');
+    async options() {
+        const result = await conec.query(`
+            SELECT 
+                idPerfil,
+                descripcion 
+            FROM 
+                perfil`);
         return result;
     }
 }

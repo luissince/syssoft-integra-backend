@@ -1,4 +1,4 @@
-// src/config/s3.js
+// cammon/s3.js
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 

@@ -123,13 +123,23 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
 *
 * @param {import('express').Response} res - El objeto de respuesta (Response).
 * @param {object} result El objeto de respuesta de la petición
+* @param {string} title - El título o contexto del error.
+* @param {Error} [error] - El error capturado, si está disponible.
 * @returns {object} Retorna 
 *     res.send(new Buffer('wahoo'));
 *     res.send({ some: 'json' });
 *     res.send('<p>some html</p>');
 *     res.status(400).send('Sorry, cant find that');
 */
-function sendClient(res, result) {
+function sendClient(res, result, title, error) {
+    if (process.env.ENVIRONMENT === 'development') {
+        console.error(error)
+    }
+    if (!error || !error.message) {
+        logger.error(`${title}: ${error}`);
+    } else {
+        logger.error(`${title}: ${error.message ?? error}`);
+    }
     return res.status(400).send(result);
 }
 

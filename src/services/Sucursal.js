@@ -77,9 +77,13 @@ class Sucursal {
     async add(req, res) {
         let connection = null;
         try {
-            const bucket = firebaseService.getBucket();
 
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
+
+            const bucket = firebaseService.getBucket();
 
             let imagen = null;
 
@@ -128,6 +132,7 @@ class Sucursal {
                 idUbigeo,
                 googleMaps,
                 horarioAtencion,
+                gastoFijo,
                 imagen,
                 estado,
                 principal,
@@ -136,7 +141,7 @@ class Sucursal {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
                 //datos
                 req.body.nombre,
@@ -148,13 +153,14 @@ class Sucursal {
                 req.body.idUbigeo,
                 req.body.googleMaps,
                 req.body.horarioAtencion,
+                Number(req.body.gastoFijo),
                 imagen,
                 req.body.estado,
                 req.body.principal,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ])
 
@@ -181,6 +187,7 @@ class Sucursal {
                 IFNULL(p.direccion, '') AS direccion,
                 IFNULL(p.googleMaps, '') AS googleMaps,
                 IFNULL(p.horarioAtencion, '') AS horarioAtencion,
+                IFNULL(p.gastoFijo, 0) AS gastoFijo,
                 p.imagen,
                 p.principal,
                 p.estado,
@@ -222,6 +229,9 @@ class Sucursal {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             const sucursal = await await conec.execute(connection, `
                 SELECT 
@@ -291,6 +301,7 @@ class Sucursal {
                 idUbigeo = ?,
                 googleMaps = ?,
                 horarioAtencion = ?,
+                gastoFijo = ?,
                 imagen = ?,
                 estado = ?,   
                 principal = ?,
@@ -308,11 +319,12 @@ class Sucursal {
                 req.body.idUbigeo,
                 req.body.googleMaps,
                 req.body.horarioAtencion,
+                Number(req.body.gastoFijo),
                 imagen,
                 req.body.estado,
                 req.body.principal,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idSucursal
             ])
@@ -331,7 +343,7 @@ class Sucursal {
         let connection = null;
         try {
             const bucket = firebaseService.getBucket();
-            
+
             connection = await conec.beginTransaction();
 
             const sucursal = await conec.execute(connection, `SELECT imagen FROM sucursal WHERE idSucursal = ?`, [
@@ -415,7 +427,7 @@ class Sucursal {
             const bucket = firebaseService.getBucket();
 
             const newLista = lista.map(function (item) {
-                if(bucket && item.imagen){
+                if (bucket && item.imagen) {
                     return {
                         ...item,
                         imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
@@ -454,7 +466,7 @@ class Sucursal {
             const newLista = lista.map(function (item) {
                 return {
                     ...item,
-                      imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
             });
 
@@ -465,6 +477,21 @@ class Sucursal {
     }
 
     async combo(req, res) {
+        try {
+            const sucursales = await conec.query(`
+            SELECT 
+                idSucursal,
+                nombre 
+            FROM 
+                sucursal`)
+
+            return sendSuccess(res, sucursales);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Sucursal/combo", error);
+        }
+    }
+
+    async options(req, res) {
         try {
             const sucursales = await conec.query(`
             SELECT 

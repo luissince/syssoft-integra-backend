@@ -113,6 +113,60 @@ class Persona {
         }
     }
 
+    async listConductores(req, res) {
+        try {
+            const lista = await conec.procedure(`CALL Listar_Conductores(?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ]);
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_Conductores_Count(?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+            ]);
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listConductores", error);
+        }
+    }
+
+    async listPersonales(req, res) {
+        try {
+            const lista = await conec.procedure(`CALL Listar_Personales(?,?,?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ]);
+
+            const resultLista = lista.map(function (item, index) {
+                return {
+                    ...item,
+                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                }
+            });
+
+            const total = await conec.procedure(`CALL Listar_Personales_Count(?,?)`, [
+                parseInt(req.query.opcion),
+                req.query.buscar,
+            ]);
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/listConductores", error);
+        }
+    }
+
     async detail(req, res) {
         try {
             const {
@@ -185,6 +239,7 @@ class Persona {
                 proveedor,
                 conductor,
                 licenciaConducir,
+                personal,
 
                 celular,
                 telefono,
@@ -203,7 +258,7 @@ class Persona {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPersona,
                 req.body.idTipoDocumento,
                 req.body.documento,
@@ -213,6 +268,7 @@ class Persona {
                 req.body.proveedor,
                 req.body.conductor,
                 req.body.licenciaConducir,
+                req.body.personal,
 
                 req.body.celular,
                 req.body.telefono,
@@ -255,6 +311,7 @@ class Persona {
                 cn.proveedor,
                 cn.conductor,
                 cn.licenciaConducir,
+                cn.personal,
                 cn.celular,
                 cn.telefono, 
                 IFNULL(DATE_FORMAT(cn.fechaNacimiento,'%Y-%m-%d'),'') as fechaNacimiento,
@@ -280,12 +337,9 @@ class Persona {
                 req.query.idPersona,
             ]);
 
-            if (result.length > 0) {
-                return sendSuccess(res, result[0]);
-            } else {
-                return sendSuccess(res, "Datos no encontrados");
-            }
+            return sendSuccess(res, result[0]);
         } catch (error) {
+            console.log(error);
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/id", error);
         }
     }
@@ -316,6 +370,7 @@ class Persona {
                 proveedor=?,
                 conductor=?,
                 licenciaConducir=?,
+                personal=?,
                 celular=?,
                 telefono=?,
                 fechaNacimiento=?,
@@ -340,6 +395,7 @@ class Persona {
                 req.body.proveedor,
                 req.body.conductor,
                 req.body.licenciaConducir,
+                req.body.personal,
 
                 req.body.celular,
                 req.body.telefono,
@@ -396,6 +452,14 @@ class Persona {
                 await conec.execute(connection, `UPDATE persona SET conductorPreferido = 0`);
 
                 await conec.execute(connection, `UPDATE persona SET conductorPreferido = 1 WHERE idPersona = ?`, [
+                    idPersona
+                ]);
+            }
+
+            if (rol === "4") {
+                await conec.execute(connection, `UPDATE persona SET personalPreferido = 0`);
+
+                await conec.execute(connection, `UPDATE persona SET personalPreferido = 1 WHERE idPersona = ?`, [
                     idPersona
                 ]);
             }
@@ -520,7 +584,7 @@ class Persona {
         }
     }
 
-     async login(req, res) {
+    async login(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -548,7 +612,7 @@ class Persona {
         }
     }
 
-     async updateWeb(req, res) {
+    async updateWeb(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();

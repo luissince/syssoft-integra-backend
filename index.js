@@ -6,6 +6,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { currentDate, currentTime } = require('./src/tools/Tools');
 const pkg = require('./package.json');
+const { sendError, sendClient } = require('./src/tools/Message');
+const { ClientError } = require('./src/tools/Error');
 
 require('dotenv').config();
 
@@ -68,73 +70,34 @@ app.get('/', (_, res) => {
     });
 });
 
-// Rutas API
-app.use('/api/comprobante', require('./src/router/Comprobante'));
-app.use('/api/moneda', require('./src/router/Moneda'));
-app.use('/api/banco', require('./src/router/Banco'));
-app.use('/api/transaccion', require('./src/router/Transaccion'));
-app.use('/api/impuesto', require('./src/router/Impuesto'));
 
-app.use('/api/sucursal', require('./src/router/Sucursal'));
-app.use('/api/categoria', require('./src/router/Categoria'));
-app.use('/api/marca', require('./src/router/Marca'));
-app.use('/api/atributo', require('./src/router/Atributo'));
-app.use('/api/producto', require('./src/router/Producto'));
-app.use('/api/almacen', require('./src/router/Almacen'));
+// Rutas API 
+app.use('/api', require("./src/router"));
 
-app.use('/api/persona', require('./src/router/Persona'));
-app.use('/api/factura', require('./src/router/Factura'));
+// middleware 404
+app.use((req, res) => {
+    res.status(404).json({ message: "Route not found" });
+});
 
-app.use('/api/perfil', require('./src/router/perfil.router'));
-app.use('/api/usuario', require('./src/router/usuario.router'));
+// middleware global de errores (SIEMPRE al final)
+app.use((err, req, res, next) => {
+    if (err instanceof ClientError) {
+        return sendClient(res, {
+            message: err.message || "Error de cliente",
+            body: err.body ?? null
+        });
+    }
 
-app.use('/api/concepto', require('./src/router/Concepto'));
-app.use('/api/gasto', require('./src/router/Gasto'));
-app.use('/api/cobro', require('./src/router/Cobro'));
-app.use('/api/acceso', require('./src/router/acceso.router'));
-app.use('/api/notacredito', require('./src/router/NotaCredito'));
+    return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Server", err);
+});
 
-app.use('/api/ubigeo', require('./src/router/Ubigeo'));
-app.use('/api/tipodocumento', require('./src/router/TipoDocumento'));
-app.use('/api/medida', require('./src/router/Medida'));
-app.use('/api/motivo', require('./src/router/Motivo'));
-
-app.use('/api/empresa', require('./src/router/Empresa'));
-app.use('/api/dashboard', require('./src/router/dashboard.router'));
-app.use('/api/notificacion', require('./src/router/Notificacion'));
-
-app.use('/api/kardex', require('./src/router/Kardex'));
-app.use('/api/metodopago', require('./src/router/MetodoPago'));
-app.use('/api/tipoajuste', require('./src/router/TipoAjuste'));
-app.use('/api/tipoatributo', require('./src/router/TipoAtributo'));
-app.use('/api/inventario', require('./src/router/Inventario'));
-app.use('/api/ajuste', require('./src/router/Ajuste'));
-app.use('/api/motivoajuste', require('./src/router/MotivoAjuste'));
-app.use('/api/compra', require('./src/router/Compra'));
-app.use('/api/guiaremision', require('./src/router/GuiaRemision'));
-app.use('/api/cotizacion', require('./src/router/Cotizacion'));
-app.use('/api/tipocomprobante', require('./src/router/TipoComprobante'));
-app.use('/api/traslado', require('./src/router/Traslado'));
-app.use('/api/motivotraslado', require('./src/router/MotivoTraslado'));
-app.use('/api/tipotraslado', require('./src/router/TipoTraslado'));
-app.use('/api/modalidadtraslado', require('./src/router/ModalidadTraslado'));
-app.use('/api/tipopeso', require('./src/router/TipoPeso'));
-app.use('/api/tipoalmacen', require('./src/router/TipoAlmacen'));
-app.use('/api/tipo/entrega', require('./src/router/TipoEntrega'));
-app.use('/api/vehiculo', require('./src/router/Vehiculo'));
-app.use('/api/ordencompra', require('./src/router/OrdenCompra'));
-app.use('/api/pedido', require('./src/router/Pedido'));
-app.use('/api/catalogo', require('./src/router/catalogo.router'));
-
-app.use('/api/reporte', require('./src/router/Reporte'));
-app.use('/api/sunat', require('./src/router/Sunat'));
-app.use('/api/consulta', require('./src/router/Consulta'));
 
 // app.use((req, res, next) => {
 //     res.sendFile(path.join(__dirname, "app", "dist", "index.html"));
 // });
 
+
 // Iniciar el servidor
-app.listen(app.get("port"), "0.0.0.0", () => {
+app.listen(app.get("port"), () => {
     console.log(`El servidor está corriendo en el puerto ${app.get("port")}`);
 });

@@ -252,7 +252,10 @@ class OrdenCompra {
     }
 
     async forPurchase(req, res) {
+        const { idOrdenCompra, } = req.query;
         try {
+            const bucket = firebaseService.getBucket();
+
             const validate = await conec.query(`
                 SELECT 
                     *
@@ -260,7 +263,7 @@ class OrdenCompra {
                     ordenCompra
                 WHERE 
                     idOrdenCompra = ? AND estado = 0`, [
-                req.query.idOrdenCompra
+                idOrdenCompra
             ]);
 
             if (validate.length !== 0) {
@@ -282,7 +285,7 @@ class OrdenCompra {
                     persona AS p ON p.idPersona = c.idProveedor
                 WHERE 
                     c.idOrdenCompra = ?`, [
-                req.query.idOrdenCompra
+                idOrdenCompra
             ]);
 
             const comprados = await conec.query(`
@@ -301,7 +304,7 @@ class OrdenCompra {
                     vc.idOrdenCompra = ?
                 GROUP BY 
                     p.idProducto`, [
-                req.query.idOrdenCompra
+                idOrdenCompra
             ]);
 
             const detalles = await conec.query(`
@@ -315,7 +318,7 @@ class OrdenCompra {
                     ocd.idOrdenCompra = ?
                 ORDER BY 
                     ocd.idOrdenCompraDetalle ASC`, [
-                req.query.idOrdenCompra
+                idOrdenCompra
             ]);
 
             const newDetalles = detalles
@@ -366,7 +369,6 @@ class OrdenCompra {
                     item.idProducto,
                 ]);
 
-                const bucket = firebaseService.getBucket();
                 const newProducto = {
                     ...producto[0],
                     costo: item.costo,
@@ -812,7 +814,7 @@ class OrdenCompra {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/default.png`,
+                                "imagen": bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/default.png`,
                             },
                             "medida": {
                                 "nombre": item.medida,

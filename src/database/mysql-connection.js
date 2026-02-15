@@ -39,10 +39,12 @@ class Conexion {
   query(sql, param = []) {
     return new Promise((resolve, reject) => {
       this.pool.getConnection((err, connection) => {
-        if (err) return reject(err.sqlMessage);
+        if (err) return reject(err);
+
         connection.query(sql, param, (err, result) => {
           connection.release();
-          if (err) return reject(err.sqlMessage);
+
+          if (err) return reject(err);
           return resolve(result);
         });
       });
@@ -58,12 +60,18 @@ class Conexion {
   procedure(sql, param = []) {
     return new Promise((resolve, reject) => {
       this.pool.getConnection((err, connection) => {
-        if (err) return reject(err.sqlMessage);
+
+        if (err) return reject(err); // ✅ error completo
+
         connection.query(sql, param, (err, result) => {
-          connection.release();
-          if (err) return reject(err.sqlMessage);
+
+          connection.release();// ✅ siempre liberar
+
+          if (err) return reject(err); // ✅ error completo
+
           return resolve(result[0]);
         });
+        
       });
     });
   }
@@ -77,12 +85,16 @@ class Conexion {
   procedureAll(sql, param = []) {
     return new Promise((resolve, reject) => {
       this.pool.getConnection((err, connection) => {
-        if (err) return reject(err.sqlMessage);
+        if (err) return reject(err);
+
         connection.query(sql, param, (err, result) => {
           connection.release();
-          if (err) return reject(err.sqlMessage);
+
+          if (err) return reject(err);
+          
           return resolve(result);
         });
+
       });
     });
   }
@@ -94,10 +106,11 @@ class Conexion {
   beginTransaction() {
     return new Promise((resolve, reject) => {
       this.pool.getConnection((err, connection) => {
-        if (err) return reject(err.sqlMessage);
+        if (err) return reject(err);
 
         connection.beginTransaction((err) => {
-          if (err) return reject(err.sqlMessage);
+          if (err) return reject(err);
+          
           return resolve(connection);
         });
       });
@@ -114,7 +127,8 @@ class Conexion {
   execute(connection, sql, param = []) {
     return new Promise((resolve, reject) => {
       connection.query(sql, param, (err, result) => {
-        if (err) return reject(err.sqlMessage);
+        if (err) return reject(err);
+        
         return resolve(result);
       });
     });
@@ -128,14 +142,14 @@ class Conexion {
   commit(connection) {
     return new Promise((resolve, reject) => {
       connection.commit((err) => {
-        if (err) {
-          return connection.rollback(() => reject(err.sqlMessage));
-        }
+        if (err) return reject(err);
+        
         connection.release();
         return resolve();
       });
     });
   }
+
 
   /**
    * Hace rollback de una transacción.
@@ -145,7 +159,8 @@ class Conexion {
   rollback(connection) {
     return new Promise((resolve, reject) => {
       connection.rollback((err) => {
-        if (err) return reject(err.sqlMessage);
+        if (err) return reject(err);
+
         connection.release();
         return resolve();
       });

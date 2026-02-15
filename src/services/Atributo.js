@@ -181,7 +181,7 @@ class Atributo {
         atributo 
       WHERE 
         estado = 1 AND idTipoAtributo = ?`, [
-        req.query.idTipoAtributo
+        req.params.idTipoAtributo
       ]);
 
       return sendSuccess(res, result);

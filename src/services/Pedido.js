@@ -417,7 +417,7 @@ class Pedido {
             ]);
 
             // Devuelve un objeto con la información del pedido y los detalles 
-            return sendSuccess(res, { cabecera: pedido[0], envio ,detalles: listaDetalles, ventas, vendidos });
+            return sendSuccess(res, { cabecera: pedido[0], envio, detalles: listaDetalles, ventas, vendidos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -425,15 +425,19 @@ class Pedido {
     }
 
     async forSale(req, res) {
+        const { idPedido, idAlmacen } = req.query;
+
         try {
+            const bucket = firebaseService.getBucket();
+
             const validate = await conec.query(`
-                SELECT 
-                    *
-                FROM 
-                    pedido
-                WHERE 
-                    idPedido = ? AND estado IN ('pending', 'preparing', 'ready')`, [
-                req.query.idPedido
+            SELECT 
+                *
+            FROM 
+                pedido
+            WHERE 
+                idPedido = ? AND estado IN ('pending', 'preparing', 'ready')`, [
+                idPedido
             ]);
 
             if (validate.length !== 0) {
@@ -455,7 +459,7 @@ class Pedido {
                 persona AS p ON p.idPersona = c.idCliente
             WHERE 
                 c.idPedido = ?`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const vendidos = await conec.query(`
@@ -474,7 +478,7 @@ class Pedido {
                     vc.idPedido = ?
                 GROUP BY 
                     p.idProducto`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const detalles = await conec.query(`
@@ -488,7 +492,7 @@ class Pedido {
                     cd.idPedido = ?
                 ORDER BY 
                     cd.idPedidoDetalle ASC`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const newDetalles = detalles
@@ -512,71 +516,33 @@ class Pedido {
 
             let index = 0;
             for (const item of newDetalles) {
-                const producto = await conec.query(`
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    a.nombre AS almacen,
-                    i.idInventario,
-                    'PRODUCTO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                INNER JOIN 
-                    inventario AS i ON i.idProducto = p.idProducto 
-                INNER JOIN 
-                    almacen AS a ON a.idAlmacen = i.idAlmacen
-                WHERE 
-                    p.idProducto = ? AND a.idAlmacen = ?
-                UNION
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    'SIN ALMACEN' AS almacen,
-                    0 AS idInventario,
-                    'SERVICIO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                WHERE 
-                    p.idProducto = ?`, [
+                const [producto] = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)", [
+                    3,
                     item.idProducto,
-                    req.query.idAlmacen,
-                    item.idProducto
+                    idAlmacen,
+                    0,
+                    1,
                 ]);
 
-                const bucket = firebaseService.getBucket();
+                const inventarioDetalles = await conec.procedure("CALL Filtrar_Productos_Para_Venta_Inventario_Detalle(?,?)", [
+                    item.idProducto,
+                    idAlmacen,
+                ]);
+
                 const newProducto = {
-                    ...producto[0],
+                    ...producto,
                     precio: item.precio,
-                    cantidad: item.cantidad,
-                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
+                    imagen: bucket && producto.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto.imagen}` : null,
+                    inventarioDetalles: aplicarDistribucionVenta(item.cantidad, inventarioDetalles).map(inv => {
+                        const { cantidadSeleccionada, ...resto } = inv;
+
+                        return {
+                            ...resto,
+                            cantidad: cantidadSeleccionada
+                        }
+                    }),
                     id: index + 1
-                }
+                };
 
                 productos.push(newProducto);
             }
@@ -627,7 +593,8 @@ class Pedido {
             // Genera una nueva numeración para el pedido
             const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
 
-            await conec.execute(connection, `INSERT INTO pedido(
+            await conec.execute(connection, `
+            INSERT INTO pedido(
                 idPedido,
                 idCliente,
                 idUsuario,
@@ -669,7 +636,8 @@ class Pedido {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalles) {
-                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
+                await await conec.execute(connection, `
+                INSERT INTO pedidoDetalle(
                     idPedidoDetalle,
                     idPedido,
                     idProducto,
