@@ -135,7 +135,7 @@ class OrdenCompra {
                 c.observacion,
                 c.nota,
                 mo.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 ordenCompra AS c
             INNER JOIN 
@@ -146,6 +146,8 @@ class OrdenCompra {
                 persona AS cn ON cn.idPersona = c.idProveedor
             INNER JOIN 
                 usuario AS us ON us.idUsuario = c.idUsuario 
+            INNER JOIN 
+                persona AS pu ON pu.idPersona = us.idPersona
             WHERE 
                 c.idOrdenCompra = ?`, [
                 req.query.idOrdenCompra,
@@ -687,8 +689,7 @@ class OrdenCompra {
                 m.simbolo,
                 m.codiso,
 
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 ordenCompra AS p
             INNER JOIN
@@ -699,6 +700,8 @@ class OrdenCompra {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idOrdenCompra = ?`, [
                 idOrdenCompra

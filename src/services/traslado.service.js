@@ -50,7 +50,7 @@ class TrasladoService {
                 ald.nombre AS almacenDestino,
                 COALESCE(sd.nombre, '') AS sucursalDestino,
                 a.estado,
-                CONCAT(u.nombres, ', ', u.apellidos) AS usuarioNombre
+                pu.informacion AS usuarioNombre
             FROM 
                 traslado AS a
             INNER JOIN 
@@ -59,6 +59,8 @@ class TrasladoService {
                 motivoTraslado AS mt ON mt.idMotivoTraslado = a.idMotivoTraslado
             INNER JOIN 
                 usuario AS u ON u.idUsuario = a.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             INNER JOIN 
                 almacen AS alo ON alo.idAlmacen = a.idAlmacenOrigen
             INNER JOIN 

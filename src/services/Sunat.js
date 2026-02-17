@@ -62,7 +62,7 @@ class Sunat {
                 c.documento,
                 c.informacion,
                 c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
+                pu.informacion AS usuario,
                 DATE_FORMAT(v.fecha,'%Y-%m-%d') as fecha,
                 v.hora,
                 DATE_FORMAT(v.fechaCorrelativo,'%Y-%m-%d') AS fechaCorrelativo,
@@ -79,6 +79,8 @@ class Sunat {
                 persona AS c ON v.idCliente = c.idPersona
             INNER JOIN 
                 usuario AS us ON us.idUsuario = v.idUsuario 
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
             INNER JOIN 
@@ -221,7 +223,7 @@ class Sunat {
                 c.documento,
                 c.informacion,
                 c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
+                pu.informacion AS usuario,
                 DATE_FORMAT(v.fecha,'%Y-%m-%d') as fecha,
                 v.hora,
                 DATE_FORMAT(v.fechaCorrelativo,'%Y-%m-%d') AS fechaCorrelativo,
@@ -238,6 +240,8 @@ class Sunat {
                 persona AS c ON v.idCliente = c.idPersona
             INNER JOIN 
                 usuario AS us ON us.idUsuario = v.idUsuario 
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
             INNER JOIN 
@@ -789,8 +793,7 @@ class Sunat {
                     m.simbolo,
                     m.codiso,
                     --
-                    u.apellidos,
-                    u.nombres
+                    pu.informacion 
                 FROM 
                     venta AS v
                 INNER JOIN
@@ -801,6 +804,8 @@ class Sunat {
                     moneda AS m ON m.idMoneda = v.idMoneda
                 INNER JOIN
                     usuario AS u ON u.idUsuario = v.idUsuario
+                INNER JOIN
+                    persona AS pu ON pu.idPersona = u.idPersona
                 INNER JOIN
                     formaPago AS fp ON fp.idFormaPago = v.idFormaPago
                 LEFT JOIN
@@ -955,7 +960,7 @@ class Sunat {
                 };
 
                 responseInvoices = await axios.request(optionsInvoices);
-            } else {               
+            } else {
                 const idGuiaRemision = req.params.idComprobante;
 
                 const guiaRemision = await conec.query(`
@@ -1000,8 +1005,7 @@ class Sunat {
                     ul.distrito AS distritoLlegada,
                     ul.ubigeo AS ubigeoLlegada,
                     --
-                    u.apellidos,
-                    u.nombres,
+                    pu.informacion,
                     --
                     v.serie AS serieRef,
                     v.numeracion AS numeracionRef,
@@ -1031,6 +1035,8 @@ class Sunat {
                     ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
                 INNER JOIN 
                     usuario AS u ON u.idUsuario = gui.idUsuario
+                INNER JOIN
+                    persona AS pu ON pu.idPersona = u.idPersona
                 INNER JOIN 
                     venta AS v ON v.idVenta = gui.idVenta
                 INNER JOIN 
@@ -1147,8 +1153,7 @@ class Sunat {
                             "ubigeo": guiaRemision[0].ubigeoLlegada,
                         },
                         "usuario": {
-                            "apellidos": guiaRemision[0].apellidos,
-                            "nombres": guiaRemision[0].nombres
+                            "informacion": guiaRemision[0].informacion,
                         },
                         "venta": {
                             "comprobante": {

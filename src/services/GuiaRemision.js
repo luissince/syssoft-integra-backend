@@ -524,8 +524,7 @@ class GuiaRemision {
                 ul.distrito AS distritoLlegada,
                 ul.ubigeo AS ubigeoLlegada,
                 --
-                u.apellidos,
-                u.nombres,
+                pu.informacion AS usuario,
                 --
                 v.serie AS serieRef,
                 v.numeracion AS numeracionRef,
@@ -555,6 +554,8 @@ class GuiaRemision {
                 ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
             INNER JOIN 
                 usuario AS u ON u.idUsuario = gui.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             INNER JOIN 
                 venta AS v ON v.idVenta = gui.idVenta
             INNER JOIN 

@@ -58,7 +58,7 @@ class Factura {
                 v.observacion,
                 v.nota,
                 m.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 venta AS v 
             INNER JOIN
@@ -67,6 +67,8 @@ class Factura {
                 persona AS c ON v.idCliente = c.idPersona
             INNER JOIN 
                 usuario AS us ON us.idUsuario = v.idUsuario 
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
             INNER JOIN 
@@ -149,13 +151,15 @@ class Factura {
                    t.hora,
                    c.nombre AS concepto,
                    t.nota,
-                   CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                   pu.informacion AS usuario
                 FROM 
                    transaccion t            
                 INNER JOIN
                    concepto c ON c.idConcepto = t.idConcepto
                 INNER JOIN 
-                   usuario AS us ON us.idUsuario = t.idUsuario 
+                   usuario AS us ON us.idUsuario = t.idUsuario
+                INNER JOIN
+                   persona AS pu ON pu.idPersona = u.idPersona
                 WHERE 
                    t.idReferencia = ? AND t.estado = 1`, [
                 req.query.idVenta

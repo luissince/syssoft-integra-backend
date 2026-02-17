@@ -31,7 +31,12 @@ module.exports = ({ conec }) => async function create(body) {
         await validateInventario(connection, body);
 
         // Validar si el cliente existe
-        const nuevoIdCliente = await resolveCliente(connection, body);
+        const nuevoIdCliente = await resolveCliente({
+            connection,
+            body,
+            date,
+            time
+        });
 
         // Generar un código unico para la venta. 
         const idVenta = await insertVenta({
@@ -409,7 +414,12 @@ module.exports = ({ conec }) => async function create(body) {
         }
     }
 
-    async function resolveCliente(connection, body) {
+    async function resolveCliente({
+        connection,
+        body,
+        date,
+        time
+    }) {
         const { nuevoCliente, idCliente, idUsuario } = body;
 
         let nuevoIdCliente = "";
@@ -432,6 +442,7 @@ module.exports = ({ conec }) => async function create(body) {
                 const tipoCliente = 1;
                 const tipoProveedor = 0;
                 const tipoConductor = 0;
+                const tipoPersonal = 0;
                 const predeterminado = 0;
                 const estado = true;
 
@@ -444,6 +455,7 @@ module.exports = ({ conec }) => async function create(body) {
                     cliente,
                     proveedor,
                     conductor,
+                    personal,
                     celular,
                     email,
                     direccion,
@@ -460,6 +472,7 @@ module.exports = ({ conec }) => async function create(body) {
                     tipoCliente,
                     tipoProveedor,
                     tipoConductor,
+                    tipoPersonal,
                     nuevoCliente.numeroCelular,
                     nuevoCliente.email,
                     nuevoCliente.direccion,

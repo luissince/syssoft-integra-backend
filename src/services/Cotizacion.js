@@ -150,7 +150,7 @@ class Cotizacion {
                 c.observacion,
                 c.nota,
                 mo.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 cotizacion AS c
             INNER JOIN 
@@ -160,7 +160,9 @@ class Cotizacion {
             INNER JOIN 
                 persona AS cn ON cn.idPersona = c.idCliente
             INNER JOIN 
-                usuario AS us ON us.idUsuario = c.idUsuario 
+                usuario AS us ON us.idUsuario = c.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             WHERE 
                 c.idCotizacion = ?`, [
                 req.query.idCotizacion,
@@ -699,8 +701,7 @@ class Cotizacion {
                 m.simbolo,
                 m.codiso,
 
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 cotizacion AS p
             INNER JOIN
@@ -711,6 +712,8 @@ class Cotizacion {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idCotizacion = ?`, [
                 idCotizacion

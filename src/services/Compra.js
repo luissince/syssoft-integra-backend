@@ -528,7 +528,7 @@ class Compra {
                 c.observacion,
                 c.nota,
                 mo.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 compra AS c
             INNER JOIN 
@@ -544,7 +544,9 @@ class Compra {
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = cn.idTipoDocumento 
             INNER JOIN 
-                usuario AS us ON us.idUsuario = c.idUsuario 
+                usuario AS us ON us.idUsuario = c.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             WHERE 
                 c.idCompra = ?`, [
                 idCompra,
@@ -637,13 +639,15 @@ class Compra {
                 t.hora,
                 c.nombre AS concepto,
                 t.nota,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 transaccion t            
             INNER JOIN
                 concepto c ON c.idConcepto = t.idConcepto
             INNER JOIN 
-                usuario AS us ON us.idUsuario = t.idUsuario 
+                usuario AS us ON us.idUsuario = t.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             WHERE 
                 t.idReferencia = ? AND t.estado = 1`, [
                 idCompra
@@ -886,7 +890,7 @@ class Compra {
                 v.observacion,
                 v.nota,
                 m.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 compra AS v 
             INNER JOIN
@@ -894,7 +898,9 @@ class Compra {
             INNER JOIN 
                 persona AS c ON v.idProveedor = c.idPersona
             INNER JOIN 
-                usuario AS us ON us.idUsuario = v.idUsuario 
+                usuario AS us ON us.idUsuario = v.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
             INNER JOIN 
@@ -1014,13 +1020,15 @@ class Compra {
                     t.hora,
                     c.nombre AS concepto,
                     t.nota,
-                    CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                    pu.informacion AS usuario
                 FROM 
                     transaccion t            
                 INNER JOIN
                     concepto c ON c.idConcepto = t.idConcepto
                 INNER JOIN 
-                    usuario AS us ON us.idUsuario = t.idUsuario 
+                    usuario AS us ON us.idUsuario = t.idUsuario
+                INNER JOIN
+                    persona AS pu ON pu.idPersona = us.idPersona
                 WHERE 
                     t.idReferencia = ? AND t.estado = 1`, [
                 req.query.idCompra
@@ -1311,8 +1319,7 @@ class Compra {
                 m.simbolo,
                 m.codiso,
                 --
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 compra AS p
             INNER JOIN
@@ -1323,6 +1330,8 @@ class Compra {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idCompra = ?`, [
                 idCompra

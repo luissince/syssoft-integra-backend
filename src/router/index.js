@@ -45,6 +45,7 @@ const modules = [
     ["motivotraslado", "./MotivoTraslado"],
     ["tipotraslado", "./TipoTraslado"],
     ["modalidadtraslado", "./ModalidadTraslado"],
+    ["tipopeso", "./TipoPeso"],
 
     ["vehiculo", "./Vehiculo"],
     ["pedido", "./Pedido"],

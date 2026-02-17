@@ -223,8 +223,7 @@ class Gasto {
                 cn.informacion,
                 g.estado,
                 m.codiso,
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 gasto AS g
             INNER JOIN 
@@ -235,6 +234,8 @@ class Gasto {
                 moneda AS m on m.idMoneda = g.idMoneda
             INNER JOIN 
                 usuario AS u ON u.idUsuario = g.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 g.idGasto = ?`, [
                 req.query.idGasto
@@ -261,13 +262,15 @@ class Gasto {
                 t.hora,
                 c.nombre AS concepto,
                 t.nota,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 transaccion t            
             INNER JOIN
                 concepto c ON c.idConcepto = t.idConcepto
             INNER JOIN 
                 usuario AS us ON us.idUsuario = t.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 t.idReferencia = ?`, [
                 req.query.idGasto
@@ -382,8 +385,7 @@ class Gasto {
                 m.simbolo,
                 m.codiso,
 
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 gasto AS p
             INNER JOIN
@@ -394,6 +396,8 @@ class Gasto {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idGasto = ?`, [
                 idGasto
@@ -523,7 +527,7 @@ class Gasto {
                 url: `${process.env.APP_PDF}/expense/excel`,
                 headers: {
                     'Content-Type': 'application/json',
-                },                
+                },
                 responseType: 'arraybuffer'
             };
 
