@@ -231,8 +231,7 @@ class Cobro {
                 cn.informacion,
                 c.estado,
                 m.codiso,
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 cobro AS c
             INNER JOIN 
@@ -243,6 +242,8 @@ class Cobro {
                 moneda AS m on m.idMoneda = c.idMoneda
             INNER JOIN 
                 usuario AS u ON u.idUsuario = c.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 c.idCobro = ?`, [
                 req.query.idCobro
@@ -269,13 +270,15 @@ class Cobro {
                 t.hora,
                 c.nombre AS concepto,
                 t.nota,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 transaccion t            
             INNER JOIN
                 concepto c ON c.idConcepto = t.idConcepto
             INNER JOIN 
-                usuario AS us ON us.idUsuario = t.idUsuario 
+                usuario AS us ON us.idUsuario = t.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona 
             WHERE 
                 t.idReferencia = ?`, [
                 req.query.idCobro
@@ -390,8 +393,7 @@ class Cobro {
                 m.simbolo,
                 m.codiso,
 --
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 cobro AS p
             INNER JOIN
@@ -402,6 +404,8 @@ class Cobro {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idCobro = ?`, [
                 idCobro

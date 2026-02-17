@@ -291,7 +291,7 @@ class Pedido {
                 DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
                 p.hora,
                 mo.codiso,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario
+                pu.informacion AS usuario
             FROM 
                 pedido AS p
             INNER JOIN 
@@ -302,6 +302,8 @@ class Pedido {
                 persona AS cn ON cn.idPersona = p.idCliente
             INNER JOIN 
                 usuario AS us ON us.idUsuario = p.idUsuario 
+            INNER JOIN
+                persona AS pu ON pu.idPersona = us.idPersona
             LEFT JOIN 
                 tipoEntrega AS te ON te.idTipoEntrega = p.idTipoEntrega
             WHERE 
@@ -1098,8 +1100,7 @@ class Pedido {
                 m.simbolo,
                 m.codiso,
 
-                u.apellidos,
-                u.nombres
+                pu.informacion AS usuario
             FROM 
                 pedido AS p
             INNER JOIN
@@ -1110,6 +1111,8 @@ class Pedido {
                 moneda AS m ON m.idMoneda = p.idMoneda
             INNER JOIN
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS pu ON pu.idPersona = u.idPersona
             WHERE 
                 p.idPedido = ?`, [
                 idPedido

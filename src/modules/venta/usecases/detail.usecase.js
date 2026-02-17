@@ -18,7 +18,7 @@ module.exports = ({ conec, firebaseService }) => async function detail(data) {
         c.direccion,
         c.celular,
         c.email,
-        CONCAT(us.nombres,' ',us.apellidos) AS usuario,
+        pu.informacion AS usuario,
         DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
         v.hora, 
         v.idFormaPago, 
@@ -37,7 +37,9 @@ module.exports = ({ conec, firebaseService }) => async function detail(data) {
     INNER JOIN 
         moneda AS m ON m.idMoneda = v.idMoneda
     INNER JOIN 
-        usuario AS us ON us.idUsuario = v.idUsuario 
+        usuario AS us ON us.idUsuario = v.idUsuario
+    INNER JOIN
+        persona AS pu ON pu.idPersona = us.idPersona
     INNER JOIN 
         tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
     INNER JOIN 
@@ -100,13 +102,15 @@ module.exports = ({ conec, firebaseService }) => async function detail(data) {
         t.hora,
         c.nombre AS concepto,
         t.nota,
-        CONCAT(us.nombres,' ',us.apellidos) AS usuario
+        pu.informacion AS usuario
     FROM 
         transaccion t            
     INNER JOIN
         concepto c ON c.idConcepto = t.idConcepto
     INNER JOIN 
-        usuario AS us ON us.idUsuario = t.idUsuario 
+        usuario AS us ON us.idUsuario = t.idUsuario
+    INNER JOIN
+        persona AS pu ON pu.idPersona = us.idPersona
     WHERE 
         t.idReferencia = ?`, [
         idVenta
