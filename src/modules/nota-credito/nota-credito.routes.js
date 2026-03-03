@@ -6,20 +6,20 @@ router.get('/', notaCredito.findAll);
 
 router.post('/', notaCredito.create);
 
-router.get('/:id', notaCredito.findById);
+router.get('/:idNotaCredito', notaCredito.findById);
 
-router.delete('/:id', notaCredito.deleteById);
+router.delete('/:idNotaCredito', notaCredito.deleteById);
 
-router.get('/:id/detail', notaCredito.detail);
+router.get('/:idNotaCredito/detail', notaCredito.detail);
 
-router.get("/:id/submit", notaCredito.submit);
+router.get("/:idNotaCredito/submit", notaCredito.submit);
 
-router.get("/:id/pdf", notaCredito.pdf);
+router.get("/:idNotaCredito/pdf/:size/:outputType", notaCredito.pdf);
 
-router.get("/:id/xml", notaCredito.xml);
+router.get("/:idNotaCredito/xml", notaCredito.xml);
 
-router.get("/:id/send-email", notaCredito.sendEmail);
+router.get("/:idNotaCredito/send-email", notaCredito.sendEmail);
 
-router.get("/:id/send-whatsapp", notaCredito.sendWhatsapp);
+router.get("/:idNotaCredito/send-whatsapp", notaCredito.sendWhatsapp);
 
 module.exports = router;

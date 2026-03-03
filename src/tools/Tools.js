@@ -9,6 +9,7 @@ const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
 const forge = require('node-forge');
 const logger = require('./Logger');
+const e = require('express');
 
 /**
  * Formatea un número agregando ceros delante hasta alcanzar una longitud específica.
@@ -246,14 +247,17 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
         // await writeFileAsync(path.join(fileDirectory, "certificate.cer"), Buffer.from(certDer, "binary"));
 
         // Devolver el nombre del archivo procesado
-        // return nameFile;
         return {
             "nombre": nameFile,
             "certificate": certPem,
-            "private": privateKeyPem
+            "private": privateKeyPem,
+            "startDate": cert.validity.notBefore.toISOString().slice(0, 10),
+            "startTime": cert.validity.notBefore.toISOString().slice(11, 19),
+            "expirationDate": cert.validity.notAfter.toISOString().slice(0, 10),
+            "expirationTime": cert.validity.notAfter.toISOString().slice(11, 19),
         }
     } catch (error) {
-        throw new Error(error.message);
+        throw error;
     }
 }
 

@@ -1,13 +1,25 @@
 const container = require("../../common/container");
-const buildUsecases = require("../../common/build-usecases");
 
-module.exports = buildUsecases(container, {
-    list: require("./usecases/list.usecase"),
-    create: require("./usecases/create.usecase"),
-    filter: require("./usecases/filter.usecase"),
-    cancel: require("./usecases/cancel.usecase"),
-    detail: require("./usecases/detail.usecase"),
-    details: require("./usecases/details.usecase"),
-    forSale: require("./usecases/for-sale.usecase"),
-    generatePdf: require("./usecases/generate-pdf.usecase"),
-});
+const findAll = require("./usecases/find-all.usecase");
+const create = require("./usecases/create.usecase");
+const filterAll = require("./usecases/filter-all.usecase");
+const cancel = require("./usecases/cancel.usecase");
+const findById = require("./usecases/find-by-id.usecase");
+const getDetailsById = require("./usecases/get-details-by-id.usecase");
+const forSale = require("./usecases/for-sale.usecase");
+const generatePdf = require("./usecases/generate-pdf.usecase");
+
+class VentaService {
+    constructor(container) {
+        this.findAll = findAll(container);
+        this.create = create(container);
+        this.filterAll = filterAll(container);
+        this.cancel = cancel(container);
+        this.findById = findById(container);
+        this.getDetailsById = getDetailsById(container);
+        this.forSale = forSale(container);
+        this.generatePdf = generatePdf(container);
+    }
+}
+
+module.exports = new VentaService(container);

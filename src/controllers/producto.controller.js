@@ -116,33 +116,6 @@ async function obtenerListPrecio(req, res) {
     }
 }
 
-async function rangePriceWeb(req, res) {
-    try {
-        const data = await producto.rangePriceWeb(req);
-        return sendSuccess(res, data);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/rangePriceWeb", error);
-    }
-}
-
-async function filterWeb(req, res) {
-    try {
-        const data = await producto.filterWeb(req);
-        return sendSuccess(res, data);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
-    }
-}
-
-async function filterWebLimit(req, res) {
-    try {
-        const data = await producto.filterWebLimit(req);
-        return sendSuccess(res, data);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebLimit", error);
-    }
-}
-
 async function filterWebAll(req, res) {
     try {
         const data = await producto.filterWebAll(req);
@@ -215,21 +188,6 @@ async function updateInventario(req, res) {
     }
 }
 
-// router.get('/filtrar/venta', async function (req, res) {
-// return responseSSE(req, res, async (sendEvent) => {
-//     const result = await producto.filtrarParaVenta(req)
-//     if (typeof result === 'object') {
-//         for await (const list of result.lists) {
-//             sendEvent(list);
-//             await new Promise(resolve => setTimeout(resolve, 100));
-//         }
-//         sendEvent(result.total);
-//     }
-
-//     sendEvent('__END__')
-// });
-// });
-
 module.exports = {
     list,
     create,
@@ -243,9 +201,6 @@ module.exports = {
     filterAlmacen,
     preferidoEstablecer,
     obtenerListPrecio,
-    rangePriceWeb,
-    filterWeb,
-    filterWebLimit,
     filterWebAll,
     filterWebId,
     filterWebRelatedId,

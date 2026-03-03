@@ -1,170 +1,90 @@
-const { ClientError } = require('../../../tools/Error');
-const { currentDate, currentTime } = require('../../../tools/Tools');
-const { KARDEX_TYPES, KARDEX_MOTIVOS } = require('../../../config/constants');
+module.exports = ({ conec, firebaseService }) => async function findById(data) {
+    const { idNotaCredito } = data;
 
-module.exports = ({ conec }) => async function findById(data) {
-    let connection = null;
-    try {
-        const { idVenta, idUsuario } = data;
+    // Obtener información general de la nota de crédito
+    const result = await conec.query(`
+    SELECT 
+        nc.idNotaCredito,
+        DATE_FORMAT(nc.fecha,'%d/%m/%Y') as fecha,
+        nc.hora,
 
-        // Iniciar una transacción
-        connection = await conec.beginTransaction();
+        td.nombre AS tipoDocumento,
+        cn.documento,
+        cn.informacion,
 
-        // Obtener fecha y hora actuales
-        const date = currentDate();
-        const time = currentTime();
+        co.nombre AS comprobante,
+        nc.serie,
+        nc.numeracion,
 
-        // Obtener información de la venta para el id proporcionado
-        const validate = await conec.execute(connection, `
-        SELECT 
-            serie, 
-            numeracion, 
-            estado 
-        FROM 
-            venta 
-        WHERE 
-            idVenta = ?`, [
-            idVenta
-        ]);
+        mt.nombre AS motivo,
 
-        // Verificar si la venta existe
-        if (validate.length === 0) {
-            throw new ClientError("La venta no existe, verifique el código o actualiza la lista.");
-        }
+        cv.nombre AS comprobanteVenta,
+        v.serie AS serieVenta,
+        v.numeracion AS numeracionVenta,
 
-        // Verificar si la venta ya está anulada
-        if (validate[0].estado === 3) {
-            throw new ClientError("La venta ya se encuentra anulada.");
-        }
+        nc.estado,
+        m.codiso,
+        nc.observacion
+    FROM 
+        notaCredito AS nc
+    INNER JOIN
+        persona AS cn ON cn.idPersona = nc.idCliente
+    INNER JOIN
+        tipoDocumento AS td ON td.idTipoDocumento = cn.idTipoDocumento
+    INNER JOIN
+        comprobante AS co ON nc.idComprobante = co.idComprobante
+    INNER JOIN
+        motivo AS mt ON mt.idMotivo = nc.idMotivo
+    INNER JOIN
+        venta AS v ON v.idVenta = nc.idVenta
+    INNER JOIN
+        comprobante AS cv on cv.idComprobante = v.idComprobante
+    INNER JOIN
+        moneda AS m ON m.idMoneda = nc.idMoneda
+    WHERE
+        nc.idNotaCredito = ?`, [
+        idNotaCredito
+    ]);
 
-        // Actualizar el estado de la venta a anulado
-        await conec.execute(connection, `
-        UPDATE 
-            venta 
-        SET 
-            estado = 3 
-        WHERE 
-            idVenta = ?`, [
-            idVenta
-        ]);
+    // Obtener detalles de productos vendidos en la venta
+    const detalles = await conec.query(`
+    SELECT 
+        ROW_NUMBER() OVER (ORDER BY ncd.idNotaCreditoDetalle ASC) AS id,
+        p.codigo,
+        p.nombre AS producto,
+        p.imagen,
+        md.nombre AS medida, 
+        m.nombre AS categoria, 
+        ncd.precio,
+        ncd.cantidad,
+        ncd.idImpuesto,
+        imp.nombre AS impuesto,
+        imp.porcentaje
+    FROM 
+        notaCreditoDetalle AS ncd
+    INNER JOIN 
+        producto AS p ON ncd.idProducto = p.idProducto 
+    INNER JOIN 
+        medida AS md ON md.idMedida = p.idMedida 
+    INNER JOIN 
+        categoria AS m ON p.idCategoria = m.idCategoria 
+    INNER JOIN 
+        impuesto AS imp ON ncd.idImpuesto  = imp.idImpuesto  
+    WHERE
+        ncd.idNotaCredito = ?
+    ORDER BY 
+        ncd.idNotaCreditoDetalle ASC`, [
+        idNotaCredito
+    ]);
 
-        // Actualizar el estado de transacción
-        await conec.execute(connection, `
-        UPDATE 
-            transaccion 
-        SET 
-            estado = 0 
-        WHERE 
-            idReferencia = ?`, [
-            idVenta
-        ]);
+    const bucket = firebaseService.getBucket();
 
-        // Obtener detalles de la venta
-        const detalleVenta = await conec.execute(connection, `
-        SELECT 
-            idProducto, 
-            precio, 
-            cantidad 
-        FROM 
-            ventaDetalle 
-        WHERE 
-            idVenta = ?`, [
-            idVenta
-        ]);
+    const nuevosDetalles = detalles.map(item => ({
+        ...item,
+        imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+    }));
 
-        // Obtener el máximo idKardex existente
-        const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
-        let idKardex = resultKardex.length ? Math.max(...resultKardex.map(k => parseInt(k.idKardex.replace("KD", '')))) : 0;
-
-        const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
-
-        // Procesar cada detalle de la venta
-        for (const detalle of detalleVenta) {
-            // Obtener registros de kardex relacionados con esta venta y producto
-            const kardexes = await conec.execute(connection, `
-            SELECT 
-                k.idProducto,
-                k.cantidad,
-                k.costo,
-                k.idAlmacen,
-                k.lote,
-                k.idUbicacion,
-                k.fechaVencimiento
-            FROM 
-                kardex AS k 
-            WHERE 
-                k.idVenta = ? AND k.idProducto = ?`, [
-                idVenta,
-                detalle.idProducto
-            ]);
-
-            for (const kardex of kardexes) {
-                // Insertar registro en kardex para anulación con lote
-                await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idVenta,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        lote,
-                        idUbicacion,
-                        fechaVencimiento,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    generarIdKardex(),
-                    kardex.idProducto,
-                    KARDEX_TYPES.INGRESO,
-                    KARDEX_MOTIVOS.DEVOLUCION,
-                    idVenta,
-                    'ANULACIÓN DE LA VENTA',
-                    kardex.cantidad,
-                    kardex.costo,
-                    kardex.idAlmacen,
-                    kardex.lote,
-                    kardex.idUbicacion,
-                    kardex.fechaVencimiento,
-                    date,
-                    time,
-                    idUsuario
-                ]);
-            }
-        }
-
-        // Registrar auditoría
-        await conec.execute(connection, `    
-        INSERT INTO auditoria(
-            idReferencia,
-            idUsuario,
-            tipo,
-            descripción
-        ) VALUES(?,?,?,?)`, [
-            idVenta,
-            idUsuario,
-            "ELIMINAR",
-            "SE ANULO LA VENTA",
-            date,
-            time,
-        ]);
-
-        // Confirmar la transacción
-        await conec.commit(connection);
-
-        // Enviar respuesta exitosa
-        return "Se anuló correctamente la venta.";
-    } catch (error) {
-        // Manejo de errores: Si hay un error, realiza un rollback y devuelve un mensaje de error
-        if (connection != null) {
-            await conec.rollback(connection);
-        }
-
-        throw error;
-    }
+    // Enviar respuesta exitosa con la información recopilada
+    return { "cabecera": result[0], detalles: nuevosDetalles };
 }
 

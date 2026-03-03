@@ -132,10 +132,11 @@ class Transaccion {
 
             const usuario = await conec.query(`
                 SELECT 
-                    CONCAT(u.nombres,', ',u.apellidos) AS nombre
-                    
+                    us.informacion                    
                 FROM
-                     usuario AS u
+                    usuario AS u
+                INNER JOIN
+                    persona AS us ON us.idPersona = u.idPersona
                 WHERE
                     u.idUsuario = ? `, [
                 req.query.idUsuario,
@@ -180,7 +181,7 @@ class Transaccion {
                     startDate: req.query.fechaInicio,
                     endDate: req.query.fechaFinal,
                     nameBranch: req.query.idSucursal === '' ? 'TODOS' : sucursal[0].nombre,
-                    nameUser: req.query.idUsuario === '' ? 'TODOS' : usuario[0].nombre,
+                    nameUser: req.query.idUsuario === '' ? 'TODOS' : usuario[0].informacion,
                     income: data[0][0].total ?? 0,
                     expense: data[1][0].total ?? 0,
                     incomes: data[2] ?? [],

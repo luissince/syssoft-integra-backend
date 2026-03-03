@@ -27,7 +27,6 @@ const modules = [
     ["ubigeo", "./Ubigeo"],
     ["tipodocumento", "./TipoDocumento"],
     ["medida", "./Medida"],
-    ["motivo", "./Motivo"],
 
     ["empresa", "./Empresa"],
     ["notificacion", "./Notificacion"],
@@ -51,7 +50,6 @@ const modules = [
     ["pedido", "./Pedido"],
     ["ordencompra", "./OrdenCompra"],
 
-    ["sunat", "./Sunat"],
     ["consulta", "./Consulta"],
 
     // routers con nombre distinto
@@ -76,6 +74,8 @@ const modules = [
     ["dashboard", "../modules/dashboard/dashboard.routes"],
     ["almacen", "../modules/almacen/almacen.routes"],
     ["tipoalmacen", "../modules/almacen/tipoAlmacen.routes"],
+    ["motivo", "../modules/motivo/motivo.routes"],
+    ["sunat", "../modules/sunat/sunat.routes"],
 ];
 
 /**

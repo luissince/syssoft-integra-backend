@@ -1,4 +1,4 @@
-module.exports = ({ conec }) => async function list(data) {
+module.exports = ({ conec }) => async function findAll(data) {
     const {
         opcion,
         buscar,

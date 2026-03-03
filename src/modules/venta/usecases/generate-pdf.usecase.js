@@ -1,6 +1,4 @@
-const { default: axios } = require('axios');
-
-module.exports = ({ conec, firebaseService }) => async function generatePdf(data) {
+module.exports = ({ conec, firebaseService, axios }) => async function generatePdf(data) {
     const { idVenta, size, outputType = "pdf" } = data;
 
     const bucket = firebaseService.getBucket();
@@ -39,8 +37,7 @@ module.exports = ({ conec, firebaseService }) => async function generatePdf(data
         m.simbolo,
         m.codiso,
         --
-        u.apellidos,
-        u.nombres
+        us.informacion as usuario
     FROM 
         venta AS v
     INNER JOIN
@@ -51,6 +48,8 @@ module.exports = ({ conec, firebaseService }) => async function generatePdf(data
         moneda AS m ON m.idMoneda = v.idMoneda
     INNER JOIN
         usuario AS u ON u.idUsuario = v.idUsuario
+    INNER JOIN
+        persona AS us ON us.idPersona = u.idPersona
     INNER JOIN
         formaPago AS fp ON fp.idFormaPago = v.idFormaPago
     LEFT JOIN
@@ -167,8 +166,9 @@ module.exports = ({ conec, firebaseService }) => async function generatePdf(data
                 "codiso": venta[0].codiso
             },
             "usuario": {
-                "apellidos": venta[0].apellidos,
-                "nombres": venta[0].nombres
+                "persona": {
+                    "informacion": venta[0].usuario
+                },
             },
             "ventaDetalles": detalles.map(item => {
                 return {

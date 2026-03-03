@@ -55,7 +55,8 @@ app.use((req, res, next) => {
     console.log('Método:', req.method);
     console.log('URL:', req.url);
     console.log('Cabecera(req.headers):', req.headers);
-    console.log('Cuerpo(req.body):', req.body);
+    console.log('Cuerpo(req.body):');
+    console.dir(req.body, { depth: null });
     console.log('Parametro(req.params):', req.params);
     console.log('Consulta(req.query):', req.query);
     next();

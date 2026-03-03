@@ -26,12 +26,6 @@ router.put('/establecer/preferido', producto.preferidoEstablecer);
 
 router.get('/lista/precios', producto.obtenerListPrecio);
 
-router.get('/filter/web/rangeprice', producto.rangePriceWeb);
-
-router.post('/filter/web', producto.filterWeb);
-
-router.get('/filter/web/limit/:limit', producto.filterWebLimit);
-
 router.get('/filter/web/all', producto.filterWebAll);
 
 router.get('/filter/web/id', producto.filterWebId);

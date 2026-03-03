@@ -2,8 +2,7 @@ const conec = require('../database/mysql-connection');
 const {
     currentDate,
     currentTime,
-    generateAlphanumericCode,
-    generateNumericCode,
+    generateAlphanumericCode
 } = require('../tools/Tools');
 const firebaseService = require('../common/fire-base');
 const { default: axios } = require("axios");
@@ -21,20 +20,11 @@ class ProductoService {
         ]);
 
         const bucket = firebaseService.getBucket();
-        const resultLista = lista.map(function (item, index) {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            }
-
-            return {
-                ...item,
-                id: (index + 1) + parseInt(req.query.posicionPagina)
-            }
-        });
+        const resultLista = lista.map((item, index) => ({
+            ...item,
+            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+            id: (index + 1) + parseInt(req.query.posicionPagina)
+        }));
 
         const total = await conec.procedure(`CALL Listar_Productos_Count(?,?)`, [
             parseInt(req.query.opcion),
@@ -65,6 +55,7 @@ class ProductoService {
                 descripcionCorta,
                 descripcionLarga,
                 idTipoTratamientoProducto,
+                idMetodoDepreciacion,
                 costo,
                 precio,
                 idTipoProducto,
@@ -164,6 +155,7 @@ class ProductoService {
                 descripcionCorta,
                 descripcionLarga,
                 idTipoTratamientoProducto,
+                idMetodoDepreciacion,
                 costo,
                 idTipoProducto,
                 publicar,
@@ -176,7 +168,7 @@ class ProductoService {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 idMedida,
@@ -188,6 +180,7 @@ class ProductoService {
                 descripcionCorta,
                 descripcionLarga,
                 idTipoTratamientoProducto,
+                idMetodoDepreciacion,
                 costo,
                 idTipoProducto,
                 publicar,
@@ -202,90 +195,18 @@ class ProductoService {
                 idUsuario,
             ])
 
-            if (idTipoProducto === "TP0001") {
-                /**
-                 * Generar id del inventario
-                 */
-                const listaInventarios = await conec.execute(connection, 'SELECT idInventario FROM inventario');
-                let idInventario = generateNumericCode(1, listaInventarios, 'idInventario');
-
-                /**
-                 * Generar id del kardex
-                 */
-                const kardexIds = await conec.execute(connection, 'SELECT idKardex FROM kardex');
-                let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
-                const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
-
-                /**
-                 * Registrar los almacenes
-                 */
+            if (idTipoProducto === "TP0001" || idTipoProducto === "TP0004") {
                 const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
 
                 for (const almacen of almacenes) {
-                    const inventario = inventarios.find(inventario => almacen.idAlmacen === inventario.idAlmacen);
-
-                    if (inventario) {
-                        await conec.execute(connection, `
+                    await conec.execute(connection, `
                         INSERT INTO inventario(
-                            idInventario,
                             idProducto,
-                            idAlmacen,
-                            cantidadMaxima,
-                            cantidadMinima
-                        ) VALUES(?,?,?,?,?)`, [
-                            idInventario,
-                            idProducto,
-                            inventario.idAlmacen,
-                            inventario.cantidadMaxima,
-                            inventario.cantidadMinima,
-                        ]);
-
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            idProducto,
-                            KARDEX_TYPES.INGRESO,
-                            KARDEX_MOTIVOS.ENTREDA,
-                            `El inventario inicial del producto ${nombre} se ha registrado correctamente con una cantidad de ${inventario.cantidad}.`,
-                            inventario.cantidad,
-                            costo,
-                            inventario.idAlmacen,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-
-                        idInventario++;
-                    } else {
-                        await conec.execute(connection, `
-                        INSERT INTO inventario(
-                            idInventario,
-                            idProducto,
-                            idAlmacen,
-                            cantidadMaxima,
-                            cantidadMinima
-                        ) VALUES(?,?,?,?,?)`, [
-                            idInventario,
-                            idProducto,
-                            almacen.idAlmacen,
-                            0,
-                            0,
-                        ]);
-
-                        idInventario++;
-                    }
+                            idAlmacen
+                        ) VALUES(?,?)`, [
+                        idProducto,
+                        almacen.idAlmacen
+                    ]);
                 }
             }
 
@@ -410,6 +331,7 @@ class ProductoService {
         const producto = await conec.query(`
         SELECT 
             p.idProducto,
+            p.idTipoProducto,
             p.idCategoria,
             p.idMedida,
             p.idMarca,
@@ -420,9 +342,9 @@ class ProductoService {
             p.descripcionCorta,
             p.descripcionLarga,
             p.idTipoTratamientoProducto,
+            p.idMetodoDepreciacion,
             pc.valor AS precio,
             p.costo,
-            p.idTipoProducto,
             p.publicar,
             p.negativo,
             p.preferido,
@@ -437,17 +359,12 @@ class ProductoService {
             req.params.idProducto
         ]);
 
-        let respuesta = { ...producto[0] };
-        if (bucket) {
-            respuesta = {
-                ...producto[0],
-                imagen: !producto[0].imagen
-                    ? null
-                    : {
-                        nombre: producto[0].imagen,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
-                    }
-            };
+        const respuesta = {
+            ...producto[0],
+            imagen: bucket && producto[0].imagen ? {
+                nombre: producto[0].imagen,
+                url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
+            } : null,
         }
 
         const precios = await conec.query(`
@@ -576,7 +493,8 @@ class ProductoService {
 
             const producto = await await conec.execute(connection, `
             SELECT 
-                imagen 
+                imagen,
+                idTipoProducto
             FROM 
                 producto 
             WHERE 
@@ -637,6 +555,7 @@ class ProductoService {
                 descripcionCorta = ?,
                 descripcionLarga = ?,
                 idTipoTratamientoProducto = ?,
+                idMetodoDepreciacion = ?,
                 costo = ?,
                 publicar = ?,
                 negativo = ?,
@@ -658,6 +577,7 @@ class ProductoService {
                 req.body.descripcionCorta,
                 req.body.descripcionLarga,
                 req.body.idTipoTratamientoProducto,
+                req.body.idMetodoDepreciacion,
                 req.body.costo,
                 req.body.publicar,
                 req.body.negativo,
@@ -669,6 +589,32 @@ class ProductoService {
                 req.body.idUsuario,
                 req.body.idProducto
             ]);
+
+            /**
+             * Actualizar inventario en caso no exista
+             */
+
+            if (producto[0].idTipoProducto === "TP0001" || producto[0].idTipoProducto === "TP0004") {
+                const inventario = await conec.execute(connection, `SELECT * FROM inventario WHERE idProducto = ?`, [
+                    req.body.idProducto
+                ]);
+
+                if (inventario.length === 0) {
+                    const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
+
+                    for (const almacen of almacenes) {
+                        await conec.execute(connection, `
+                        INSERT INTO inventario(
+                            idProducto,
+                            idAlmacen
+                        ) VALUES(?,?)`, [
+                            req.body.idProducto,
+                            almacen.idAlmacen
+                        ]);
+                    }
+                }
+
+            }
 
             /**
              * Actualizar precio
@@ -908,15 +854,10 @@ class ProductoService {
         ]);
 
         const bucket = firebaseService.getBucket();
-        const newData = result.map(item => {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                }
-            }
-            return item;
-        });
+        const newData = result.map(item => ({
+            ...item,
+            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+        }));
 
         return newData;
     }
@@ -931,15 +872,10 @@ class ProductoService {
 
         const bucket = firebaseService.getBucket();
 
-        const productos = result.map(item => {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                };
-            }
-            return item;
-        });
+        const productos = result.map(item => ({
+            ...item,
+            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+        }));
 
         if (productos.length === 0) return productos;
 
@@ -948,8 +884,6 @@ class ProductoService {
                 item.idProducto,
                 idAlmacen,
             ]);
-
-            console.log(inventarioDetalles);
 
             item.inventarioDetalles = inventarioDetalles;
             return item;
@@ -977,6 +911,10 @@ class ProductoService {
                 item.idProducto,
                 idAlmacen,
             ]);
+
+            console.log(item.idProducto);
+            console.log(idAlmacen);
+            console.log(inventarioDetalles);
 
             const newProducto = {
                 ...item,
@@ -1040,95 +978,6 @@ class ProductoService {
         return lista;
     }
 
-    async rangePriceWeb(req) {
-        const data = await conec.query(`
-            SELECT 
-                IFNULL(MIN(valor), 0) AS minimo,
-                IFNULL(MAX(valor), 0) AS maximo
-            FROM 
-                precio`, [
-            req.query.idProducto
-        ]);
-
-        return {
-            "minimo": data[0].minimo,
-            "maximo": data[0].maximo,
-        };
-    }
-
-    async filterWeb(req) {
-        const { buscar, filtros, posicionPagina, filasPorPagina } = req.body;
-
-        const categoriasCSV = filtros?.categories?.map(item => item.id).join(',') || '';
-        const marcasCSV = filtros?.brands?.map(item => item.id).join(',') || '';
-        const coloresCSV = filtros?.colors?.map(item => item.id).join(',') || '';
-        const tallasCSV = filtros?.sizes?.map(item => item.id).join(',') || '';
-        const saboresCSV = filtros?.flavors?.map(item => item.id).join(',') || '';
-        const precioMin = filtros && filtros.priceRange ? Number(filtros.priceRange[0]) : 0;
-        const precioMax = filtros && filtros.priceRange ? Number(filtros.priceRange[1]) : 999999;
-
-        const bucket = firebaseService.getBucket();
-
-        const [sucursal] = await conec.query(`
-            SELECT 
-                idSucursal
-            FROM 
-                sucursal 
-            WHERE 
-                principal = 1`);
-
-        const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?)`, [
-            buscar,
-            categoriasCSV,
-            marcasCSV,
-            coloresCSV,
-            tallasCSV,
-            saboresCSV,
-            precioMin,
-            precioMax,
-            parseInt(posicionPagina),
-            parseInt(filasPorPagina)
-        ]);
-
-        const data = await Promise.all(lista.map(async (item, index) => {
-            const [inventario] = await conec.query(`
-            SELECT 
-                inv.cantidad
-            FROM 
-                almacen AS alm 
-            INNER JOIN 
-                inventario AS inv ON inv.idAlmacen = alm.idAlmacen
-            WHERE 
-                alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
-                sucursal.idSucursal,
-                item.idProducto
-            ]);
-
-            return {
-                ...item,
-                imagen: bucket && item.imagen
-                    ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : null,
-                id: (index + 1) + parseInt(posicionPagina),
-                cantidad: inventario?.cantidad || 0,
-            };
-        }));
-
-
-        const rows = await conec.procedure(`CALL Listar_Productos_Web_Count(?,?,?,?,?,?,?,?)`, [
-            buscar,
-            categoriasCSV,
-            marcasCSV,
-            coloresCSV,
-            tallasCSV,
-            saboresCSV,
-            precioMin,
-            precioMax,
-        ]);
-
-        return { data, count: rows[0].Total };
-    }
-
     async filterWebAll() {
         const bucket = firebaseService.getBucket();
 
@@ -1145,51 +994,39 @@ class ProductoService {
         const data = await Promise.all(list.map(async (item, index) => {
             const [inventario] = await conec.query(`
             SELECT 
-                inv.cantidad
+                CASE 
+                WHEN p.idTipoProducto IN ('TP0001', 'TP0004') THEN
+                    IFNULL(SUM(
+                        CASE 
+                            WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
+                            ELSE -k.cantidad
+                        END
+                    ),0)
+                ELSE 0
+            END AS cantidad
             FROM 
-                almacen AS alm 
-            INNER JOIN 
-                inventario AS inv ON inv.idAlmacen = alm.idAlmacen
+                producto AS p 
+            LEFT JOIN 
+                kardex AS k ON p.idProducto = k.idProducto
+            LEFT JOIN
+                almacen AS a ON a.idAlmacen = k.idAlmacen
             WHERE 
-                alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
+                a.idSucursal = ? AND a.predefinido = 1 AND p.idProducto = ?
+            GROUP BY
+                p.idProducto`, [
                 sucursal.idSucursal,
                 item.idProducto
             ]);
 
             return {
                 ...item,
-                imagen: bucket && item.imagen
-                    ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : null,
+                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                 id: (index + 1),
                 cantidad: inventario?.cantidad || 0,
             };
         }));
 
         return data;
-    }
-
-    async filterWebLimit(req) {
-        const limit = req.params.limit;
-
-        const bucket = firebaseService.getBucket();
-
-        const list = await conec.procedure(`CALL Listar_Productos_Web_Index(?)`, [parseInt(limit)]);
-        const newList = list.map(function (item, index) {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    id: index + 1,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                }
-            }
-            return {
-                ...item,
-                id: index + 1,
-            }
-        });
-
-        return newList;
     }
 
     async filterWebId(req) {
@@ -1213,11 +1050,15 @@ class ProductoService {
             p.descripcionCorta,
             p.descripcionLarga,
             pc.valor AS precio,
-            p.imagen,
-            CASE 
-                WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
-                ELSE 0
-            END AS cantidad,
+            p.imagen,            
+            IFNULL(
+                SUM(
+                    CASE 
+                        WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
+                        ELSE -k.cantidad
+                    END
+                ),0
+            ) AS cantidad,
             p.idTipoProducto,
 
             c.idCategoria,
@@ -1239,17 +1080,13 @@ class ProductoService {
         LEFT JOIN 
             marca AS m ON m.idMarca = p.idMarca
         LEFT JOIN 
-            inventario AS i ON i.idProducto = p.idProducto 
-        LEFT JOIN 
-            almacen AS a ON a.idAlmacen = i.idAlmacen
+            kardex AS k ON p.idProducto = k.idProducto
+        LEFT JOIN
+            almacen AS a ON a.idAlmacen = k.idAlmacen
         WHERE 
-            p.estado = 1 AND p.idProducto = ? OR p.codigo = ?
-            AND
-            (
-                p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
-                OR
-                p.idTipoProducto = 'TP0002'
-            )`, [
+            p.estado = 1 AND p.idProducto = ? OR p.codigo = ? AND a.idSucursal = ? AND a.predefinido = 1
+        GROUP BY
+            p.idProducto`, [
             req.query.codigo,
             req.query.codigo,
             sucursal.idSucursal,
@@ -1294,51 +1131,6 @@ class ProductoService {
             }
         }
 
-        const colores = await conec.query(`
-        SELECT
-            ROW_NUMBER() OVER () AS id,
-            pc.idAtributo,
-            c.nombre,
-            c.hexadecimal
-        FROM 
-            productoAtributo AS pc
-        INNER JOIN 
-            atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
-        WHERE 
-            pc.idProducto = ?`, [
-            producto[0].idProducto
-        ]);
-
-        const tallas = await conec.query(`
-        SELECT
-            ROW_NUMBER() OVER () AS id,
-            pc.idAtributo,
-            c.nombre,
-            c.valor
-        FROM 
-            productoAtributo AS pc
-        INNER JOIN 
-            atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
-        WHERE 
-            pc.idProducto = ?`, [
-            producto[0].idProducto
-        ]);
-
-        const sabores = await conec.query(`
-        SELECT
-            ROW_NUMBER() OVER () AS id,
-            pc.idAtributo,
-            c.nombre,
-            c.valor
-        FROM 
-            productoAtributo AS pc
-        INNER JOIN 
-            atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
-        WHERE 
-            pc.idProducto = ?`, [
-            producto[0].idProducto
-        ]);
-
         return {
             ...producto[0],
             imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
@@ -1356,9 +1148,6 @@ class ProductoService {
             },
             detalles: detalles,
             imagenes: newImagenes,
-            colores,
-            tallas,
-            sabores,
         };
     }
 
@@ -1373,7 +1162,7 @@ class ProductoService {
         WHERE 
             principal = 1`);
 
-        const list = await conec.query(`
+        const productosRelacionados = await conec.query(`
         SELECT 
             p.idProducto,
             p.nombre,
@@ -1384,10 +1173,14 @@ class ProductoService {
             p.descripcionLarga,
             pc.valor AS precio,
             p.imagen,
-            CASE 
-                WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
-                ELSE 0
-            END AS cantidad,
+            IFNULL(
+                SUM(
+                    CASE 
+                        WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
+                        ELSE -k.cantidad
+                    END
+                ),0
+            ) AS cantidad,
              CASE 
                 WHEN p.idTipoProducto = 'TP0001' THEN 0
                 ELSE 1
@@ -1409,19 +1202,16 @@ class ProductoService {
             categoria AS c ON c.idCategoria = p.idCategoria
         INNER JOIN  
             medida AS me ON p.idMedida = me.idMedida
-        LEFT JOIN 
+        INNER JOIN 
             marca AS m ON m.idMarca = p.idMarca
-        LEFT JOIN 
-            inventario AS i ON i.idProducto = p.idProducto 
-        LEFT JOIN 
-            almacen AS a ON a.idAlmacen = i.idAlmacen
+        INNER JOIN 
+            kardex AS k ON p.idProducto = k.idProducto
+        INNER JOIN
+            almacen AS a ON a.idAlmacen = k.idAlmacen
         WHERE
-            p.estado = 1 AND p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
-            (
-                p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
-                OR
-                p.idTipoProducto = 'TP0002'
-            )
+            p.estado = 1 AND p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND a.idSucursal = ? AND a.predefinido = 1
+        GROUP BY
+            p.idProducto
         ORDER BY 
             p.fecha DESC, p.hora DESC
         LIMIT 4`, [
@@ -1430,7 +1220,12 @@ class ProductoService {
             sucursal.idSucursal,
         ]);
 
-        const resultLista = list.map(function (item) {
+        console.log("productosRelacionados");
+        console.log(req.query.idProducto, req.query.idCategoria, sucursal.idSucursal);
+
+        console.log(productosRelacionados);
+
+        const resultLista = productosRelacionados.map(function (item) {
             return {
                 ...item,
                 imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
@@ -1451,46 +1246,6 @@ class ProductoService {
 
         return resultLista;
     }
-
-    // async filterWebRelatedProduct(req, res) {
-    //     try {
-    //         const lista = await conec.query(`
-    //         SELECT 
-    //             p.idProducto,
-    //             p.codigo,
-    //             p.nombre,
-    //             pc.valor AS precio,
-    //             p.imagen,
-    //             c.nombre AS categoria
-    //         FROM 
-    //             producto AS p 
-    //         INNER JOIN 
-    //             precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-    //         INNER JOIN 
-    //             categoria AS c ON p.idCategoria = c.idCategoria    
-    //         WHERE
-    //             c.idCategoria = ? 
-    //         ORDER BY 
-    //             p.fecha DESC, p.hora DESC
-    //         LIMIT 
-
-    //             posicionPagina, filasPorPagina`, [
-    //             req.query.idCategoria
-    //         ]);
-
-    //         const resultLista = lista.map(function (item, index) {
-    //             return {
-    //                 ...item,
-    //                 imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-    //                 id: (index + 1) + parseInt(req.query.posicionPagina)
-    //             }
-    //         });
-
-    //         return sendSuccess(res, resultLista);
-    //     } catch (error) {
-    //         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
-    //     }
-    // }
 
     async documentsPdfReports() {
         const options = {

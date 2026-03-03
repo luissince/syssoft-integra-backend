@@ -7,8 +7,6 @@ module.exports = ({ conec }) => async function init(data) {
         idSucursal,
     ]);
 
-    console.log(result);
-
     return {
         "metaDiaria": result[0][0],
         "capital": result[1][0],

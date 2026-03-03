@@ -159,11 +159,13 @@ class Catalogo {
                 p.nombre,
                 DATE_FORMAT(p.fecha,'%d/%m/%Y') as fecha,
                 p.hora,   
-                CONCAT(u.nombres,' ',u.apellidos) AS usuario
+                us.informacion AS usuario
             FROM 
                 catalogo AS p
             INNER JOIN 
                 usuario AS u ON u.idUsuario = p.idUsuario
+            INNER JOIN
+                persona AS us ON us.idPersona = u.idPersona
             WHERE 
                 p.idCatalogo = ?`, [
             data.idCatalogo

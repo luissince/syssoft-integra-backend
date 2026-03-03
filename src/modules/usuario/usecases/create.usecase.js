@@ -33,17 +33,18 @@ module.exports = ({ conec }) => async function create(data) {
         ])
 
         await conec.commit(connection);
-        return 'Los datos se registrarón correctamente.';
+        return "Los datos se registrarón correctamente.";
     } catch (error) {
+         // ✅ Siempre hacer rollback primero
         if (connection != null) {
             await conec.rollback(connection);
         }
 
-        if (error instanceof ClientError) {
-            throw error;  // No es necesario crear una nueva instancia de ClientError
-        } else {
-            // Lanzar el error tal cual si no es un ClientError
-            throw error;
+        // Luego ya manejas el error
+        if (error.code === 'ER_DUP_ENTRY') {
+            throw new ClientError("El nombre de usuario ya existe.");
         }
+
+        throw error;
     }
 }

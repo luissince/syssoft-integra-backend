@@ -296,6 +296,17 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
+                const producto = await conec.execute(connection, `
+                    SELECT 
+                        idTipoProducto,
+                        idMetodoDepreciacion
+                    FROM 
+                        producto
+                    WHERE 
+                        idProducto = ?`, [
+                    item.idProducto,
+                ]);
+
                 const cantidad = item.inventarioDetalles.reduce((acumulador, inventarioDetalle) => acumulador + Number(inventarioDetalle.cantidad.value), 0);
 
                 // Insertar en la compra detalle
@@ -324,8 +335,8 @@ class Compra {
                     IFNULL(
                         SUM(
                             CASE 
-                                WHEN i.idTipoKardex = 'TK0001' THEN i.cantidad
-                                ELSE -i.cantidad
+                                WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
+                                ELSE -k.cantidad
                             END
                         ),0
                     ) AS cantidad,
@@ -333,19 +344,19 @@ class Compra {
                     IFNULL(
                         SUM(
                             CASE 
-                                WHEN i.idTipoKardex = 'TK0001' THEN i.cantidad * p.costo
-                                ELSE -i.cantidad * p.costo
+                                WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad * p.costo
+                                ELSE -k.cantidad * p.costo
                             END
                         ),0
                     ) AS total
                 FROM 
-                    kardex AS i
+                    kardex AS k
                 INNER JOIN 
                     producto AS p ON p.idProducto = i.idProducto
                 WHERE 
-                        i.idProducto = ?
+                        k.idProducto = ?
                     AND 
-                        i.idAlmacen = ?`, [
+                        k.idAlmacen = ?`, [
                     item.idProducto,
                     idAlmacen
                 ]);
@@ -363,42 +374,92 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
-                    // Inserta información en el Kardex con ID del lote
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idCompra,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        lote,
-                        idUbicacion,
-                        fechaVencimiento,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        generarIdKardex(),
-                        item.idProducto,
-                        KARDEX_TYPES.INGRESO,
-                        KARDEX_MOTIVOS.AJUSTE,
-                        idCompra,
-                        `INGRESO POR COMPRA`,
-                        Number(inventarioDetalle.cantidad.value),
-                        item.costo,
-                        idAlmacen,
-                        inventarioDetalle?.lote?.value ?? null,
-                        inventarioDetalle?.idUbicacion?.value ?? null,
-                        inventarioDetalle?.fechaVencimiento?.value ?? null,
-                        date,
-                        time,
-                        idUsuario
-                    ]);
+                    // Registrar su activo
+                    if (producto[0].idTipoProducto === "TP0004") {
+                        if (inventarioDetalle.cantidad && inventarioDetalle.cantidad.value > 0) {
+                            const cantidad = Number(inventarioDetalle.cantidad.value);
+
+                            for (let i = 0; i < cantidad; i++) {
+                                // Inserta información en el Kardex con ID del lote
+                                await conec.execute(connection, `
+                                INSERT INTO kardex(
+                                    idKardex,
+                                    idProducto,
+                                    idTipoKardex,
+                                    idMotivoKardex,
+                                    idCompra,
+                                    detalle,
+                                    cantidad,
+                                    costo,
+                                    idAlmacen,
+                                    lote,
+                                    idUbicacion,
+                                    fechaVencimiento,
+                                    vidaUtil,
+                                    valorResidual,
+                                    fecha,
+                                    hora,
+                                    idUsuario
+                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                                    generarIdKardex(),
+                                    item.idProducto,
+                                    KARDEX_TYPES.INGRESO,
+                                    KARDEX_MOTIVOS.AJUSTE,
+                                    idCompra,
+                                    `INGRESO POR COMPRA`,
+                                    1,
+                                    item.costo,
+                                    idAlmacen,
+                                    inventarioDetalle?.lote?.value || null,
+                                    inventarioDetalle?.idUbicacion?.value || null,
+                                    inventarioDetalle?.fechaVencimiento?.value || null,
+                                    inventarioDetalle?.vidaUtil?.value || null,
+                                    inventarioDetalle?.valorResidual?.value || null,
+                                    date,
+                                    time,
+                                    idUsuario
+                                ]);
+                            }
+                        }
+                    } else {
+                        // Inserta información en el Kardex con ID del lote
+                        await conec.execute(connection, `
+                        INSERT INTO kardex(
+                            idKardex,
+                            idProducto,
+                            idTipoKardex,
+                            idMotivoKardex,
+                            idCompra,
+                            detalle,
+                            cantidad,
+                            costo,
+                            idAlmacen,
+                            lote,
+                            idUbicacion,
+                            fechaVencimiento,
+                            fecha,
+                            hora,
+                            idUsuario
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            generarIdKardex(),
+                            item.idProducto,
+                            KARDEX_TYPES.INGRESO,
+                            KARDEX_MOTIVOS.AJUSTE,
+                            idCompra,
+                            `INGRESO POR COMPRA`,
+                            Number(inventarioDetalle.cantidad.value),
+                            item.costo,
+                            idAlmacen,
+                            inventarioDetalle?.lote?.value ?? null,
+                            inventarioDetalle?.idUbicacion?.value ?? null,
+                            inventarioDetalle?.fechaVencimiento?.value ?? null,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+                    }
                 }
+
 
                 // Actualizar el costo del producto
                 if (costo > 0) {

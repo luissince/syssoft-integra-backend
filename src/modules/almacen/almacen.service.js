@@ -75,6 +75,9 @@ class AlmacenService {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             if (req.body.predefinido) {
                 await conec.execute(connection, `UPDATE almacen SET predefinido = 0`);
             }
@@ -107,33 +110,20 @@ class AlmacenService {
                 req.body.observacion,
                 req.body.predefinido,
                 req.body.idUsuario,
-                currentDate(),
-                currentTime()
-            ])
-
-            const listaInventarios = await conec.execute(connection, 'SELECT idInventario FROM inventario');
-            let idInventario = generateNumericCode(1, listaInventarios, 'idInventario');
+                date,
+                time
+            ]);
 
             const productos = await conec.execute(connection, "SELECT * FROM producto WHERE idTipoProducto = 'TP0001' OR idTipoProducto = 'TP0004'");
 
             for (const producto of productos) {
                 await conec.execute(connection, `INSERT INTO inventario(
-                    idInventario, 
                     idProducto,
                     idAlmacen,
-                    cantidad, 
-                    cantidadMaxima, 
-                    cantidadMinima
-                ) VALUES(?,?,?,?,?,?)`, [
-                    idInventario,
+                ) VALUES(?,?)`, [
                     producto.idProducto,
                     idAlmacen,
-                    0,
-                    0,
-                    0
-                ])
-
-                idInventario++;
+                ]);
             }
 
             await conec.commit(connection);
@@ -231,6 +221,7 @@ class AlmacenService {
             const predefinido = await conec.execute(connection, `SELECT * FROM almacen WHERE idAlmacen = ? AND predefinido = 1`, [
                 req.body.idAlmacen
             ]);
+
             if (predefinido.length !== 0) {
                 await conec.rollback(connection);
 
@@ -247,18 +238,15 @@ class AlmacenService {
                 return "Hay un inventario ligado por ello no se puede eliminar el almacen.";
             }
 
-            await conec.execute(connection, `DELETE FROM inventario 
-                WHERE idAlmacen = ?`, [
+            await conec.execute(connection, `DELETE FROM inventario WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
             ])
 
-            await conec.execute(connection, `DELETE FROM almacen
-                WHERE idAlmacen = ?`, [
+            await conec.execute(connection, `DELETE FROM almacen WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
             ])
 
             await conec.commit(connection);
-
             return "deleted";
         } catch (error) {
             if (connection != null) {

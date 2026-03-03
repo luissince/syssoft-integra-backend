@@ -1,6 +1,11 @@
 const container = require("../../common/container");
-const buildUsecases = require("../../common/build-usecases");
 
-module.exports = buildUsecases(container, {
-    init: require('./usecases/init.usecase'),
-});
+const init = require("./usecases/init.usecase");
+
+class DashboardService {
+    constructor(container) {
+        this.init = init(container);
+    }
+}
+
+module.exports = new DashboardService(container);

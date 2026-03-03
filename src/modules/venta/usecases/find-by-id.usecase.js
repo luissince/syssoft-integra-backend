@@ -1,33 +1,34 @@
 
 
-module.exports = ({ conec, firebaseService }) => async function detail(data) {
+module.exports = ({ conec, firebaseService }) => async function findById(data) {
     const { idVenta } = data;
 
     // Obtener información general de la venta
     const result = await conec.query(`
     SELECT
         v.idVenta, 
-        com.nombre AS comprobante,
-        com.codigo as codigoVenta,
+        DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
+        v.hora, 
+
+        com.nombre AS comprobante,        
         v.serie,
         v.numeracion,
+
         td.nombre AS tipoDoc,      
         td.codigo AS codigoCliente,      
         c.documento,
         c.informacion,
-        c.direccion,
-        c.celular,
-        c.email,
-        pu.informacion AS usuario,
-        DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-        v.hora, 
+
         v.idFormaPago, 
+        
         v.estado, 
-        m.simbolo,
-        m.codiso,
-        m.nombre as moneda,
+
         v.observacion,
-        v.nota
+        v.nota,
+
+        m.codiso,
+
+        pu.informacion AS usuario
     FROM 
         venta AS v 
     INNER JOIN 
