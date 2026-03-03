@@ -42,19 +42,4 @@ router.post("/dashboard", producto.dashboard);
 
 router.get("/update-inventario", producto.updateInventario);
 
-// router.get('/filtrar/venta', async function (req, res) {
-// return responseSSE(req, res, async (sendEvent) => {
-//     const result = await producto.filtrarParaVenta(req)
-//     if (typeof result === 'object') {
-//         for await (const list of result.lists) {
-//             sendEvent(list);
-//             await new Promise(resolve => setTimeout(resolve, 100));
-//         }
-//         sendEvent(result.total);
-//     }
-
-//     sendEvent('__END__')
-// });
-// });
-
 module.exports = router;

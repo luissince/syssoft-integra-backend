@@ -352,7 +352,7 @@ class Compra {
                 FROM 
                     kardex AS k
                 INNER JOIN 
-                    producto AS p ON p.idProducto = i.idProducto
+                    producto AS p ON p.idProducto = k.idProducto
                 WHERE 
                         k.idProducto = ?
                     AND 
