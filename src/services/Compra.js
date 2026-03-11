@@ -374,56 +374,8 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
-                    // Registrar su activo
-                    if (producto[0].idTipoProducto === "TP0004") {
-                        if (inventarioDetalle.cantidad && inventarioDetalle.cantidad.value > 0) {
-                            const cantidad = Number(inventarioDetalle.cantidad.value);
-
-                            for (let i = 0; i < cantidad; i++) {
-                                // Inserta información en el Kardex con ID del lote
-                                await conec.execute(connection, `
-                                INSERT INTO kardex(
-                                    idKardex,
-                                    idProducto,
-                                    idTipoKardex,
-                                    idMotivoKardex,
-                                    idCompra,
-                                    detalle,
-                                    cantidad,
-                                    costo,
-                                    idAlmacen,
-                                    lote,
-                                    idUbicacion,
-                                    fechaVencimiento,
-                                    vidaUtil,
-                                    valorResidual,
-                                    fecha,
-                                    hora,
-                                    idUsuario
-                                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                                    generarIdKardex(),
-                                    item.idProducto,
-                                    KARDEX_TYPES.INGRESO,
-                                    KARDEX_MOTIVOS.AJUSTE,
-                                    idCompra,
-                                    `INGRESO POR COMPRA`,
-                                    1,
-                                    item.costo,
-                                    idAlmacen,
-                                    inventarioDetalle?.lote?.value || null,
-                                    inventarioDetalle?.idUbicacion?.value || null,
-                                    inventarioDetalle?.fechaVencimiento?.value || null,
-                                    inventarioDetalle?.vidaUtil?.value || null,
-                                    inventarioDetalle?.valorResidual?.value || null,
-                                    date,
-                                    time,
-                                    idUsuario
-                                ]);
-                            }
-                        }
-                    } else {
-                        // Inserta información en el Kardex con ID del lote
-                        await conec.execute(connection, `
+                    // Inserta información en el Kardex con ID del lote
+                    await conec.execute(connection, `
                         INSERT INTO kardex(
                             idKardex,
                             idProducto,
@@ -437,29 +389,33 @@ class Compra {
                             lote,
                             idUbicacion,
                             fechaVencimiento,
+                            serie,
+                            vidaUtil,
+                            valorResidual,
                             fecha,
                             hora,
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            item.idProducto,
-                            KARDEX_TYPES.INGRESO,
-                            KARDEX_MOTIVOS.AJUSTE,
-                            idCompra,
-                            `INGRESO POR COMPRA`,
-                            Number(inventarioDetalle.cantidad.value),
-                            item.costo,
-                            idAlmacen,
-                            inventarioDetalle?.lote?.value ?? null,
-                            inventarioDetalle?.idUbicacion?.value ?? null,
-                            inventarioDetalle?.fechaVencimiento?.value ?? null,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-                    }
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        generarIdKardex(),
+                        item.idProducto,
+                        KARDEX_TYPES.INGRESO,
+                        KARDEX_MOTIVOS.AJUSTE,
+                        idCompra,
+                        `INGRESO POR COMPRA`,
+                        Number(inventarioDetalle.cantidad),
+                        item.costo,
+                        idAlmacen,
+                        inventarioDetalle.lote || null,
+                        inventarioDetalle.idUbicacion || null,
+                        inventarioDetalle.fechaVencimiento || null,
+                        inventarioDetalle.serie || null,
+                        inventarioDetalle.vidaUtil || null,
+                        inventarioDetalle.valorResidual || null,
+                        date,
+                        time,
+                        idUsuario
+                    ]);
                 }
-
 
                 // Actualizar el costo del producto
                 if (costo > 0) {
@@ -550,7 +506,7 @@ class Compra {
             }
 
             // Confirma la transacción
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return sendSave(res, {
                 idCompra: idCompra,
                 message: "Se registró correctamente la compra."

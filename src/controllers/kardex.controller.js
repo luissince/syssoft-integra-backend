@@ -1,15 +1,29 @@
 const kardex = require('../services/kardex.service');
-const { sendSuccess, sendError } = require('../tools/Message');
+const { sendSuccess } = require('../tools/Message');
 
 async function list(req, res) {
-    try {
-        const data = await kardex.list(req.query);
-        return sendSuccess(res, data);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Kardex/list", error);
-    }
+    const data = await kardex.list(req.query);
+    return sendSuccess(res, data);
+}
+
+async function listarDepreciacion(req, res) {
+    const data = await kardex.listDepreciacion(req.body);
+    return sendSuccess(res, data);
+}
+
+async function detalleDepreciacion(req, res) {
+    const data = await kardex.detailtDepreciacion(req.body);
+    return sendSuccess(res, data);
+}
+
+async function createDepreciacion(req, res) {
+    const data = await kardex.createDepreciacion(req.query);
+    return sendSuccess(res, data);
 }
 
 module.exports = {
-    list
+    list,
+    detalleDepreciacion,
+    createDepreciacion,
+    listarDepreciacion,
 };
