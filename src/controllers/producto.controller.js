@@ -46,7 +46,7 @@ async function update(req, res) {
 
 async function remove(req, res) {
     try {
-        const data = await producto.delete(req);
+        const data = await producto.remove(req);
         return sendSuccess(res, data);
     } catch (error) {
         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/delete", error);
