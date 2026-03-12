@@ -243,7 +243,6 @@ class Compra {
                     fechaVencimiento = current;
                 }
             }
-
             // Inserta la información principal de la compra en la base de datos
             await conec.execute(connection, `
             INSERT INTO compra(
@@ -307,7 +306,11 @@ class Compra {
                     item.idProducto,
                 ]);
 
-                const cantidad = item.inventarioDetalles.reduce((acumulador, inventarioDetalle) => acumulador + Number(inventarioDetalle.cantidad.value), 0);
+                // const cantidad = item.inventarioDetalles.reduce((acumulador, inventarioDetalle) => acumulador + Number(inventarioDetalle.cantidad.value), 0);
+                const cantidad = item.inventarioDetalles.reduce(
+                    (acc, d) => acc + Number(d.cantidad || 0),
+                    0
+                );
 
                 // Insertar en la compra detalle
                 await await conec.execute(connection, `
@@ -506,7 +509,7 @@ class Compra {
             }
 
             // Confirma la transacción
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return sendSave(res, {
                 idCompra: idCompra,
                 message: "Se registró correctamente la compra."
