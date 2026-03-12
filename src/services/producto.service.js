@@ -195,7 +195,7 @@ class ProductoService {
                 idUsuario,
             ])
 
-            if (idTipoProducto === "TP0001" || idTipoProducto === "TP0004") {
+            if (["TP0001", "TP0004", "TP0005", "TP0006"].includes(idTipoProducto)) {
                 const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
 
                 for (const almacen of almacenes) {
@@ -594,7 +594,7 @@ class ProductoService {
              * Actualizar inventario en caso no exista
              */
 
-            if (producto[0].idTipoProducto === "TP0001" || producto[0].idTipoProducto === "TP0004") {
+            if (["TP0001", "TP0004", "TP0005", "TP0006"].includes(producto[0].idTipoProducto)) {
                 const inventario = await conec.execute(connection, `SELECT * FROM inventario WHERE idProducto = ?`, [
                     req.body.idProducto
                 ]);
@@ -994,16 +994,14 @@ class ProductoService {
         const data = await Promise.all(list.map(async (item, index) => {
             const [inventario] = await conec.query(`
             SELECT 
-                CASE 
-                WHEN p.idTipoProducto IN ('TP0001', 'TP0004') THEN
-                    IFNULL(SUM(
+                IFNULL(
+                    SUM(
                         CASE 
                             WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
                             ELSE -k.cantidad
                         END
-                    ),0)
-                ELSE 0
-            END AS cantidad
+                    ),0
+                ) AS cantidad
             FROM 
                 producto AS p 
             LEFT JOIN 

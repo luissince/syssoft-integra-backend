@@ -114,7 +114,14 @@ class AlmacenService {
                 time
             ]);
 
-            const productos = await conec.execute(connection, "SELECT * FROM producto WHERE idTipoProducto = 'TP0001' OR idTipoProducto = 'TP0004'");
+            const productos = await conec.execute(connection, `
+            SELECT 
+                * 
+            FROM 
+                producto 
+            WHERE 
+                idTipoProducto IN ('TP0001','TP0004','TP0005','TP0006')
+            `);
 
             for (const producto of productos) {
                 await conec.execute(connection, `INSERT INTO inventario(
