@@ -1,5 +1,5 @@
 const conec = require('../database/mysql-connection');
-const { currentDate, currentTime } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendClient, sendError, sendSave, sendNotFound } = require('../tools/Message');
 
 class Moneda {

@@ -577,6 +577,7 @@ class Compra {
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
                 p.idProducto,
+                p.idTipoProducto,
                 c.idAlmacen,
                 p.imagen,
                 p.codigo,
@@ -625,6 +626,10 @@ class Compra {
                 const inventarioDetalles = await conec.query(`
                 SELECT 
                     k.lote,
+                    k.serie,
+                    k.cantidad,
+                    k.vidaUtil,
+                    k.valorResidual,
                     k.cantidad,
                     CASE 
                         WHEN 

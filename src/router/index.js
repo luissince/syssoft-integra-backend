@@ -52,6 +52,9 @@ const modules = [
 
     ["consulta", "./Consulta"],
 
+    ["area", "./Area"],
+    ["cargo", "./Cargo"],
+
     // routers con nombre distinto
     ["catalogo", "./catalogo.routes"],
     ["producto", "./producto.routes"],
