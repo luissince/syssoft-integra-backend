@@ -289,6 +289,29 @@ class Persona {
                 req.body.idUsuario,
             ]);
 
+            const resultEmpleado = await conec.execute(connection, 'SELECT idEmpleado FROM empleado');
+            const idEmpleado = generateAlphanumericCode("EP0001", resultEmpleado, 'idEmpleado');
+
+            if (req.body.personal) {
+                await conec.execute(connection, `INSERT INTO empleado(
+                    idEmpleado,
+                    idPersona, 
+                    codigoEmpleado,
+                    idArea,
+                    idCargo,
+                    fechaIngreso,
+                    estadoLaboral 
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                    idEmpleado,
+                    idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    currentDate(),
+                    req.body.estado
+                ]);
+            }
+
             await conec.commit(connection);
             return sendSuccess(res, "Se registró correctamente la persona.");
         } catch (error) {
@@ -305,6 +328,9 @@ class Persona {
             SELECT 
                 cn.idPersona,
                 cn.idTipoDocumento,
+                e.idEmpleado,
+                e.idArea,
+                e.idCargo,
                 cn.documento,
                 cn.informacion,
                 cn.cliente,
@@ -332,6 +358,8 @@ class Persona {
                 persona AS cn 
             LEFT JOIN 
                 ubigeo AS u ON u.idUbigeo = cn.idUbigeo
+            LEFT JOIN
+            	empleado AS e ON e.idPersona = cn.idPersona
             WHERE 
                 cn.idPersona = ?`, [
                 req.query.idPersona,
@@ -413,6 +441,50 @@ class Persona {
                 req.body.idUsuario,
                 req.body.idPersona
             ]);
+
+            const resultEmpleado = await conec.execute(connection, 'SELECT idEmpleado FROM empleado');
+            const idEmpleado = generateAlphanumericCode("EP0001", resultEmpleado, 'idEmpleado');
+
+            if (req.body.personal && req.body.idEmpleado !== '') {
+                await conec.execute(connection, `UPDATE empleado SET 
+                    idPersona = ?,
+                    codigoEmpleado = ?,
+                    idArea = ?,
+                    idCargo = ?,
+                    fechaIngreso = ?,
+                    estadoLaboral = ?
+                WHERE idEmpleado = ?`, [
+                    req.body.idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    currentDate(),
+                    req.body.estado,
+                    req.body.idEmpleado
+                ]);
+            } else if (req.body.personal && req.body.idEmpleado === '') {
+                await conec.execute(connection, `INSERT INTO empleado(
+                    idEmpleado,
+                    idPersona, 
+                    codigoEmpleado,
+                    idArea,
+                    idCargo,
+                    fechaIngreso,
+                    estadoLaboral
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                    idEmpleado,
+                    req.body.idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    currentDate(),
+                    req.body.estado
+                ]);
+            } else {
+                await conec.execute(connection, `DELETE FROM empleado WHERE idPersona = ?`, [
+                    req.body.idPersona
+                ]);
+            }
 
             await conec.commit(connection)
             return sendSuccess(res, "Se actualizó correctamente la persona.");
@@ -505,6 +577,10 @@ class Persona {
                 await conec.rollback(connection);
                 return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a una venta.");
             }
+
+            await conec.execute(connection, `DELETE FROM empleado WHERE idPersona  = ?`, [
+                req.query.idPersona
+            ]);
 
             await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
                 req.query.idPersona

@@ -181,6 +181,22 @@ class Area {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Area/delete", error);
         }
     }
+
+    async combo(req, res) {
+        try {
+            const result = await conec.query(`SELECT 
+                idArea, 
+                nombre
+                FROM area`, [])
+
+            console.log("area combo")
+            console.log(result);
+
+            return sendSuccess(res, result)
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Area/combo", error);
+        }
+    }
 }
 
 module.exports = new Area();

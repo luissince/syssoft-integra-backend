@@ -8,7 +8,9 @@ router.post('/', async (req, res) => await cargo.add(req, res));
 
 router.put('/', async (req, res) => await cargo.update(req, res));
 
-router.get('/:idCargo', async (req, res) => await cargo.id(req, res));
+router.get('/combo', async (req, res) => await cargo.combo(req, res));
+
+router.get('/:idCargo/id', async (req, res) => await cargo.id(req, res));
 
 router.delete('/:idCargo', async (req, res) => await cargo.delete(req, res));
 
