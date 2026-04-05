@@ -41,6 +41,9 @@ class Gasto {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const {
                 idPersona,
                 idUsuario,
@@ -115,8 +118,8 @@ class Gasto {
                 estado,
                 observacion,
                 nota,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             /**
@@ -167,8 +170,8 @@ class Gasto {
                 idSucursal,
                 notaTransacion,
                 1,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idUsuario
             ]);
 
@@ -177,13 +180,13 @@ class Gasto {
 
             for (const item of bancosAgregados) {
                 await conec.execute(connection, `
-                    INSERT INTO transaccionDetalle(
-                        idTransaccionDetalle,
-                        idTransaccion,
-                        idBanco,
-                        monto,
-                        observacion
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO transaccionDetalle(
+                    idTransaccionDetalle,
+                    idTransaccion,
+                    idBanco,
+                    monto,
+                    observacion
+                ) VALUES(?,?,?,?,?)`, [
                     idTransaccionDetalle,
                     idTransaccion,
                     item.idBanco,
@@ -278,16 +281,16 @@ class Gasto {
 
             for (const item of transaccion) {
                 const transacciones = await conec.query(`
-                    SELECT 
-                        b.nombre,
-                        td.monto,
-                        td.observacion
-                    FROM
-                        transaccionDetalle td
-                    INNER JOIN 
-                        banco b on td.idBanco = b.idBanco     
-                    WHERE 
-                        td.idTransaccion = ?`, [
+                SELECT 
+                    b.nombre,
+                    td.monto,
+                    td.observacion
+                FROM
+                    transaccionDetalle td
+                INNER JOIN 
+                    banco b on td.idBanco = b.idBanco     
+                WHERE 
+                    td.idTransaccion = ?`, [
                     item.idTransaccion
                 ]);
 

@@ -68,6 +68,9 @@ class Vehiculo {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const resultVehiculo = await conec.execute(connection, 'SELECT idVehiculo FROM vehiculo');
             const idVehiculo = generateAlphanumericCode("VH0001", resultVehiculo, 'idVehiculo');
 
@@ -90,8 +93,8 @@ class Vehiculo {
                 req.body.numeroPlaca,
                 req.body.preferido,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
             ])
 
@@ -198,15 +201,15 @@ class Vehiculo {
     async predeterminado(req, res) {
         try {
             const result = await conec.query(`
-                SELECT 
-                    idVehiculo,
-                    marca,
-                    numeroPlaca,
-                    preferido 
-                FROM 
-                    vehiculo 
-                WHERE 
-                    preferido = 1`);
+            SELECT 
+                idVehiculo,
+                marca,
+                numeroPlaca,
+                preferido 
+            FROM 
+                vehiculo 
+            WHERE 
+                preferido = 1`);
             if (result.length !== 0) {
                 return sendSuccess(res, result[0]);
             }
@@ -247,7 +250,7 @@ class Vehiculo {
                 estado = 1 AND 
                 (
                     marca LIKE CONCAT('%',?,'%') 
-                    OR 
+                OR 
                     numeroPlaca LIKE CONCAT('%',?,'%')
                 )`, [
                 req.query.filter,

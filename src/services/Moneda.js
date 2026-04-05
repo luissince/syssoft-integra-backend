@@ -1,25 +1,27 @@
 const conec = require('../database/mysql-connection');
-const { currentDate, currentTime } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendClient, sendError, sendSave, sendNotFound } = require('../tools/Message');
 
 class Moneda {
 
     async list(req, res) {
         try {
-            const lista = await conec.query(`SELECT 
+            const lista = await conec.query(`
+            SELECT 
                 idMoneda, 
                 nombre, 
                 codiso, 
                 simbolo, 
                 estado,
                 nacional
-                FROM moneda 
-                WHERE 
+            FROM 
+                moneda 
+            WHERE 
                 ? = 0
-                OR
+            OR
                 ? = 1 AND (nombre like concat(?,'%') OR  codiso like concat(?,'%'))
-
-                LIMIT ?,?`, [
+            LIMIT 
+                ?,?`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -37,11 +39,14 @@ class Moneda {
                 }
             });
 
-            const total = await conec.query(`SELECT COUNT(*) AS Total 
-                FROM moneda  
-                WHERE 
+            const total = await conec.query(`
+            SELECT 
+                COUNT(*) AS Total 
+            FROM 
+                moneda  
+            WHERE 
                 ? = 0
-                OR
+            OR
                 ? = 1 AND (nombre like concat(?,'%') OR  codiso like concat(?,'%'))`, [
                 parseInt(req.query.opcion),
 
@@ -61,10 +66,14 @@ class Moneda {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const result = await conec.execute(connection, 'SELECT idMoneda FROM moneda');
             const idMoneda = generateAlphanumericCode("MN0001", result, 'idMoneda');
 
-            await conec.execute(connection, `INSERT INTO moneda(
+            await conec.execute(connection, `
+            INSERT INTO moneda(
                 idMoneda,
                 nombre, 
                 codiso, 
@@ -75,18 +84,18 @@ class Moneda {
                 hora, 
                 fupdate,
                 hupdate,
-                idUsuario) 
-                values (?,?,?,?,?,?,?,?,?,?,?)`, [
+                idUsuario
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [
                 idMoneda,
                 req.body.nombre,
                 req.body.codiso,
                 req.body.simbolo,
                 req.body.estado,
                 0,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ])
 
@@ -105,21 +114,28 @@ class Moneda {
         try {
             connection = await conec.beginTransaction();
 
-            await conec.execute(connection, `UPDATE moneda SET 
-            nombre=?, 
-            codiso=?,
-            simbolo=?, 
-            estado=?,
-            fecha=?,
-            hora=?,
-            idUsuario=? 
-            where idMoneda=?`, [
+            const date = currentDate();
+            const time = currentTime();
+
+            await conec.execute(connection, `
+            UPDATE 
+                moneda 
+            SET 
+                nombre=?, 
+                codiso=?,
+                simbolo=?, 
+                estado=?,
+                fecha=?,
+                hora=?,
+                idUsuario=? 
+            WHERE 
+                idMoneda=?`, [
                 req.body.nombre,
                 req.body.codiso,
                 req.body.simbolo,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idMoneda,
             ])
@@ -207,14 +223,17 @@ class Moneda {
 
     async combo(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idMoneda,
-            nombre, 
-            simbolo, 
-            codiso, 
-            nacional 
-            FROM moneda 
-            WHERE estado = 1`);
+            const result = await conec.query(`
+            SELECT 
+                idMoneda,
+                nombre, 
+                simbolo, 
+                codiso, 
+                nacional 
+            FROM 
+                moneda 
+            WHERE 
+                estado = 1`);
             return sendSuccess(res, result);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Moneda/combo", error);
@@ -223,13 +242,16 @@ class Moneda {
 
     async nacional(req, res) {
         try {
-            const result = await conec.query(`SELECT 
-            idMoneda,
-            nombre, 
-            simbolo, 
-            codiso 
-            FROM moneda 
-            WHERE nacional = 1`);
+            const result = await conec.query(`
+            SELECT 
+                idMoneda,
+                nombre, 
+                simbolo, 
+                codiso 
+            FROM 
+                moneda 
+            WHERE 
+                nacional = 1`);
             if (result.length >= 1) {
                 return sendSuccess(res, result[0]);
             }

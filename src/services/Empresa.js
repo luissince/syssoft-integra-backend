@@ -24,19 +24,19 @@ class Empresa {
     async load(req, res) {
         try {
             const [primeraEmpresa] = await conec.query(`
-                SELECT
-                    idEmpresa,
-                    documento,
-                    razonSocial,
-                    nombreEmpresa,
-                    rutaLogo,
-                    rutaImage,
-                    usuarioSolSunat,
-                    claveSolSunat
-                FROM 
-                    empresa 
-                LIMIT 
-                    1`);
+            SELECT
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage,
+                usuarioSolSunat,
+                claveSolSunat
+            FROM 
+                empresa 
+            LIMIT 
+                1`);
 
             if (!primeraEmpresa) {
                 throw new Error('No se encontraron datos de empresa.');
@@ -182,6 +182,9 @@ class Empresa {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             const bucket = firebaseService.getBucket();
 
@@ -594,8 +597,8 @@ class Empresa {
                 req.body.politicasPrivacidad,
                 req.body.terminosCondiciones,
 
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idEmpresa
             ]);
@@ -642,6 +645,9 @@ class Empresa {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             const empresa = await conec.execute(connection, `SELECT * FROM empresa`);
             if (empresa.length > 0) {
@@ -714,10 +720,10 @@ class Empresa {
                 '',
                 '',
                 '',
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
             ]);
 
             await conec.commit(connection);

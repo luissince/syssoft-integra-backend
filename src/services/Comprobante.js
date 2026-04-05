@@ -38,6 +38,9 @@ class Comprobante {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             if (req.body.preferida) {
                 await conec.execute(connection, `
                 UPDATE 
@@ -54,7 +57,8 @@ class Comprobante {
             const result = await conec.execute(connection, 'SELECT idComprobante FROM comprobante');
             const idComprobante = generateAlphanumericCode("CB0001", result, 'idComprobante');
 
-            await conec.execute(connection, `INSERT INTO comprobante(
+            await conec.execute(connection, `
+            INSERT INTO comprobante(
                 idComprobante,
                 idSucursal,
                 idTipoComprobante,
@@ -89,10 +93,10 @@ class Comprobante {
                 req.body.facturado,
                 req.body.creditoFiscal,
                 req.body.anulacion,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ]);
 
@@ -132,6 +136,9 @@ class Comprobante {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             if (req.body.preferida) {
                 await conec.execute(connection, `
@@ -179,8 +186,8 @@ class Comprobante {
                 req.body.facturado,
                 req.body.creditoFiscal,
                 req.body.anulacion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idComprobante
             ]);

@@ -295,22 +295,7 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
-                const producto = await conec.execute(connection, `
-                    SELECT 
-                        idTipoProducto,
-                        idMetodoDepreciacion
-                    FROM 
-                        producto
-                    WHERE 
-                        idProducto = ?`, [
-                    item.idProducto,
-                ]);
-
-                // const cantidad = item.inventarioDetalles.reduce((acumulador, inventarioDetalle) => acumulador + Number(inventarioDetalle.cantidad.value), 0);
-                const cantidad = item.inventarioDetalles.reduce(
-                    (acc, d) => acc + Number(d.cantidad || 0),
-                    0
-                );
+                const cantidad = item.inventarioDetalles.reduce((acc, d) => acc + Number(d.cantidad || 0), 0);
 
                 // Insertar en la compra detalle
                 await await conec.execute(connection, `
@@ -355,14 +340,24 @@ class Compra {
                 FROM 
                     kardex AS k
                 INNER JOIN 
-                    producto AS p ON p.idProducto = k.idProducto
+                    inventario i ON k.idInventario = i.idInventario
+                INNER JOIN
+                    producto AS p ON p.idProducto = i.idProducto
                 WHERE 
-                        k.idProducto = ?
+                        i.idProducto = ?
                     AND 
-                        k.idAlmacen = ?`, [
+                        i.idAlmacen = ?`, [
                     item.idProducto,
                     idAlmacen
                 ]);
+
+                const [inventario] = await conec.execute(connection, `SELECT idInventario FROM inventario WHERE idProducto = ? AND idAlmacen = ?`, [
+                    item.idProducto,
+                    idAlmacen
+                ]);
+
+                console.log("idInventario");
+                console.log(inventario.idInventario);
 
                 let costo = 0;
 
@@ -379,35 +374,33 @@ class Compra {
                 for (const inventarioDetalle of item.inventarioDetalles) {
                     // Inserta información en el Kardex con ID del lote
                     await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            lote,
-                            idUbicacion,
-                            fechaVencimiento,
-                            serie,
-                            vidaUtil,
-                            valorResidual,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    INSERT INTO kardex(
+                        idKardex,
+                        idInventario,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idCompra,
+                        detalle,
+                        cantidad,
+                        costo,
+                        lote,
+                        idUbicacion,
+                        fechaVencimiento,
+                        serie,
+                        vidaUtil,
+                        valorResidual,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
-                        item.idProducto,
+                        inventario.idInventario,
                         KARDEX_TYPES.INGRESO,
                         KARDEX_MOTIVOS.AJUSTE,
                         idCompra,
                         `INGRESO POR COMPRA`,
                         Number(inventarioDetalle.cantidad),
                         item.costo,
-                        idAlmacen,
                         inventarioDetalle.lote || null,
                         inventarioDetalle.idUbicacion || null,
                         inventarioDetalle.fechaVencimiento || null,
@@ -579,6 +572,7 @@ class Compra {
                 p.idProducto,
                 c.idAlmacen,
                 p.imagen,
+                p.idTipoProducto,
                 p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
@@ -608,48 +602,49 @@ class Compra {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
-                return {
-                    ...item,
-                }
-            });
-
-            for (const item of listaDetalles) {
-                // Buscar el ID de inventario
+            const listaDetalles = await Promise.all(detalles.map(async (item) => {
                 const inventarioDetalles = await conec.query(`
                 SELECT 
                     k.lote,
                     k.cantidad,
+                    k.costo,
+
+                    -- Campos para activos fijos
+                    k.serie,
+                    k.vidaUtil,
+                    k.valorResidual,
+
+                    -- Campo para productos normales
                     CASE 
-                        WHEN 
-                            k.fechaVencimiento IS NULL THEN NULL
-                        ELSE 
-                            DATE_FORMAT(k.fechaVencimiento, '%d/%m/%Y')
+                        WHEN k.fechaVencimiento IS NULL THEN NULL
+                        ELSE DATE_FORMAT(k.fechaVencimiento, '%d/%m/%Y')
                     END AS fechaVencimiento,
-                    iu.descripcion AS ubicacion,
-                    k.costo
+
+                    iu.descripcion AS ubicacion                    
                 FROM 
                     kardex AS k
+                INNER JOIN 
+                    inventario i ON k.idInventario = i.idInventario
                 LEFT JOIN 
                     ubicacion AS iu ON iu.idUbicacion = k.idUbicacion
                 WHERE 
-                        k.idCompra = ?
-                    AND 
-                        k.idProducto = ?
+                    k.idCompra = ?
+                AND 
+                    i.idProducto = ?
                 ORDER BY 
                     k.idKardex ASC`, [
                     idCompra,
                     item.idProducto
                 ]);
 
-                item.inventarioDetalles = inventarioDetalles;
-            }
+                return {
+                    ...item,
+                    imagen: bucket && item.imagen
+                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
+                        : null,
+                    inventarioDetalles
+                };
+            }));
 
             // Obtener información de transaccion asociados a la compra
             const transaccion = await conec.query(`
@@ -775,17 +770,18 @@ class Compra {
                 // Obtener el kardex del compra por idProducto
                 const kardexes = await conec.execute(connection, `
                 SELECT 
-                    k.idProducto,
+                    k.idInventario,
                     k.cantidad,
                     k.costo,
-                    k.idAlmacen,
                     k.lote,
                     k.idUbicacion,
                     k.fechaVencimiento
                 FROM 
                     kardex AS k 
+                INNER JOIN 
+                    inventario i ON k.idInventario = i.idInventario
                 WHERE 
-                    k.idCompra = ? AND k.idProducto = ?`, [
+                    k.idCompra = ? AND i.idProducto = ?`, [
                     idCompra,
                     detalle.idProducto,
                 ]);
@@ -794,30 +790,28 @@ class Compra {
                     await conec.execute(connection, `
                     INSERT INTO kardex(
                         idKardex,
-                        idProducto,
+                        idInventario,
                         idTipoKardex,
                         idMotivoKardex,
                         idCompra,
                         detalle,
                         cantidad,
                         costo,
-                        idAlmacen,
                         lote,
                         idUbicacion,
                         fechaVencimiento,
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
-                        kardex.idProducto,
+                        kardex.idInventario,
                         KARDEX_TYPES.SALIDA,
                         KARDEX_MOTIVOS.DEVOLUCION,
                         idCompra,
                         'ANULACIÓN DE LA COMPRA',
                         kardex.cantidad,
                         kardex.costo,
-                        kardex.idAlmacen,
                         kardex.lote,
                         kardex.idUbicacion,
                         kardex.fechaVencimiento,
@@ -994,12 +988,13 @@ class Compra {
                     FROM 
                         kardex AS k
                     INNER JOIN 
-                        inventarioDetalle AS invd ON invd.idInventarioDetalle = k.idInventarioDetalle AND invd.porDefecto <> 1
+                        inventario AS i ON k.idInventario = i.idInventario
                     LEFT JOIN ubicacion AS iu 
                         ON iu.idUbicacion = invd.idUbicacion
                     WHERE 
                         k.idCompra = ?
-                        AND k.idProducto = ?
+                    AND 
+                        i.idProducto = ?
                     ORDER BY 
                         k.idKardex ASC`, [
                     req.query.idCompra,

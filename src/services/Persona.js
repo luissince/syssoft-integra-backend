@@ -211,6 +211,9 @@ class Persona {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
                 SELECT 
                     informacion 
@@ -282,12 +285,36 @@ class Persona {
                 false,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ]);
+
+            const resultEmpleado = await conec.execute(connection, 'SELECT idEmpleado FROM empleado');
+            const idEmpleado = generateAlphanumericCode("EP0001", resultEmpleado, 'idEmpleado');
+
+            if (req.body.personal) {
+                await conec.execute(connection, `
+                INSERT INTO empleado(
+                    idEmpleado,
+                    idPersona, 
+                    codigoEmpleado,
+                    idArea,
+                    idCargo,
+                    fechaIngreso,
+                    estadoLaboral 
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                    idEmpleado,
+                    idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    date,
+                    req.body.estado
+                ]);
+            }
 
             await conec.commit(connection);
             return sendSuccess(res, "Se registró correctamente la persona.");
@@ -300,12 +327,16 @@ class Persona {
     }
 
     async id(req, res) {
+        const { idPersona } = req.params;
         try {
             const result = await conec.query(`
             SELECT 
                 cn.idPersona,
                 cn.idTipoDocumento,
                 cn.documento,
+                 e.idEmpleado,
+                e.idArea,
+                e.idCargo,
                 cn.informacion,
                 cn.cliente,
                 cn.proveedor,
@@ -332,14 +363,15 @@ class Persona {
                 persona AS cn 
             LEFT JOIN 
                 ubigeo AS u ON u.idUbigeo = cn.idUbigeo
+            LEFT JOIN
+            	empleado AS e ON e.idPersona = cn.idPersona
             WHERE 
                 cn.idPersona = ?`, [
-                req.query.idPersona,
+                idPersona,
             ]);
 
             return sendSuccess(res, result[0]);
         } catch (error) {
-            console.log(error);
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/id", error);
         }
     }
@@ -348,6 +380,9 @@ class Persona {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
                 req.body.idPersona,
@@ -408,11 +443,55 @@ class Persona {
                 req.body.estadoCivil,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idPersona
             ]);
+
+            const resultEmpleado = await conec.execute(connection, 'SELECT idEmpleado FROM empleado');
+            const idEmpleado = generateAlphanumericCode("EP0001", resultEmpleado, 'idEmpleado');
+
+            if (req.body.personal && req.body.idEmpleado !== '') {
+                await conec.execute(connection, `UPDATE empleado SET 
+                    idPersona = ?,
+                    codigoEmpleado = ?,
+                    idArea = ?,
+                    idCargo = ?,
+                    fechaIngreso = ?,
+                    estadoLaboral = ?
+                WHERE idEmpleado = ?`, [
+                    req.body.idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    date,
+                    req.body.estado,
+                    req.body.idEmpleado
+                ]);
+            } else if (req.body.personal && req.body.idEmpleado === '') {
+                await conec.execute(connection, `INSERT INTO empleado(
+                    idEmpleado,
+                    idPersona, 
+                    codigoEmpleado,
+                    idArea,
+                    idCargo,
+                    fechaIngreso,
+                    estadoLaboral
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+                    idEmpleado,
+                    req.body.idPersona,
+                    "",
+                    req.body.idArea,
+                    req.body.idCargo,
+                    date,
+                    req.body.estado
+                ]);
+            } else {
+                await conec.execute(connection, `DELETE FROM empleado WHERE idPersona = ?`, [
+                    req.body.idPersona
+                ]);
+            }
 
             await conec.commit(connection)
             return sendSuccess(res, "Se actualizó correctamente la persona.");
@@ -538,13 +617,15 @@ class Persona {
     }
 
     async filtrar(req, res) {
+        const { opcion, filter, cliente, proveedor, conductor, personal } = req.query;
         try {
-            const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.filter,
-                Boolean(req.query.cliente),
-                Boolean(req.query.proveedor),
-                Boolean(req.query.conductor),
+            const result = await conec.procedure(`CALL Filtrar_Persona(?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                filter,
+                Boolean(cliente),
+                Boolean(proveedor),
+                Boolean(conductor),
+                Boolean(personal),
             ]);
             return sendSuccess(res, result);
         } catch (error) {
@@ -613,11 +694,14 @@ class Persona {
     }
 
     async updateWeb(req, res) {
+        const { idPersona } = req.params;
+
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
-            const { idPersona } = req.params;
+            const date = currentDate();
+            const time = currentTime();
 
             const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
                 req.body.idPersona,
@@ -653,8 +737,8 @@ class Persona {
                 req.body.email,
                 !req.body.clave ? validate[0].clave : req.body.clave,
                 req.body.direccion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idPersona
             ]);
 

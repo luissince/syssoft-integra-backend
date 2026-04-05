@@ -36,6 +36,9 @@ class Consulta {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const result = await conec.execute(connection, 'SELECT idConsulta FROM consulta');
             const idConsulta = generateAlphanumericCode("CS0001", result, 'idConsulta');
 
@@ -58,8 +61,8 @@ class Consulta {
                 req.body.asunto,
                 req.body.mensaje,
                 req.body.estado,
-                currentDate(),
-                currentTime()
+                date,
+                time,
             ]);
 
             await conec.commit(connection);

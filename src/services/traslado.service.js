@@ -209,7 +209,6 @@ class TrasladoService {
                 ]);
 
                 for (const inventarioDetalle of detalle.inventarioDetalles) {
-                    console.log(inventarioDetalle);
                     const cantidadTrasladar = Number(inventarioDetalle.cantidadTrasladar);
 
                     if (idAlmacenOrigen) {
@@ -371,7 +370,7 @@ class TrasladoService {
             for (const item of trasladoDetalle) {
                 const kardexes = await conec.execute(connection, `
                 SELECT 
-                    k.idProducto,
+                    k.idInventario,
                     k.idTipoKardex,
                     k.cantidad,
                     k.costo,
@@ -381,8 +380,10 @@ class TrasladoService {
                     k.fechaVencimiento
                 FROM 
                     kardex AS k 
+                INNER JOIN
+                    inventario AS i ON k.idInventario = i.idInventario
                 WHERE 
-                    k.idTraslado = ? AND k.idProducto = ?`, [
+                    k.idTraslado = ? AND i.idProducto = ?`, [
                     idTraslado,
                     item.idProducto,
                 ]);
@@ -392,23 +393,22 @@ class TrasladoService {
                         await conec.execute(connection, `
                         INSERT INTO kardex(
                             idKardex, 
-                            idProducto, 
+                            idInventario, 
                             idTipoKardex, 
                             idMotivoKardex, 
                             idTraslado,
                             detalle, 
                             cantidad, 
                             costo, 
-                            idAlmacen, 
                             lote,
                             idUbicacion,
                             fechaVencimiento,
                             fecha, 
                             hora, 
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             generarIdKardex(),
-                            item.idProducto,
+                            item.idInventario,
                             KARDEX_TYPES.SALIDA,
                             KARDEX_MOTIVOS.AJUSTE,
                             idTraslado,
@@ -427,30 +427,28 @@ class TrasladoService {
                         await conec.execute(connection, `
                         INSERT INTO kardex(
                             idKardex, 
-                            idProducto, 
+                            idInventario, 
                             idTipoKardex, 
                             idMotivoKardex, 
                             idTraslado,
                             detalle, 
                             cantidad, 
                             costo, 
-                            idAlmacen, 
                             lote,
                             idUbicacion,
                             fechaVencimiento,
                             fecha, 
                             hora, 
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             generarIdKardex(),
-                            item.idProducto,
+                            item.idInventario,
                             KARDEX_TYPES.INGRESO,
                             KARDEX_MOTIVOS.AJUSTE,
                             idTraslado,
                             'ANULAR SALIDA POR TRASLADO',
                             kardex.cantidad,
                             kardex.costo,
-                            kardex.idAlmacen,
                             kardex.lote,
                             kardex.idUbicacion,
                             kardex.fechaVencimiento,

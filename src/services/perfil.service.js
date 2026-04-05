@@ -63,6 +63,9 @@ class Perfil {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const result = await conec.execute(connection, 'SELECT idPerfil FROM perfil');
             const idPerfil = generateAlphanumericCode("PF0001", result, 'idPerfil');
 
@@ -80,10 +83,10 @@ class Perfil {
                 idPerfil,
                 data.idEmpresa,
                 data.descripcion,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 data.idUsuario,
             ])
 
@@ -148,6 +151,9 @@ class Perfil {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             await conec.execute(connection, `
             UPDATE 
                 perfil 
@@ -161,8 +167,8 @@ class Perfil {
                 idPerfil=?`, [
                 data.idEmpresa,
                 data.descripcion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 data.idUsuario,
                 data.idPerfil
             ])

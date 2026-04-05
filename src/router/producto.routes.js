@@ -40,6 +40,4 @@ router.get("/documents/pdf/codbar", producto.documentsPdfCodBar);
 
 router.post("/dashboard", producto.dashboard);
 
-router.get("/update-inventario", producto.updateInventario);
-
 module.exports = router;
