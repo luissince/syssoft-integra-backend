@@ -321,7 +321,7 @@ class AjusteService {
             for (const detalle of ajusteDetalles) {
                 const kardexes = await conec.execute(connection, `
                 SELECT 
-                    k.idProducto,
+                    i.idInventario,
                     k.cantidad,
                     k.costo,
                     k.idAlmacen,
@@ -330,8 +330,10 @@ class AjusteService {
                     k.fechaVencimiento
                 FROM 
                     kardex AS k 
+                INNER JOIN
+                    inventario AS i ON k.idInventario = i.idInventario
                 WHERE 
-                    k.idAjuste = ? AND k.idProducto = ?`, [
+                    k.idAjuste = ? AND i.idProducto = ?`, [
                     idAjuste,
                     detalle.idProducto,
                 ]);
@@ -340,30 +342,28 @@ class AjusteService {
                     await conec.execute(connection, `
                     INSERT INTO kardex(
                         idKardex, 
-                        idProducto, 
+                        idInventario,
                         idTipoKardex, 
                         idMotivoKardex, 
                         idAjuste,
                         detalle, 
                         cantidad, 
                         costo, 
-                        idAlmacen, 
                         lote,
                         idUbicacion,
                         fechaVencimiento,
                         fecha, 
                         hora, 
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
-                        detalle.idProducto,
+                        kardex.idInventario,
                         tipoKardex,
                         motivoKardex,
                         idAjuste,
                         detalleKardex,
                         kardex.cantidad,
                         kardex.costo,
-                        kardex.idAlmacen,
                         kardex.lote,
                         kardex.idUbicacion,
                         kardex.fechaVencimiento,

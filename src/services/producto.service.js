@@ -65,7 +65,6 @@ class ProductoService {
                 estado,
                 idUsuario,
 
-                inventarios,
                 precios,
                 detalles,
                 imagenes
@@ -912,10 +911,6 @@ class ProductoService {
                 idAlmacen,
             ]);
 
-            console.log(item.idProducto);
-            console.log(idAlmacen);
-            console.log(inventarioDetalles);
-
             const newProducto = {
                 ...item,
                 imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
@@ -1003,11 +998,13 @@ class ProductoService {
                     ),0
                 ) AS cantidad
             FROM 
-                producto AS p 
+                inventario AS i
+            INNER JOIN
+                producto AS p ON p.idProducto = i.idProducto
+            INNER JOIN
+                almacen AS a ON a.idAlmacen = i.idAlmacen
             LEFT JOIN 
-                kardex AS k ON p.idProducto = k.idProducto
-            LEFT JOIN
-                almacen AS a ON a.idAlmacen = k.idAlmacen
+                kardex AS k ON k.idInventario = i.idInventario
             WHERE 
                 a.idSucursal = ? AND a.predefinido = 1 AND p.idProducto = ?
             GROUP BY
@@ -1068,7 +1065,9 @@ class ProductoService {
             me.idMedida,
             me.nombre AS nombreMedida
         FROM 
-            producto AS p
+            inventario AS i
+        INNER JOIN
+            producto AS p ON p.idProducto = i.idProducto
         INNER JOIN 
             precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
         INNER JOIN 
@@ -1077,10 +1076,10 @@ class ProductoService {
             medida AS me ON p.idMedida = me.idMedida
         LEFT JOIN 
             marca AS m ON m.idMarca = p.idMarca
-        LEFT JOIN 
-            kardex AS k ON p.idProducto = k.idProducto
         LEFT JOIN
-            almacen AS a ON a.idAlmacen = k.idAlmacen
+            almacen AS a ON a.idAlmacen = i.idAlmacen
+        LEFT JOIN 
+            kardex AS k ON k.idInventario = i.idInventario
         WHERE 
             p.estado = 1 AND p.idProducto = ? OR p.codigo = ? AND a.idSucursal = ? AND a.predefinido = 1
         GROUP BY
@@ -1193,7 +1192,9 @@ class ProductoService {
             me.idMedida,
             me.nombre AS nombreMedida
         FROM 
-            producto AS p
+            inventario AS i
+        INNER JOIN
+            producto AS p ON p.idProducto = i.idProducto
         INNER JOIN 
             precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
         INNER JOIN 
@@ -1202,10 +1203,10 @@ class ProductoService {
             medida AS me ON p.idMedida = me.idMedida
         INNER JOIN 
             marca AS m ON m.idMarca = p.idMarca
-        INNER JOIN 
-            kardex AS k ON p.idProducto = k.idProducto
         INNER JOIN
-            almacen AS a ON a.idAlmacen = k.idAlmacen
+            almacen AS a ON a.idAlmacen = i.idAlmacen
+        INNER JOIN 
+            kardex AS k ON k.idInventario = i.idInventario
         WHERE
             p.estado = 1 AND p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND a.idSucursal = ? AND a.predefinido = 1
         GROUP BY
@@ -1353,43 +1354,6 @@ class ProductoService {
                 descripcion: "Productos sin Ventas Hoy pero con Inventario Disponible"
             },
         };
-    }
-
-    async updateInventario() {
-        let connection = null;
-        try {
-            connection = await conec.beginTransaction();
-
-            const inventarios = await conec.execute(connection, `SELECT * FROM inventario`);
-
-            for (const inventario of inventarios) {
-                await conec.execute(connection, `
-                INSERT INTO inventarioDetalle(
-                    idInventario,
-                    cantidad,
-                    porDefecto,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?)`, [
-                    inventario.idInventario,
-                    inventario.cantidad || 0,
-                    true,
-                    currentDate(),
-                    currentTime(),
-                    "US0001"
-                ]);
-            }
-
-            await conec.commit(connection);
-            return "Datos registrados correctamente.";
-        } catch (error) {
-            if (connection != null) {
-                await conec.rollback(connection);
-            }
-
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
     }
 }
 

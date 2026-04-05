@@ -46,6 +46,9 @@ class UbicacionService {
     try {
       connection = await conec.beginTransaction();
 
+      const date = currentDate();
+      const time = currentTime();
+
       const result = await conec.execute(connection, "SELECT idUbicacion FROM ubicacion");
       const idUbicacion = generateAlphanumericCode("UB0001", result, 'idUbicacion');
 
@@ -61,8 +64,8 @@ class UbicacionService {
           idUbicacion,
           data.descripcion,
           data.estado,
-          currentDate(),
-          currentTime(),
+          date,
+          time,
           data.idUsuario,
         ]);
 
@@ -82,6 +85,9 @@ class UbicacionService {
     try {
       connection = await conec.beginTransaction();
 
+      const date = currentDate();
+      const time = currentTime();
+
       await conec.execute(connection, `
         UPDATE ubicacion SET
           descripcion = ?,
@@ -92,8 +98,8 @@ class UbicacionService {
         WHERE idUbicacion = ?`,[
           data.descripcion,
           data.estado,
-          currentDate(),
-          currentTime(),
+          date,
+          time,
           data.idUsuario,
           data.idUbicacion,
         ]);

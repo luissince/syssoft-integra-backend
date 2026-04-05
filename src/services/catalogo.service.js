@@ -38,6 +38,9 @@ class Catalogo {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             // Genera un nuevo ID para el catálogo
             const listCatalogos = await conec.execute(connection, `SELECT idCatalogo FROM catalogo`);
             const idCatalogo = generateAlphanumericCode("CT0001", listCatalogos, 'idCatalogo');
@@ -54,8 +57,8 @@ class Catalogo {
                 idCatalogo,
                 data.idSucursal,
                 data.nombre,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 data.idUsuario,
             ]);
 
@@ -213,6 +216,9 @@ class Catalogo {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             await conec.execute(connection, `
             UPDATE 
                 catalogo 
@@ -223,8 +229,8 @@ class Catalogo {
             WHERE 
                 idCatalogo = ?`, [
                 data.nombre,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 data.idCatalogo,
             ]);
 

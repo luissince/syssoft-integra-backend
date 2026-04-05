@@ -405,6 +405,9 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             // Genera un nuevo ID para la cotización
             const result = await conec.execute(connection, 'SELECT idCotizacion FROM cotizacion');
             const idCotizacion = generateAlphanumericCode("CT0001", result, 'idCotizacion');
@@ -462,8 +465,8 @@ class Cotizacion {
                 req.body.observacion,
                 req.body.nota,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             // Genera un nuevo ID para los detalles de cotización
@@ -512,6 +515,9 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
                 SELECT 
                     *
@@ -551,8 +557,8 @@ class Cotizacion {
                 req.body.observacion,
                 req.body.nota,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idCotizacion,
             ]);
 

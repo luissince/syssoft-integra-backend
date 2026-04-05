@@ -80,6 +80,9 @@ class Marca {
     try {
       connection = await conec.beginTransaction();
 
+      const date = currentDate();
+      const time = currentTime();
+
       const bucket = firebaseService.getBucket();
 
       let imagen = null;
@@ -126,10 +129,10 @@ class Marca {
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
-        currentDate(),
-        currentTime(),
+        date,
+        time,
+        date,
+        time,
         req.body.idUsuario,
       ]);
 
@@ -148,6 +151,9 @@ class Marca {
     let connection = null;
     try {
       connection = await conec.beginTransaction();
+
+      const date = currentDate();
+      const time = currentTime();
 
       const bucket = firebaseService.getBucket();
 
@@ -219,8 +225,8 @@ class Marca {
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
+        date,
+        time,
         req.body.idUsuario,
         req.body.idMarca,
       ]

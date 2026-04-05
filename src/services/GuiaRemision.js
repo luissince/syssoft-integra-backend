@@ -189,6 +189,9 @@ class GuiaRemision {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const {
                 idVenta,
                 idSucursal,
@@ -275,8 +278,8 @@ class GuiaRemision {
                 idUbigeoPartida,
                 direccionLlegada,
                 idUbigeoLlegada,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 estado,
                 idUsuario
             ]);

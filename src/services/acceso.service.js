@@ -81,6 +81,9 @@ class Acceso {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             for (const menu of data.menus) {
                 await conec.execute(connection, `
                 UPDATE 
@@ -135,8 +138,8 @@ class Acceso {
                     await conec.execute(connection, `INSERT INTO perfilSucursal(idPerfil, idSucursal, fecha, hora) VALUES(?,?,?,?)`, [
                         data.idPerfil,
                         sucursal.idSucursal,
-                        currentDate(),
-                        currentTime(),
+                        date,
+                        time,
                     ]);
                 }
             }

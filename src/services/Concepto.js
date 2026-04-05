@@ -65,6 +65,9 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const listConceptos = await conec.execute(connection, 'SELECT idConcepto FROM concepto');
             const idConcepto = generateAlphanumericCode("CP0001", listConceptos, 'idConcepto');
 
@@ -86,10 +89,10 @@ class Concepto {
                 req.body.nombre,
                 req.body.codigo,
                 0,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario
             ])
 
@@ -124,6 +127,9 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             await conec.execute(connection, `
             UPDATE 
                 concepto 
@@ -139,8 +145,8 @@ class Concepto {
                 req.body.idTipoConcepto,
                 req.body.nombre,
                 req.body.codigo,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idConcepto,
             ])

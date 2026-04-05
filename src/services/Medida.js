@@ -76,6 +76,9 @@ class Medida {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const result = await conec.execute(connection, "SELECT idMedida FROM medida");
             const idMedida = generateAlphanumericCode("MD0001", result, 'idMedida');
 
@@ -96,8 +99,8 @@ class Medida {
                 req.body.descripcion,
                 req.body.estado,
                 0,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
             ]);
 

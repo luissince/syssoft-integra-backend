@@ -79,6 +79,9 @@ class Categoria {
     try {
       connection = await conec.beginTransaction();
 
+      const date = currentDate();
+      const time = currentTime();
+
       const bucket = firebaseService.getBucket();
 
       let imagen = null;
@@ -106,29 +109,30 @@ class Categoria {
       const result = await conec.execute(connection, "SELECT idCategoria FROM categoria");
       const idCategoria = generateAlphanumericCode("CT0001", result, 'idCategoria');
 
-      await conec.execute(connection, `INSERT INTO categoria(
-            idCategoria,
-            codigo,
-            nombre,
-            descripcion,
-            estado,
-            imagen,
-            fecha,
-            hora,
-            fupdate,
-            hupdate,
-            idUsuario
-          ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+      await conec.execute(connection, `
+      INSERT INTO categoria(
+        idCategoria,
+        codigo,
+        nombre,
+        descripcion,
+        estado,
+        imagen,
+        fecha,
+        hora,
+        fupdate,
+        hupdate,
+        idUsuario
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
         idCategoria,
         req.body.codigo,
         req.body.nombre,
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
-        currentDate(),
-        currentTime(),
+        date,
+        time,
+        date,
+        time,
         req.body.idUsuario,
       ]);
 
@@ -147,6 +151,9 @@ class Categoria {
     let connection = null;
     try {
       connection = await conec.beginTransaction();
+
+      const date = currentDate();
+      const time = currentTime();
 
       const bucket = firebaseService.getBucket();
 
@@ -218,8 +225,8 @@ class Categoria {
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
+        date,
+        time,
         req.body.idUsuario,
         req.body.idCategoria,
       ]);

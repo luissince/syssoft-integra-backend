@@ -1,13 +1,13 @@
 const container = require("../../common/container");
 
-const findAll = require("./usecases/find-all.usecase");
-const create = require("./usecases/create.usecase");
-const filterAll = require("./usecases/filter-all.usecase");
-const cancel = require("./usecases/cancel.usecase");
-const findById = require("./usecases/find-by-id.usecase");
-const getDetailsById = require("./usecases/get-details-by-id.usecase");
-const forSale = require("./usecases/for-sale.usecase");
-const generatePdf = require("./usecases/generate-pdf.usecase");
+const findAll = require("./usecases/find-all");
+const create = require("./usecases/create");
+const filterAll = require("./usecases/filter-all");
+const cancel = require("./usecases/cancel");
+const findById = require("./usecases/find-by-id");
+const getDetailsById = require("./usecases/get-details-by-id");
+const forSale = require("./usecases/for-sale");
+const generatePdf = require("./usecases/generate-pdf");
 
 class VentaService {
     constructor(container) {

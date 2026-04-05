@@ -1,18 +1,18 @@
 const container = require("../../common/container");
 
-const findAll = require("./usecases/find-all.usecase");
-const dashboard = require("./usecases/dashboard.usecase");
-const getCdr = require("./usecases/get-cdr.usecase");
-const getStatus = require("./usecases/get-status.usecase");
-const getXml = require("./usecases/get-xml.usecase");
-const sendEmail = require("./usecases/send-email.usecase");
-const submitCreditNote = require("./usecases/submit-credit-note.usecase");
-const submitDispatchAdvance = require("./usecases/submit-dispatch-advance.usecase");
-const submitInvoice = require("./usecases/submit-invoice.usecase");
-const voidInvoice = require("./usecases/void-invoice.usecase");
-const voidReceipt = require("./usecases/void-receipt.usecase");
-const voidReceiptCreditNote = require("./usecases/void-receipt-credit-note.usecase");
-const voidInvoiceCreditNote = require("./usecases/void-invoice-credit-note.usecase");
+const findAll = require("./usecases/find-all");
+const dashboard = require("./usecases/dashboard");
+const getCdr = require("./usecases/get-cdr");
+const getStatus = require("./usecases/get-status");
+const getXml = require("./usecases/get-xml");
+const sendEmail = require("./usecases/send-email");
+const submitCreditNote = require("./usecases/submit-credit-note");
+const submitDispatchAdvance = require("./usecases/submit-dispatch-advance");
+const submitInvoice = require("./usecases/submit-invoice");
+const voidInvoice = require("./usecases/void-invoice");
+const voidReceipt = require("./usecases/void-receipt");
+const voidReceiptCreditNote = require("./usecases/void-receipt-credit-note");
+const voidInvoiceCreditNote = require("./usecases/void-invoice-credit-note");
 
 class SunatService {
     constructor(container) {

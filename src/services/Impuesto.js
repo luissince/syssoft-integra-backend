@@ -58,8 +58,10 @@ class Impuesto {
     async add(req, res) {
         let connection = null;
         try {
-
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             // Genera un nuevo ID para la compra
             const resultImpuesto = await conec.execute(connection, 'SELECT idImpuesto FROM impuesto');
@@ -88,10 +90,10 @@ class Impuesto {
                 req.body.codigo,
                 req.body.estado,
                 req.body.preferido,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ])
 

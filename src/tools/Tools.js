@@ -431,6 +431,90 @@ function sleep(time) {
     return new Promise((resolve) => setTimeout(resolve, time));
 };
 
+function calculateDepreciationToday(activo) {
+
+    const MS_DIA = 1000 * 60 * 60 * 24;
+
+    const diasEntre = (f1, f2) => Math.ceil((f2 - f1) / MS_DIA);
+
+    const esBisiesto = (year) => (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+
+    const costo = Number(activo.costo);
+    const residual = Number(activo.valorResidual || 0);
+    const vidaUtil = Number(activo.vidaUtil);
+    const metodo = activo.idMetodoDepreciacion;
+
+    const depreciable = costo - residual;
+
+    let acumulada = 0;
+    let valorInicio = costo;
+
+    let fechaInicio = new Date(activo.fechaAdquisicion);
+    const hoy = new Date();
+
+    let fechaFinTotal = new Date(fechaInicio);
+    fechaFinTotal.setFullYear(fechaFinTotal.getFullYear() + vidaUtil);
+
+    const fechaFin = hoy > fechaFinTotal ? fechaFinTotal : hoy;
+
+    let i = 0;
+
+    while (fechaInicio < fechaFin) {
+
+        let finPeriodo = new Date(fechaInicio.getFullYear(), 11, 31);
+
+        if (finPeriodo > fechaFin) {
+            finPeriodo = fechaFin;
+        }
+
+        const dias = diasEntre(fechaInicio, finPeriodo);
+        const diasAnio = esBisiesto(fechaInicio.getFullYear()) ? 366 : 365;
+
+        let depreciacion = 0;
+
+        if (metodo === "MD0001") {
+            const depDiaria = depreciable / (vidaUtil * 365);
+            depreciacion = depDiaria * dias;
+        }
+
+        if (metodo === "MD0002") {
+            const tasaAnual = 2 / vidaUtil;
+            const tasaDiaria = tasaAnual / diasAnio;
+            depreciacion = valorInicio * tasaDiaria * dias;
+        }
+
+        if (metodo === "MD0003") {
+            const suma = (vidaUtil * (vidaUtil + 1)) / 2;
+            const factor = (vidaUtil - i) / suma;
+            const depAnual = depreciable * factor;
+            depreciacion = (depAnual / diasAnio) * dias;
+        }
+
+        if ((acumulada + depreciacion) > depreciable) {
+            depreciacion = depreciable - acumulada;
+        }
+
+        acumulada += depreciacion;
+        valorInicio = costo - acumulada;
+
+        fechaInicio = new Date(finPeriodo);
+        fechaInicio.setDate(fechaInicio.getDate() + 1);
+
+        i++;
+    }
+
+    const porcentaje = depreciable > 0
+        ? (acumulada / depreciable) * 100
+        : 0;
+
+    return {
+        depreciacionHoy: Number(acumulada),
+        valorLibrosHoy: Number(valorInicio),
+        estado: hoy >= fechaFinTotal ? "DEPRECIADO" : "EN PROCESO",
+        porcentajeDepreciado: Number(porcentaje)
+    };
+}
+
 module.exports = {
     formatNumberWithZeros,
     isNumber,
@@ -454,5 +538,6 @@ module.exports = {
     rounded,
     registerLog,
     responseSSE,
-    sleep
+    sleep,
+    calculateDepreciationToday
 };

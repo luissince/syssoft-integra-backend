@@ -33,8 +33,8 @@ const modules = [
 
     ["metodopago", "./MetodoPago"],
     ["tipoajuste", "./TipoAjuste"],
-    ["tipoatributo", "./TipoAtributo"],
     ["motivoajuste", "./MotivoAjuste"],
+    ["tipoatributo", "./TipoAtributo"],
 
     ["compra", "./Compra"],
     ["guiaremision", "./GuiaRemision"],
@@ -58,7 +58,6 @@ const modules = [
     // routers con nombre distinto
     ["catalogo", "./catalogo.routes"],
     ["producto", "./producto.routes"],
-    ["kardex", "./kardex.routes"],
     ["perfil", "./perfil.routes"],
     ["acceso", "./acceso.routes"],
 
@@ -79,6 +78,11 @@ const modules = [
     ["tipoalmacen", "../modules/almacen/tipoAlmacen.routes"],
     ["motivo", "../modules/motivo/motivo.routes"],
     ["sunat", "../modules/sunat/sunat.routes"],
+    ["kardex", "../modules/kardex/kardex.routes"],
+    ["area", "../modules/area/area.routes"],
+    ["cargo", "../modules/cargo/cargo.routes"],
+    ["activo-gestion", "../modules/activo-gestion/activo-gestion.routes"],
+    ["atributo", "../modules/atributo/atributo.routes"],
 ];
 
 /**

@@ -179,15 +179,6 @@ async function dashboard(req, res) {
     }
 }
 
-async function updateInventario(req, res) {
-    try {
-        const data = await producto.updateInventario(req);
-        return sendSuccess(res, data);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/updateInventario", error);
-    }
-}
-
 module.exports = {
     list,
     create,
@@ -208,5 +199,4 @@ module.exports = {
     documentsPdfExcel,
     documentsPdfCodBar,
     dashboard,
-    updateInventario,
 };

@@ -395,6 +395,9 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             // Genera un nuevo ID para ela orden de compra
             const result = await conec.execute(connection, 'SELECT idOrdenCompra FROM ordenCompra');
             const idOrdenCompra = generateAlphanumericCode("OC0001", result, 'idOrdenCompra');
@@ -451,8 +454,8 @@ class OrdenCompra {
                 req.body.observacion,
                 req.body.nota,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             // Genera un nuevo ID para los detalles del ordenCompra
@@ -500,6 +503,9 @@ class OrdenCompra {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
             SELECT 
                 *
@@ -539,8 +545,8 @@ class OrdenCompra {
                 req.body.observacion,
                 req.body.nota,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idOrdenCompra,
             ]);
 

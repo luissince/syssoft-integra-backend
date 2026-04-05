@@ -1,6 +1,6 @@
 const container = require("../../common/container");
 
-const init = require("./usecases/init.usecase");
+const init = require("./usecases/init");
 
 class DashboardService {
     constructor(container) {

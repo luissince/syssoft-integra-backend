@@ -311,7 +311,8 @@ class AlmacenService {
             const lista = await conec.query(`
             SELECT 
                 idAlmacen, 
-                nombre
+                nombre,
+                predefinido
             FROM 
                 almacen
             WHERE 

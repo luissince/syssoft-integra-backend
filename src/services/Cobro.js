@@ -41,6 +41,9 @@ class Cobro {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const {
                 idPersona,
                 idUsuario,
@@ -122,8 +125,8 @@ class Cobro {
                 estado,
                 observacion,
                 nota,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             /**
@@ -175,8 +178,8 @@ class Cobro {
                 idSucursal,
                 notaTransacion,
                 1,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idUsuario
             ]);
 
