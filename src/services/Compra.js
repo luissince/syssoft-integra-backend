@@ -4,6 +4,7 @@ const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../t
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { Console } = require('winston/lib/winston/transports');
 
 class Compra {
 
@@ -372,7 +373,64 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
+                    let idInventarioLote = null;
+                    let idInventarioActivo = null;
+
                     // Inserta información en el Kardex con ID del lote
+                    if (inventarioDetalle.lote) {
+                        const [result] = await conec.execute(connection, ` 
+                            INSERT INTO inventariolote(
+                                idInventario,
+                                lote,
+                                fechaVencimiento,
+                                cantidad,
+                                idUbicacion,
+                                fecha,
+                                hora,
+                                idUsuario
+                         ) VALUES(?,?,?,?,?,?,?,?)`, [
+                            inventario.idInventario,
+                            inventarioDetalle.lote,
+                            inventarioDetalle.fechaVencimiento,
+                            Number(inventarioDetalle.cantidad),
+                            inventarioDetalle.idUbicacion,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+
+                        idInventarioLote = result.insertId;
+                    }
+
+                    if (inventarioDetalle.serie) {
+                        const [result] = await conec.execute(connection, ` 
+                            INSERT INTO inventarioactivo(
+                                idInventario,
+                                serie,
+                                estado,
+                                cantidad,
+                                vidaUtil,                                
+                                valorResidual,
+                                idUbicacion,
+                                fecha,
+                                hora,
+                                idUsuario
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                            inventario.idInventario,
+                            inventarioDetalle.serie,
+                            `DISPONIBLE`,
+                            Number(inventarioDetalle.cantidad),
+                            inventarioDetalle.vidaUtil,
+                            inventarioDetalle.valorResidual,
+                            inventarioDetalle.idUbicacion,
+                            date,
+                            time,
+                            idUsuario
+                        ]);
+
+                        idInventarioActivo = result.insertId;
+                    }
+
                     await conec.execute(connection, `
                     INSERT INTO kardex(
                         idKardex,
@@ -383,16 +441,10 @@ class Compra {
                         detalle,
                         cantidad,
                         costo,
-                        lote,
-                        idUbicacion,
-                        fechaVencimiento,
-                        serie,
-                        vidaUtil,
-                        valorResidual,
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
                         inventario.idInventario,
                         KARDEX_TYPES.INGRESO,
@@ -401,12 +453,6 @@ class Compra {
                         `INGRESO POR COMPRA`,
                         Number(inventarioDetalle.cantidad),
                         item.costo,
-                        inventarioDetalle.lote || null,
-                        inventarioDetalle.idUbicacion || null,
-                        inventarioDetalle.fechaVencimiento || null,
-                        inventarioDetalle.serie || null,
-                        inventarioDetalle.vidaUtil || null,
-                        inventarioDetalle.valorResidual || null,
                         date,
                         time,
                         idUsuario
@@ -604,25 +650,24 @@ class Compra {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = await Promise.all(detalles.map(async (item) => {
-                const inventarioDetalles = await conec.query(`
+                const inventarioDetalles = (await conec.query(`
                 SELECT 
-                    k.lote,
-                    k.serie,
-                    k.cantidad,
-                    k.vidaUtil,
-                    k.valorResidual,
-                    k.cantidad,
-                    k.costo,
-
-                    -- Campos para activos fijos
-                    k.serie,
-                    k.vidaUtil,
-                    k.valorResidual,
-
+					-- Campos para activos fijos
+					ia.cantidad as cantidadActivo,
+                    
+                    ia.serie,
+                    ia.vidaUtil,
+                    ia.valorResidual,
+                    ia.cantidad as cantidadActivo,
+                    ia.estado,
+                    -- Campos para lotes
+                    il.lote,
+                    il.cantidad as cantidadLote,
+                    
                     -- Campo para productos normales
                     CASE 
-                        WHEN k.fechaVencimiento IS NULL THEN NULL
-                        ELSE DATE_FORMAT(k.fechaVencimiento, '%d/%m/%Y')
+                        WHEN il.fechaVencimiento IS NULL THEN NULL
+                        ELSE DATE_FORMAT(il.fechaVencimiento, '%d/%m/%Y')
                     END AS fechaVencimiento,
 
                     iu.descripcion AS ubicacion                    
@@ -630,17 +675,25 @@ class Compra {
                     kardex AS k
                 INNER JOIN 
                     inventario i ON k.idInventario = i.idInventario
-                LEFT JOIN 
-                    ubicacion AS iu ON iu.idUbicacion = k.idUbicacion
+                INNER JOIN 
+                	producto p ON p.idProducto = i.idProducto
+                LEFT JOIN
+                	inventariolote il ON il.idInventario = k.idInventario and p.idTipoProducto = 'TP0001'
+                LEFT JOIN
+                	inventarioActivo ia ON ia.idInventario = k.idInventario and p.idTipoProducto = 'TP0004'
+                    LEFT JOIN 
+                    ubicacion AS iu ON iu.idUbicacion = il.idUbicacion OR iu.idUbicacion = ia.idUbicacion
                 WHERE 
                     k.idCompra = ?
                 AND 
                     i.idProducto = ?
+                GROUP BY
+                	ia.idInventarioActivo, il.idInventarioLote
                 ORDER BY 
-                    k.idKardex ASC`, [
+                    k.idKardex ASC;`, [
                     idCompra,
                     item.idProducto
-                ]);
+                ])).filter(r => r.lote || r.serie);
 
                 return {
                     ...item,
