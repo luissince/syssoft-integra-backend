@@ -374,7 +374,6 @@ class TrasladoService {
                     k.idTipoKardex,
                     k.cantidad,
                     k.costo,
-                    k.idAlmacen,
                     k.lote,
                     k.idUbicacion,
                     k.fechaVencimiento
@@ -406,7 +405,7 @@ class TrasladoService {
                             fecha, 
                             hora, 
                             idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             generarIdKardex(),
                             item.idInventario,
                             KARDEX_TYPES.SALIDA,
@@ -415,7 +414,6 @@ class TrasladoService {
                             'ANULAR INGRESO POR TRASLADO',
                             kardex.cantidad,
                             kardex.costo,
-                            kardex.idAlmacen,
                             kardex.lote,
                             kardex.idUbicacion,
                             kardex.fechaVencimiento,

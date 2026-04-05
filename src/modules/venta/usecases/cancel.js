@@ -86,7 +86,6 @@ module.exports = ({ conec }) => async function cancel(data) {
                 k.idInventario,
                 k.cantidad,
                 k.costo,
-                k.idAlmacen,
                 k.lote,
                 k.idUbicacion,
                 k.fechaVencimiento
@@ -118,7 +117,7 @@ module.exports = ({ conec }) => async function cancel(data) {
                     fecha,
                     hora,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     generarIdKardex(),
                     kardex.idInventario,
                     KARDEX_TYPES.INGRESO,
@@ -127,7 +126,6 @@ module.exports = ({ conec }) => async function cancel(data) {
                     'ANULACIÓN DE LA VENTA',
                     kardex.cantidad,
                     kardex.costo,
-                    kardex.idAlmacen,
                     kardex.lote,
                     kardex.idUbicacion,
                     kardex.fechaVencimiento,
