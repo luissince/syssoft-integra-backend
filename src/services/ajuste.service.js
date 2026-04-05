@@ -324,7 +324,6 @@ class AjusteService {
                     i.idInventario,
                     k.cantidad,
                     k.costo,
-                    k.idAlmacen,
                     k.lote,
                     k.idUbicacion,
                     k.fechaVencimiento

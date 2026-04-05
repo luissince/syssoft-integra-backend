@@ -24,7 +24,7 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
     JOIN producto p 
         ON p.idProducto = i.idProducto
     JOIN almacen al 
-        ON al.idAlmacen = k.idAlmacen
+        ON al.idAlmacen = i.idAlmacen
     WHERE 
         p.idTipoProducto = 'TP0004'
     AND

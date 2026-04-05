@@ -65,7 +65,7 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
     JOIN 
         ubicacion u ON u.idUbicacion = k.idUbicacion
     JOIN 
-        almacen al ON al.idAlmacen = k.idAlmacen
+        almacen al ON al.idAlmacen = i.idAlmacen
     WHERE 
         p.idProducto = ?
     AND 

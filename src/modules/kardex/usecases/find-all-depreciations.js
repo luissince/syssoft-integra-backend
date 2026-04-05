@@ -34,7 +34,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     JOIN ubicacion u 
         ON u.idUbicacion = k.idUbicacion
     JOIN almacen al 
-        ON al.idAlmacen = k.idAlmacen
+        ON al.idAlmacen = i.idAlmacen
     WHERE 
         (? = 0 AND p.idProducto = ?)
     OR
@@ -83,7 +83,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     JOIN ubicacion u 
         ON u.idUbicacion = k.idUbicacion
     JOIN almacen al 
-        ON al.idAlmacen = k.idAlmacen
+        ON al.idAlmacen = i.idAlmacen
     WHERE 
         (? = 0 AND p.idProducto = ?)
     OR
