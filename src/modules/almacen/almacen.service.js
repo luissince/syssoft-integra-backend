@@ -1,5 +1,5 @@
 const conec = require('../../database/mysql-connection');
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode } = require('../../tools/Tools');
 
 class AlmacenService {
 
