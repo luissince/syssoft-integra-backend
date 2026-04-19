@@ -6,51 +6,104 @@ module.exports = ({ conec }) => async function findAll(data) {
         filasPorPagina
     } = data;
 
-    const list = await conec.query(`
+    const result = await conec.query(`
     SELECT 
-        idArea, 
-        nombre,
-        descripcion,
-        estado,
-        fecha,
-        hora,
-        idUsuario
+        aa.idAsignacionActivo,
+        aa.idDocumentoActivo,
+        aa.idPersona,
+        aa.documentoPdf,
+        td.nombre AS documento,
+        P.documento AS numeroDocumento,
+        P.informacion AS responsable,
+        da.tipo,
+        aa.fecha,
+        aa.hora,
+        aa.idUsuario
     FROM 
-        gestion 
+        asignacionactivo aa
+    JOIN 
+    	persona p ON p.idPersona = aa.idPersona
+   	JOIN
+    	tipodocumento td ON td.idTipoDocumento = p.idTipoDocumento
+    LEFT JOIN
+    	documentoactivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
     WHERE 
         ? = 0
     OR
-        ? = 1 AND (nombre like concat(?,'%'))
+        ? = 1 AND (P.informacion like concat(?,'%'))
+    GROUP BY 
+    	aa.idAsignacionActivo,
+        aa.idDocumentoActivo,
+        aa.idPersona,
+        aa.documentoPdf,
+        td.nombre,
+        P.documento,
+        P.informacion,
+        da.tipo,
+        aa.fecha,
+        aa.hora,
+        aa.idUsuario
     LIMIT 
-        ?,?`, [
+        ?, ?`,[
         parseInt(opcion),
         parseInt(opcion),
         buscar,
         parseInt(posicionPagina),
         parseInt(filasPorPagina)
-    ])
+    ]);
 
-    const resultLista = list.map(function (item, index) {
+    const newResult = await Promise.all(result.map(async (item, index) => {
+        const gestionDetalle = await conec.query(`
+        SELECT 
+            pr.nombre AS producto,
+            pr.imagen,
+            pr.codigo,
+            pr.sku,
+            dd.cantidad,
+            ca.nombre AS categoria,
+            ia.serie,
+            u.descripcion AS ubicacion
+        FROM documentoactivodetalle dd
+        LEFT JOIN 
+        	inventarioactivo ia ON ia.idInventarioActivo = dd.idInventarioActivo
+        JOIN 
+        	inventario i ON i.idInventario = ia.idInventario
+        JOIN
+        	producto pr ON pr.idProducto = i.idProducto
+        JOIN
+        	categoria ca ON ca.idCategoria = pr.idCategoria
+        LEFT JOIN
+            ubicacion u ON u.idUbicacion = ia.idUbicacion
+        WHERE 
+            dd.idDocumentoActivo = ?`, [
+            item.idDocumentoActivo
+        ]);
+
         return {
             ...item,
-            id: (index + 1) + parseInt(posicionPagina)
+            id: (index + 1) + parseInt(posicionPagina),
+            gestionDetalle: gestionDetalle
         }
-    });
+    }));
 
-    const total = await conec.query(`
-    SELECT 
-        COUNT(*) AS Total 
+    const total = await conec.query(`SELECT 
+        COUNT(*) AS Total
     FROM 
-        area  
+        asignacionactivo aa
+    JOIN 
+    	persona p ON p.idPersona = aa.idPersona
+   	JOIN
+    	tipodocumento td ON td.idTipoDocumento = p.idTipoDocumento
+    LEFT JOIN
+    	documentoactivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
     WHERE 
         ? = 0
     OR
-        ? = 1 AND (nombre like concat(?,'%'))`, [
+        ? = 1 AND (P.informacion like concat(?,'%'))`, [
         parseInt(opcion),
         parseInt(opcion),
-        buscar,
         buscar,
     ]);
 
-    return { "result": resultLista, "total": total[0].Total };
+    return { "result": newResult, "total": total[0].Total };
 }

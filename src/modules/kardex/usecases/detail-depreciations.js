@@ -1,6 +1,5 @@
 const { calculateDepreciationToday } = require("../../../tools/Tools");
 
-
 module.exports = ({ conec, firebaseService }) => async function detailDepreciacion(data) {
     const { idProducto, serie } = data;
 
@@ -50,9 +49,9 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
         k.detalle,
         k.cantidad,
         k.costo,
-        k.serie,
-        k.vidaUtil,
-        k.valorResidual,
+        ia.serie,
+        ia.vidaUtil,
+        ia.valorResidual,
         u.descripcion AS ubicacion
     FROM 
         kardex k
@@ -62,14 +61,16 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
         producto p ON p.idProducto = i.idProducto
     JOIN 
         tipoKardex tk ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN 
+    LEFT JOIN 
         ubicacion u ON u.idUbicacion = k.idUbicacion
     JOIN 
         almacen al ON al.idAlmacen = i.idAlmacen
+    JOIN
+        inventarioactivo ia ON ia.idInventario = k.idInventario
     WHERE 
         p.idProducto = ?
     AND 
-        k.serie = ?
+        ia.serie = ?
     ORDER BY 
         k.fecha ASC,
         k.hora ASC

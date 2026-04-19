@@ -16,6 +16,7 @@ router.get('/:idGestion/id', activoGestionController.findById);
  * =========================
  */
 router.post('/', activoGestionController.create);
+router.post('/devolver', activoGestionController.devolver);
 
 /**
  * =========================

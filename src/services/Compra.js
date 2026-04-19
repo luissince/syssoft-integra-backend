@@ -357,9 +357,6 @@ class Compra {
                     idAlmacen
                 ]);
 
-                console.log("idInventario");
-                console.log(inventario.idInventario);
-
                 let costo = 0;
 
                 if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
@@ -373,13 +370,14 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
-                    let idInventarioLote = null;
-                    let idInventarioActivo = null;
-
-                    // Inserta información en el Kardex con ID del lote
                     if (inventarioDetalle.lote) {
+                        // Inserta información en el Kardex con ID del lote
+                        const resultDocumentoActivo = await conec.execute(connection, `SELECT idInventarioLote FROM inventariolote`);
+                        const idInventarioLote = generateAlphanumericCode("IL0001", resultDocumentoActivo, 'idInventarioLote');
+
                         const [result] = await conec.execute(connection, ` 
                             INSERT INTO inventariolote(
+                                idInventarioLote,
                                 idInventario,
                                 lote,
                                 fechaVencimiento,
@@ -388,7 +386,8 @@ class Compra {
                                 fecha,
                                 hora,
                                 idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+                            idInventarioLote,
                             inventario.idInventario,
                             inventarioDetalle.lote,
                             inventarioDetalle.fechaVencimiento,
@@ -398,13 +397,17 @@ class Compra {
                             time,
                             idUsuario
                         ]);
-
-                        idInventarioLote = result.insertId;
                     }
 
+
                     if (inventarioDetalle.serie) {
-                        const [result] = await conec.execute(connection, ` 
+                        // Inserta información en el Kardex con ID del activo
+                        const resultDocumentoActivo = await conec.execute(connection, `SELECT idInventarioActivo FROM inventarioactivo`);
+                        const idInventarioActivo = generateAlphanumericCode("IA0001", resultDocumentoActivo, 'idInventarioActivo');
+
+                        const result = await conec.execute(connection, ` 
                             INSERT INTO inventarioactivo(
+                                idInventarioActivo,
                                 idInventario,
                                 serie,
                                 estado,
@@ -415,7 +418,8 @@ class Compra {
                                 fecha,
                                 hora,
                                 idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                            idInventarioActivo,
                             inventario.idInventario,
                             inventarioDetalle.serie,
                             `DISPONIBLE`,
@@ -427,8 +431,6 @@ class Compra {
                             time,
                             idUsuario
                         ]);
-
-                        idInventarioActivo = result.insertId;
                     }
 
                     await conec.execute(connection, `
