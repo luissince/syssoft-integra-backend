@@ -1,7 +1,7 @@
-const { currentDate, currentTime } = require("../../../tools/Tools");
+const { currentDate, currentTime, generateAlphanumericCode } = require("../../../tools/Tools");
 
 module.exports = ({ conec }) => async function create(data) {
-    const { idPersona, idProducto, descripcion, serie } = data;
+    const { tipo, idPersona, observacion, activos, idUsuario } = data;
 
     let connection = null;
     try {
@@ -10,26 +10,77 @@ module.exports = ({ conec }) => async function create(data) {
         const date = currentDate();
         const time = currentTime();
 
-        const result = await conec.execute(connection, 'SELECT idActivoGestion FROM activoGestion');
-        const idActivoGestion = generateAlphanumericCode("AG0001", result, 'idActivoGestion');
+        const resultDocumentoActivo = await conec.execute(connection, 'SELECT idDocumentoActivo FROM documentoactivo');
+        const idDocumentoActivo = generateAlphanumericCode("DA0001", resultDocumentoActivo, 'idDocumentoActivo');
 
         await conec.execute(connection, `
-        INSERT INTO activoGestion(
-            idActivoGestion,
+        INSERT INTO documentoactivo(
+            idDocumentoActivo,
+            tipo,
             idPersona,
-            idProducto,
-            descripcion
-            serie,
+            observacion,
             fecha,
-            hora
+            hora,
+            idUsuario
         ) VALUES (?,?,?,?,?,?,?)`, [
-            idActivoGestion,
+            idDocumentoActivo,
+            tipo,
             idPersona,
-            idProducto,
-            descripcion,
-            serie,
+            observacion,
             date,
-            time
+            time,
+            idUsuario
+        ]);
+
+        if (Array.isArray(activos) && activos.length > 0) {
+            for (const activo of activos) {
+
+                const resultDocumentoActivoDetalle = await conec.execute(connection, 'SELECT idDocumentoDetalle FROM documentoactivodetalle');
+                const idDocumentoDetalle = generateAlphanumericCode("DD0001", resultDocumentoActivoDetalle, 'idDocumentoDetalle');
+
+                await conec.execute(connection, `
+                INSERT INTO documentoactivodetalle(
+                    idDocumentoDetalle,
+                    idDocumentoActivo,
+                    idInventarioActivo,
+                    cantidad
+                ) VALUES (?,?,?,?)`, [
+                    idDocumentoDetalle,
+                    idDocumentoActivo,
+                    activo.idInventarioActivo,
+                    activo.cantidad
+                ]);
+
+                //Actualizar la cantidad de la tabla inventarioActivo
+                await conec.execute(connection, `
+                UPDATE inventarioactivo 
+                SET cantidad = cantidad - ?, estado = ?
+                WHERE idInventarioActivo = ?`, [
+                    activo.cantidad,
+                    `ASIGNADO`,
+                    activo.idInventarioActivo
+                ]);
+            }
+        }
+
+        const resultAsignacionActivo = await conec.execute(connection, 'SELECT idAsignacionActivo FROM asignacionactivo');
+        const idAsignacionActivo = generateAlphanumericCode("AA0001", resultAsignacionActivo, 'idAsignacionActivo');
+
+        await conec.execute(connection, `
+        INSERT INTO asignacionactivo(
+            idAsignacionActivo,
+            idDocumentoActivo,
+            idPersona,
+            fecha,
+            hora,
+            idUsuario
+        ) VALUES (?,?,?,?,?,?)`, [
+            idAsignacionActivo,
+            idDocumentoActivo,
+            idPersona,
+            date,
+            time,
+            idUsuario
         ]);
 
         await conec.commit(connection);

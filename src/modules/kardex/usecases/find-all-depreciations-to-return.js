@@ -23,7 +23,9 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ia.serie,
         ia.vidaUtil,
         ia.valorResidual,
-        u.descripcion AS ubicacion
+        u.descripcion AS ubicacion,
+        da.idPersona,
+        p2.informacion 
     FROM 
         kardex k
     JOIN inventario i
@@ -33,11 +35,17 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     JOIN tipoKardex tk 
         ON tk.IdTipoKardex = k.idTipoKardex
     JOIN inventarioactivo ia 
-         ON ia.idInventario = K.idInventario
+         ON ia.idInventario = K.idInventario and ia.estado = 'ASIGNADO'
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
+    LEFT JOIN documentoactivodetalle dd 
+    	ON dd.idInventarioActivo = ia.idInventarioActivo 
+    JOIN documentoactivo da 
+    	ON da.idDocumentoActivo = dd.idDocumentoActivo
+    JOIN persona p2 
+    	on p2.idPersona = da.idPersona 
     WHERE 
         (? = 0 AND p.idProducto = ?)
     OR
@@ -45,16 +53,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     GROUP BY
         p.idProducto,
         p.idMetodoDepreciacion,
-        k.fecha,
-        k.hora,
-        al.nombre,
-        ia.cantidad,
-        k.costo,
-        ia.idInventarioActivo,
-        ia.serie,
-        ia.vidaUtil,
-        ia.valorResidual,
-        u.descripcion
+        ia.idInventarioActivo
     ORDER BY 
         k.fecha ASC,
         k.hora  ASC

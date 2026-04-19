@@ -296,8 +296,7 @@ class Persona {
             const idEmpleado = generateAlphanumericCode("EP0001", resultEmpleado, 'idEmpleado');
 
             if (req.body.personal) {
-                await conec.execute(connection, `
-                INSERT INTO empleado(
+                await conec.execute(connection, `INSERT INTO empleado(
                     idEmpleado,
                     idPersona, 
                     codigoEmpleado,
@@ -311,7 +310,7 @@ class Persona {
                     "",
                     req.body.idArea,
                     req.body.idCargo,
-                    date,
+                    currentDate(),
                     req.body.estado
                 ]);
             }
@@ -333,6 +332,9 @@ class Persona {
             SELECT 
                 cn.idPersona,
                 cn.idTipoDocumento,
+                e.idEmpleado,
+                e.idArea,
+                e.idCargo,
                 cn.documento,
                  e.idEmpleado,
                 e.idArea,
@@ -465,7 +467,7 @@ class Persona {
                     "",
                     req.body.idArea,
                     req.body.idCargo,
-                    date,
+                    currentDate(),
                     req.body.estado,
                     req.body.idEmpleado
                 ]);
@@ -484,7 +486,7 @@ class Persona {
                     "",
                     req.body.idArea,
                     req.body.idCargo,
-                    date,
+                    currentDate(),
                     req.body.estado
                 ]);
             } else {
@@ -584,6 +586,10 @@ class Persona {
                 await conec.rollback(connection);
                 return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a una venta.");
             }
+
+            await conec.execute(connection, `DELETE FROM empleado WHERE idPersona  = ?`, [
+                req.query.idPersona
+            ]);
 
             await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
                 req.query.idPersona
