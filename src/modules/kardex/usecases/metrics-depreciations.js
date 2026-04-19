@@ -8,9 +8,9 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
         p.idMetodoDepreciacion,
         k.fecha AS fechaAdquisicion,
         k.costo,
-        k.serie,
-        k.vidaUtil,
-        k.valorResidual,
+        ia.serie,
+        ia.vidaUtil,
+        ia.valorResidual,
         SUM(
             CASE 
                 WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
@@ -21,6 +21,8 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
         kardex k
     JOIN inventario i
         ON k.idInventario = i.idInventario
+    JOIN inventarioactivo ia 
+        ON ia.idInventario = k.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
     JOIN almacen al 
@@ -30,7 +32,13 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
     AND
         al.idAlmacen = ?      
     GROUP BY
-        k.serie
+        ia.serie,
+        p.idMetodoDepreciacion,
+        k.fecha,
+        k.costo,
+        ia.serie,
+        ia.vidaUtil,
+        ia.valorResidual
     HAVING
         cantidad > 0`, [
         idAlmacen

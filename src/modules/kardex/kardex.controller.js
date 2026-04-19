@@ -9,4 +9,5 @@ module.exports = {
     findAllDepreciations: makeController(kardex.findAllDepreciations, (req) => req.body),
     createDepreciations: makeController(kardex.createDepreciations, (req) => req.body),
     detailDepreciations: makeController(kardex.detailDepreciations, (req) => req.body),
+    findAllDepreciationsToReturn: makeController(kardex.findAllDepreciationsToReturn, (req) => req.body),
 };
