@@ -183,17 +183,17 @@ class Cargo {
     }
 
     async combo(req, res) {
-            try {
-                const result = await conec.query(`SELECT 
+        try {
+            const result = await conec.query(`SELECT 
                     idCargo, 
                     nombre
                     FROM cargo`, [])
-    
-                return sendSuccess(res, result)
-            } catch (error) {
-                return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cargo/combo", error);
-            }
+
+            return sendSuccess(res, result)
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cargo/combo", error);
         }
+    }
 }
 
 module.exports = new Cargo();
