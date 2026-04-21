@@ -333,6 +333,9 @@ class Persona {
             SELECT 
                 cn.idPersona,
                 cn.idTipoDocumento,
+                e.idEmpleado,
+                e.idArea,
+                e.idCargo,
                 cn.documento,
                  e.idEmpleado,
                 e.idArea,
@@ -584,6 +587,10 @@ class Persona {
                 await conec.rollback(connection);
                 return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a una venta.");
             }
+
+            await conec.execute(connection, `DELETE FROM empleado WHERE idPersona  = ?`, [
+                req.query.idPersona
+            ]);
 
             await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
                 req.query.idPersona
