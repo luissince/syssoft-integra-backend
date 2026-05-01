@@ -3,17 +3,7 @@ const { sendError, sendSuccess, sendSave } = require('../tools/Message');
 
 async function list(req, res) {
     try {
-        const { opcion, buscar, idSucursal, idAlmacen, estado, posicionPagina, filasPorPagina } = req.query;
-
-        const data = await inventarioService.list({
-            opcion,
-            buscar,
-            idSucursal,
-            idAlmacen,
-            estado,
-            posicionPagina,
-            filasPorPagina
-        });
+        const data = await inventarioService.list(req.query);
         return sendSuccess(res, data);
     } catch (error) {
         return sendError(res, "Error en listar el inventario.", "Inventario/list", error);

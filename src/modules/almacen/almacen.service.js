@@ -120,7 +120,7 @@ class AlmacenService {
             FROM 
                 producto 
             WHERE 
-                idTipoProducto IN ('TP0001','TP0004','TP0005','TP0006')
+                idTipoProducto IN ('TP0001','TP0003','TP0004')
             `);
 
             for (const producto of productos) {
@@ -235,9 +235,17 @@ class AlmacenService {
                 return "El almacen esta como predefinido no puede ser eliminado.";
             }
 
-            const inventario = await conec.execute(connection, `SELECT idKardex FROM kardex WHERE idAlmacen = ?`, [
+            const inventario = await conec.execute(connection, `
+            SELECT 
+                * 
+            FROM 
+                inventario AS i 
+            INNER JOIN
+                kardex AS k ON k.idInventario = i.idInventario
+            WHERE 
+                i.idAlmacen = ? `, [
                 req.body.idAlmacen
-            ])
+            ]);
 
             if (inventario.length !== 0) {
                 await conec.rollback(connection);
@@ -247,15 +255,16 @@ class AlmacenService {
 
             await conec.execute(connection, `DELETE FROM inventario WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
-            ])
+            ]);
 
             await conec.execute(connection, `DELETE FROM almacen WHERE idAlmacen = ?`, [
                 req.body.idAlmacen
-            ])
+            ]);
 
             await conec.commit(connection);
             return "deleted";
         } catch (error) {
+            console.log(error)
             if (connection != null) {
                 await conec.rollback(connection);
             }
@@ -310,13 +319,16 @@ class AlmacenService {
         try {
             const lista = await conec.query(`
             SELECT 
-                idAlmacen, 
-                nombre,
-                predefinido
+                a.idAlmacen, 
+                a.nombre,
+                a.predefinido,
+                ta.nombre AS tipoAlmacen
             FROM 
-                almacen
+                almacen AS a
+            INNER JOIN
+                tipoAlmacen AS ta ON ta.idTipoAlmacen = a.idTipoAlmacen
             WHERE 
-                idSucursal = ?`, [
+                a.idSucursal = ?`, [
                 idSucursal
             ]);
             return lista;

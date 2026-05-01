@@ -51,9 +51,12 @@ module.exports = ({ conec }) => async function devolver(data) {
 
                 //Actualizar la cantidad de la tabla inventarioActivo
                 await conec.execute(connection, `
-                    UPDATE inventarioactivo 
-                        SET cantidad = cantidad + ?, estado = ?
-                    WHERE idInventarioActivo = ?`, [
+                    UPDATE 
+                        inventarioActivo 
+                    SET 
+                        cantidad = cantidad + ?, estado = ?
+                    WHERE 
+                        idInventarioActivo = ?`, [
                     activo.cantidad,
                     `DISPONIBLE`,
                     activo.idInventarioActivo

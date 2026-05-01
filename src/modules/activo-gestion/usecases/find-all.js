@@ -63,9 +63,10 @@ module.exports = ({ conec }) => async function findAll(data) {
             ca.nombre AS categoria,
             ia.serie,
             u.descripcion AS ubicacion
-        FROM documentoactivodetalle dd
+        FROM 
+            documentoactivodetalle dd
         LEFT JOIN 
-        	inventarioactivo ia ON ia.idInventarioActivo = dd.idInventarioActivo
+        	inventarioActivo ia ON ia.idInventarioActivo = dd.idInventarioActivo
         JOIN 
         	inventario i ON i.idInventario = ia.idInventario
         JOIN

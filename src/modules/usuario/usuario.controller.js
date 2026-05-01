@@ -10,7 +10,7 @@ module.exports = {
         const result = await usuario.update(req.params.idUsuario, req.body);
         return sendSave(res, result);
     }),
-    deleteById: makeController(usuario.deleteById, (req) => req.query.idUsuario),
+    deleteById: makeController(usuario.deleteById, (req) => req.params.idUsuario),
     resetPassword: makeController(usuario.resetPassword, (req) => req.body),
     findById: makeController(usuario.findById, (req) => req.params.idUsuario),
     getSelectOptions: makeController(usuario.getSelectOptions, (req) => req.query),

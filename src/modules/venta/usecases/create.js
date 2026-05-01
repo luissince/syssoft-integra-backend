@@ -27,9 +27,6 @@ module.exports = ({ conec }) => async function create(body) {
         // Validación de inventario
         await validateInventario(connection, body);
 
-        // Validación de productos inventariables
-        await validateInventario(connection, body);
-
         // Validar si el cliente existe
         const nuevoIdCliente = await resolveCliente({
             connection,
@@ -80,7 +77,13 @@ module.exports = ({ conec }) => async function create(body) {
 
         // Si la venta está asociada a un pedido
         if (idPedido) {
-            await linkPedido(connection, body);
+            await linkPedido({
+                connection,
+                body,
+                idVenta,
+                date,
+                time
+            });
         }
 
         // Confirmar la transacción

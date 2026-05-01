@@ -14,13 +14,13 @@ router.get("/", usuarioController.findAll);
 router.post("/", usuarioController.create);
 
 // GET /users/:id
-router.get("/:id", usuarioController.findById);
+router.get("/:idUsuario", usuarioController.findById);
 
 // PUT /users/:id
-router.put("/:id", usuarioController.update);
+router.put("/:idUsuario", usuarioController.update);
 
 // DELETE /users/:id
-router.delete("/:id", usuarioController.deleteById);
+router.delete("/:idUsuario", usuarioController.deleteById);
 
 /* ===============================
    EXTRA DATA (Dropdowns, etc)

@@ -14,7 +14,7 @@ module.exports = ({ conec, firebaseService }) => async function findById(data) {
         v.serie,
         v.numeracion,
 
-        td.nombre AS tipoDoc,      
+        td.nombre AS tipoDocumento,      
         td.codigo AS codigoCliente,      
         c.documento,
         c.informacion,

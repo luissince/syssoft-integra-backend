@@ -61,12 +61,12 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
         producto p ON p.idProducto = i.idProducto
     JOIN 
         tipoKardex tk ON tk.IdTipoKardex = k.idTipoKardex
-    LEFT JOIN 
-        ubicacion u ON u.idUbicacion = k.idUbicacion
     JOIN 
         almacen al ON al.idAlmacen = i.idAlmacen
     JOIN
-        inventarioactivo ia ON ia.idInventario = k.idInventario
+        inventarioActivo ia ON ia.idInventario = k.idInventario
+    JOIN 
+        ubicacion u ON u.idUbicacion = ia.idUbicacion
     WHERE 
         p.idProducto = ?
     AND 

@@ -321,29 +321,14 @@ class Compra {
                 // Calcular es costo actual en base a la formula de costo promedio ponderado
                 const valorTotalInventarioInicial = await conec.execute(connection, `
                 SELECT 
-                    IFNULL(
-                        SUM(
-                            CASE 
-                                WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad
-                                ELSE -k.cantidad
-                            END
-                        ),0
-                    ) AS cantidad,
-
-                    IFNULL(
-                        SUM(
-                            CASE 
-                                WHEN k.idTipoKardex = 'TK0001' THEN k.cantidad * p.costo
-                                ELSE -k.cantidad * p.costo
-                            END
-                        ),0
-                    ) AS total
-                FROM 
-                    kardex AS k
-                INNER JOIN 
-                    inventario i ON k.idInventario = i.idInventario
+                    v.cantidad,
+                    SUM(v.cantidad * p.costo) AS total
+                FROM                     
+                    inventario i
                 INNER JOIN
                     producto AS p ON p.idProducto = i.idProducto
+                INNER JOIN
+                    vw_stock_inventario v ON v.idInventario = i.idInventario
                 WHERE 
                         i.idProducto = ?
                     AND 
@@ -370,24 +355,24 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
+
+                    let idInventarioLote = null;
+                    let idInventarioActivo = null;
+
+                    // Insertar información en el inventario lote - en caso el producto tengo control de lotes
                     if (inventarioDetalle.lote) {
                         // Inserta información en el Kardex con ID del lote
-                        const resultDocumentoActivo = await conec.execute(connection, `SELECT idInventarioLote FROM inventariolote`);
-                        const idInventarioLote = generateAlphanumericCode("IL0001", resultDocumentoActivo, 'idInventarioLote');
-
-                        const [result] = await conec.execute(connection, ` 
-                            INSERT INTO inventariolote(
-                                idInventarioLote,
-                                idInventario,
-                                lote,
-                                fechaVencimiento,
-                                cantidad,
-                                idUbicacion,
-                                fecha,
-                                hora,
-                                idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?)`, [
-                            idInventarioLote,
+                        const result = await conec.execute(connection, ` 
+                        INSERT INTO inventarioLote(
+                            idInventario,
+                            lote,
+                            fechaVencimiento,
+                            cantidad,
+                            idUbicacion,
+                            fecha,
+                            hora,
+                            idUsuario
+                         ) VALUES(?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.lote,
                             inventarioDetalle.fechaVencimiento,
@@ -397,32 +382,27 @@ class Compra {
                             time,
                             idUsuario
                         ]);
+
+                        idInventarioLote = result.insertId;
                     }
 
-
+                    // Insertar información en el inventario activo - en caso el producto tengo control de activos fijos
                     if (inventarioDetalle.serie) {
                         // Inserta información en el Kardex con ID del activo
-                        const resultDocumentoActivo = await conec.execute(connection, `SELECT idInventarioActivo FROM inventarioactivo`);
-                        const idInventarioActivo = generateAlphanumericCode("IA0001", resultDocumentoActivo, 'idInventarioActivo');
-
                         const result = await conec.execute(connection, ` 
-                            INSERT INTO inventarioactivo(
-                                idInventarioActivo,
-                                idInventario,
-                                serie,
-                                estado,
-                                cantidad,
-                                vidaUtil,                                
-                                valorResidual,
-                                idUbicacion,
-                                fecha,
-                                hora,
-                                idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
-                            idInventarioActivo,
+                        INSERT INTO inventarioActivo(
+                            idInventario,
+                            serie,
+                            cantidad,
+                            vidaUtil,                                
+                            valorResidual,
+                            idUbicacion,
+                            fecha,
+                            hora,
+                            idUsuario
+                         ) VALUES(?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
-                            `DISPONIBLE`,
                             Number(inventarioDetalle.cantidad),
                             inventarioDetalle.vidaUtil,
                             inventarioDetalle.valorResidual,
@@ -431,6 +411,8 @@ class Compra {
                             time,
                             idUsuario
                         ]);
+
+                        idInventarioActivo = result.insertId;
                     }
 
                     await conec.execute(connection, `
@@ -443,10 +425,14 @@ class Compra {
                         detalle,
                         cantidad,
                         costo,
+
+                        idInventarioLote,
+                        idInventarioActivo,
+                        
                         fecha,
                         hora,
                         idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
                         inventario.idInventario,
                         KARDEX_TYPES.INGRESO,
@@ -455,6 +441,10 @@ class Compra {
                         `INGRESO POR COMPRA`,
                         Number(inventarioDetalle.cantidad),
                         item.costo,
+
+                        idInventarioLote,
+                        idInventarioActivo,
+
                         date,
                         time,
                         idUsuario
@@ -508,13 +498,13 @@ class Compra {
                 // Proceso de registro  
                 for (const item of bancosAgregados) {
                     await conec.execute(connection, `
-                        INSERT INTO transaccionDetalle(
-                            idTransaccionDetalle,
-                            idTransaccion,
-                            idBanco,
-                            monto,
-                            observacion
-                        ) VALUES(?,?,?,?,?)`, [
+                    INSERT INTO transaccionDetalle(
+                        idTransaccionDetalle,
+                        idTransaccion,
+                        idBanco,
+                        monto,
+                        observacion
+                    ) VALUES(?,?,?,?,?)`, [
                         idTransaccionDetalle,
                         idTransaccion,
                         item.idBanco,
@@ -532,14 +522,14 @@ class Compra {
                 const idCompraOrdenCompra = generateNumericCode(1, listaIdCompraOrdenCompra, 'idCompraOrdenCompra');
 
                 await conec.execute(connection, `
-                    INSERT INTO compraOrdenCompra(
-                        idCompraOrdenCompra, 
-                        idCompra, 
-                        idOrdenCompra, 
-                        fecha, 
-                        hora,
-                        idUsuario
-                    ) VALUES (?,?,?,?,?,?)`, [
+                INSERT INTO compraOrdenCompra(
+                    idCompraOrdenCompra, 
+                    idCompra, 
+                    idOrdenCompra, 
+                    fecha, 
+                    hora,
+                    idUsuario
+                ) VALUES (?,?,?,?,?,?)`, [
                     idCompraOrdenCompra,
                     idCompra,
                     idOrdenCompra,
@@ -654,43 +644,45 @@ class Compra {
             const listaDetalles = await Promise.all(detalles.map(async (item) => {
                 const inventarioDetalles = (await conec.query(`
                 SELECT 
-					-- Campos para activos fijos
-					ia.cantidad as cantidadActivo,
-                    
+                    -- Activo fijo (serie)
+                    ia.cantidad AS cantidadActivo,
                     ia.serie,
                     ia.vidaUtil,
                     ia.valorResidual,
-                    ia.cantidad as cantidadActivo,
-                    ia.estado,
-                    -- Campos para lotes
-                    il.lote,
-                    il.cantidad as cantidadLote,
-                    
-                    -- Campo para productos normales
-                    CASE 
-                        WHEN il.fechaVencimiento IS NULL THEN NULL
-                        ELSE DATE_FORMAT(il.fechaVencimiento, '%d/%m/%Y')
-                    END AS fechaVencimiento,
 
-                    iu.descripcion AS ubicacion                    
-                FROM 
-                    kardex AS k
-                INNER JOIN 
-                    inventario i ON k.idInventario = i.idInventario
-                INNER JOIN 
-                	producto p ON p.idProducto = i.idProducto
-                LEFT JOIN
-                	inventariolote il ON il.idInventario = k.idInventario and p.idTipoProducto = 'TP0001'
-                LEFT JOIN
-                	inventarioActivo ia ON ia.idInventario = k.idInventario and p.idTipoProducto = 'TP0004'
-                    LEFT JOIN 
-                    ubicacion AS iu ON iu.idUbicacion = il.idUbicacion OR iu.idUbicacion = ia.idUbicacion
+                    -- Lote
+                    il.lote,
+                    il.cantidad AS cantidadLote,
+                    DATE_FORMAT(il.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
+
+                    -- Ubicación
+                    iu.descripcion AS ubicacion
+
+                FROM kardex k
+
+                INNER JOIN inventario i 
+                    ON k.idInventario = i.idInventario
+
+                INNER JOIN producto p 
+                    ON p.idProducto = i.idProducto
+
+                -- LOTE
+                LEFT JOIN inventarioLote il 
+                    ON il.idInventario = i.idInventario AND il.idInventarioLote = k.idInventarioLote 
+
+                -- SERIE / ACTIVO 
+                LEFT JOIN inventarioActivo ia 
+                    ON ia.idInventario = i.idInventario AND ia.idInventarioActivo = k.idInventarioActivo 
+
+                -- UBICACION (separado correctamente)
+                LEFT JOIN ubicacion iu 
+                    ON iu.idUbicacion = COALESCE(il.idUbicacion, ia.idUbicacion)
+
                 WHERE 
                     k.idCompra = ?
                 AND 
                     i.idProducto = ?
-                GROUP BY
-                	ia.idInventarioActivo, il.idInventarioLote
+
                 ORDER BY 
                     k.idKardex ASC;`, [
                     idCompra,

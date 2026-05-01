@@ -7,17 +7,15 @@ class inventarioService {
         const {
             opcion,
             buscar,
-            idSucursal,
             idAlmacen,
             estado,
             posicionPagina,
             filasPorPagina
         } = data;
 
-        const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?,?)`, [
+        const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?)`, [
             parseInt(opcion),
             buscar,
-            idSucursal,
             idAlmacen,
             estado,
             parseInt(posicionPagina),
@@ -41,10 +39,9 @@ class inventarioService {
             };
         }));
 
-        const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?,?)`, [
+        const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?)`, [
             parseInt(opcion),
             buscar,
-            idSucursal,
             idAlmacen,
             estado,
         ]);

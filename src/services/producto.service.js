@@ -194,7 +194,7 @@ class ProductoService {
                 idUsuario,
             ])
 
-            if (["TP0001", "TP0004", "TP0005", "TP0006"].includes(idTipoProducto)) {
+            if (!["TP0002"].includes(idTipoProducto)) {
                 const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
 
                 for (const almacen of almacenes) {
@@ -544,6 +544,7 @@ class ProductoService {
             UPDATE 
                 producto 
             SET
+                idTipoProducto = ?,
                 idCategoria = ?,
                 idMedida = ?,     
                 idMarca = ?,
@@ -566,6 +567,7 @@ class ProductoService {
                 idUsuario = ?
             WHERE 
                 idProducto = ?`, [
+                req.body.idTipoProducto,
                 req.body.idCategoria,
                 req.body.idMedida,
                 req.body.idMarca,
@@ -593,7 +595,7 @@ class ProductoService {
              * Actualizar inventario en caso no exista
              */
 
-            if (["TP0001", "TP0004", "TP0005", "TP0006"].includes(producto[0].idTipoProducto)) {
+            if (!["TP0002"].includes(producto[0].idTipoProducto)) {
                 const inventario = await conec.execute(connection, `SELECT * FROM inventario WHERE idProducto = ?`, [
                     req.body.idProducto
                 ]);
@@ -689,17 +691,17 @@ class ProductoService {
              * Actualizar imagenes
              */
             const cacheImagenes = await conec.execute(connection, `
-                SELECT 
-                    idImagen,
-                    idProducto,
-                    nombre,
-                    extension,
-                    ancho,
-                    alto
-                FROM
-                    productoImagen
-                WHERE
-                    idProducto = ?`, [
+            SELECT 
+                idImagen,
+                idProducto,
+                nombre,
+                extension,
+                ancho,
+                alto
+            FROM
+                productoImagen
+            WHERE
+                idProducto = ?`, [
                 req.body.idProducto
             ]);
 
@@ -790,30 +792,106 @@ class ProductoService {
 
             connection = await conec.beginTransaction();
 
-            await conec.execute(connection, `
+            const producto = await conec.execute(connection, `
+            SELECT 
+                imagen
+            FROM 
+                producto 
+            WHERE 
+                idProducto = ?`, [
+                idProducto
+            ]);
+
+            if (producto.length === 0) {
+                throw new Error("El producto no existe, verifique el código o actualiza la lista.");
+            }
+
+            const inventario = await conec.execute(connection, `
+            SELECT 
+                * 
+            FROM 
+                inventario AS i 
+            INNER JOIN
+                kardex AS k ON k.idInventario = i.idInventario
+            WHERE 
+                i.idProducto = ? `, [
+                idProducto
+            ]);
+
+            if (inventario.length !== 0) {
+                await conec.execute(connection, `
                 UPDATE 
                     producto 
                 SET 
                     estado = -1 
                 WHERE 
                     idProducto = ?`, [
-                idProducto
-            ]);
+                    idProducto
+                ]);
 
-            await conec.execute(connection, `    
+                await conec.execute(connection, `    
                 INSERT INTO auditoria(
                     idReferencia,
                     idUsuario,
                     tipo,
                     descripción
                 ) VALUES(?,?,?,?)`, [
-                idProducto,
-                idUsuario,
-                'ELIMINAR',
-                'ELIMINACIÓN DEL PRODUCTO',
-                date,
-                time,
-            ]);
+                    idProducto,
+                    idUsuario,
+                    'ELIMINAR',
+                    'ELIMINACIÓN DEL PRODUCTO',
+                    date,
+                    time,
+                ]);
+            } else {
+                await conec.execute(connection, `DELETE FROM inventario WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM precio WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM productoDetalle WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM producto WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                const bucket = firebaseService.getBucket();
+
+                const productoImagenes = await conec.execute(connection, `
+                SELECT 
+                    nombre
+                FROM 
+                    productoImagen 
+                WHERE 
+                    idProducto = ?`, [
+                    idProducto
+                ]);
+
+                if (bucket) {
+                    if (producto[0].imagen) {
+                        const file = bucket.file(producto[0].imagen);
+                        if (file.exists()) {
+                            await file.delete();
+                        }
+                    }
+
+                    for (const productoImagen of productoImagenes) {
+                        const file = bucket.file(productoImagen.nombre);
+                        if (file.exists()) {
+                            await file.delete();
+                        }
+                    }
+                }
+            }
 
             await conec.commit(connection)
             return "Se eliminó correctamente el producto.";
@@ -1179,7 +1257,7 @@ class ProductoService {
                 ),0
             ) AS cantidad,
              CASE 
-                WHEN p.idTipoProducto = 'TP0001' THEN 0
+                WHEN p.idTipoProducto <> 'TP0002' THEN 0
                 ELSE 1
             END AS servicio,
 

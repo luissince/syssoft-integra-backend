@@ -21,7 +21,7 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
         kardex k
     JOIN inventario i
         ON k.idInventario = i.idInventario
-    JOIN inventarioactivo ia 
+    JOIN inventarioActivo ia 
         ON ia.idInventario = k.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
