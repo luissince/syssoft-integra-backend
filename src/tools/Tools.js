@@ -195,6 +195,78 @@ async function processImage(fileDirectory, image, ext, existingImage) {
     return name;
 }
 
+/**
+ * Procesa un archivo PKCS#12 (.p12 / .pfx), extrae el certificado y la clave privada
+ * en formato PEM, y devuelve información relevante del certificado.
+ *
+ * Flujo general:
+ * 1. Verifica si existe un nuevo archivo para procesar.
+ * 2. Elimina el archivo anterior si existe.
+ * 3. Guarda el nuevo archivo codificado en base64.
+ * 4. Lee y parsea el archivo PKCS#12 usando node-forge.
+ * 5. Extrae:
+ *    - Clave privada
+ *    - Certificado
+ * 6. Convierte ambos a formato PEM.
+ * 7. Devuelve la información del certificado y fechas de validez.
+ *
+ * @async
+ * @function processFilePem
+ *
+ * @param {string} fileDirectory
+ * Directorio donde se almacenará el archivo.
+ *
+ * @param {string} file
+ * Contenido del archivo codificado en base64.
+ * Si viene vacío (''), se devuelve la información existente sin procesar nada.
+ *
+ * @param {string} name
+ * Nombre base que tendrá el archivo guardado.
+ *
+ * @param {string} ext
+ * Extensión del archivo (ejemplo: p12 o pfx).
+ *
+ * @param {string} password
+ * Contraseña del certificado PKCS#12.
+ *
+ * @param {string|null} existingFile
+ * Nombre del archivo anterior almacenado.
+ * Si existe, será eliminado antes de guardar el nuevo.
+ *
+ * @param {string|null} certificate
+ * Certificado PEM previamente almacenado.
+ * Se devuelve cuando no se envía un nuevo archivo.
+ *
+ * @param {string|null} private
+ * Clave privada PEM previamente almacenada.
+ * Se devuelve cuando no se envía un nuevo archivo.
+ *
+ * @returns {Promise<Object>}
+ * Retorna un objeto con:
+ *
+ * @returns {string} returns.nombre
+ * Nombre final del archivo guardado.
+ *
+ * @returns {string} returns.certificate
+ * Certificado en formato PEM.
+ *
+ * @returns {string} returns.private
+ * Clave privada en formato PEM.
+ *
+ * @returns {string} returns.startDateTime
+ * Fecha de inicio de validez del certificado (YYYY-MM-DD HH:mm:ss).
+ *
+ * @returns {string} returns.expirationDateTime
+ * Fecha de expiración del certificado (YYYY-MM-DD HH:mm:ss).
+ *
+ *
+ * @throws {Error}
+ * Lanza un error cuando:
+ * - El archivo PKCS#12 es inválido.
+ * - La contraseña es incorrecta.
+ * - No existe una clave privada dentro del archivo.
+ * - Ocurre un problema al leer/escribir archivos.
+ */
 async function processFilePem(fileDirectory, file, name, ext, password, existingFile, certificate, private) {
     // Verificar si hay un archivo para procesar
     if (file === '') {
@@ -225,6 +297,7 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
 
         // Extraer la clave privada y el certificado del archivo P12
         const bags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+
         if (!bags || bags.length === 0) {
             throw new Error("No se encontró ninguna clave privada en el archivo.");
         }
@@ -236,24 +309,68 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
         const cert = certBag.cert;
 
         // Convertir la clave privada y el certificado en formato PEM
-        const privateKeyPem = forge.pki.privateKeyInfoToPem(forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(privateKey)));
+        const privateKeyPem = forge.pki.privateKeyInfoToPem(
+            forge.pki.wrapRsaPrivateKey(
+                forge.pki.privateKeyToAsn1(privateKey)
+            )
+        );
         const certPem = forge.pki.certificateToPem(cert);
 
-        // Escribir la clave privada y el certificado en archivos separados
-        // await writeFileAsync(path.join(fileDirectory, "privateKey.pem"), privateKeyPem);
-        // await writeFileAsync(path.join(fileDirectory, "certificate.pem"), certPem);
-        // const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
-        // await writeFileAsync(path.join(fileDirectory, "certificate.cer"), Buffer.from(certDer, "binary"));
 
-        // Devolver el nombre del archivo procesado
-        // return nameFile;
+        // Devolver la información procesada
         return {
             "nombre": nameFile,
             "certificate": certPem,
-            "private": privateKeyPem
+            "private": privateKeyPem,
+            "startDateTime": cert.validity.notBefore || null,
+            "expirationDateTime": cert.validity.notAfter || null,
         }
     } catch (error) {
         throw new Error(error.message);
+    }
+}
+
+/**
+ * Obtiene información de validez desde un certificado PEM.
+ *
+ * @param {string} certificatePem
+ * Certificado en formato PEM:
+ * -----BEGIN CERTIFICATE-----
+ *
+  * @returns {Object}
+ * Retorna un objeto con:
+ * 
+ * @returns {string} returns.startDateTime
+ * Fecha de inicio de validez del certificado (YYYY-MM-DD HH:mm:ss).
+ *
+ * @returns {string} returns.expirationDateTime
+ * Fecha de expiración del certificado (YYYY-MM-DD HH:mm:ss).
+ * 
+  * @throws {Error}
+ * Lanza un error cuando:
+ * - El certificado PEM es inválido.
+ */
+function getCertificateDates(certificatePem) {
+
+    if (!certificatePem) {
+       return {
+           startDateTime: null,
+           expirationDateTime: null,
+       }
+    }
+
+    try {
+        // Convertir PEM a objeto certificado
+        const cert = forge.pki.certificateFromPem(certificatePem);
+
+        return {
+            startDateTime: cert.validity.notBefore,
+            expirationDateTime: cert.validity.notAfter,
+        };
+    } catch (error) {
+        throw new Error(
+            `Error al procesar el certificado PEM: ${error.message}`
+        );
     }
 }
 
@@ -445,6 +562,7 @@ module.exports = {
     generateAlphanumericCode,
     generateNumericCode,
     processImage,
+    getCertificateDates,
     processFilePem,
     processFile,
     rounded,
