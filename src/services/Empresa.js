@@ -13,7 +13,8 @@ const {
     generateAlphanumericCode,
     processFilePem,
     processFile,
-    isFile
+    isFile,
+    getCertificateDates
 } = require('../tools/Tools');
 const path = require("path");
 const conec = require('../database/mysql-connection');
@@ -74,6 +75,8 @@ class Empresa {
                 claveSolSunat,
                 certificadoSunat,
                 claveCertificadoSunat,
+                IFNULL(DATE_FORMAT(certificadoInicio, '%d/%m/%Y'), '') AS certificadoInicio,
+                IFNULL(DATE_FORMAT(certificadoExpiracion, '%d/%m/%Y'), '') AS certificadoExpiracion,
                 idApiSunat,
                 claveApiSunat,
                 numeroWhatsapp,
@@ -97,41 +100,24 @@ class Empresa {
             ]);
 
             const bucket = firebaseService.getBucket();
-            let respuesta = null;
-            if (bucket) {
-                respuesta = {
-                    ...empresa,
-                    rutaLogo: {
-                        nombre: empresa.rutaLogo,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaLogo}`,
-                    },
-                    rutaImage: {
-                        nombre: empresa.rutaImage,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaImage}`
-                    },
-                    rutaIcon: {
-                        nombre: empresa.rutaIcon,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaIcon}`
-                    },
-                    rutaPortada: {
-                        nombre: empresa.rutaPortada,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaPortada}`
-                    },
-                    rutaBanner: {
-                        nombre: empresa.rutaBanner,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa.rutaBanner}`
+            const createFileData = (fileName) => (
+                bucket && fileName
+                    ? {
+                        nombre: fileName,
+                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${fileName}`
                     }
-                };
-            } else {
-                respuesta = {
-                    ...empresa,
-                    rutaLogo: null,
-                    rutaImage: null,
-                    rutaIcon: null,
-                    rutaPortada: null,
-                    rutaBanner: null,
-                };
-            }
+                    : null
+            );
+
+            const respuesta = {
+                ...empresa,
+
+                rutaLogo: createFileData(empresa.rutaLogo),
+                rutaImage: createFileData(empresa.rutaImage),
+                rutaIcon: createFileData(empresa.rutaIcon),
+                rutaPortada: createFileData(empresa.rutaPortada),
+                rutaBanner: createFileData(empresa.rutaBanner),
+            };
 
             const serviceAccountKey = await isFile(path.join(__dirname, '..', 'path', 'certificates', 'serviceAccountKey.json'));
 
@@ -202,13 +188,17 @@ class Empresa {
                 rutaPortada,
                 certificadoSunat,
                 certificadoPem,
-                privatePem
+                privatePem,
+                certificadoInicio,
+                certificadoExpiracion
             FROM 
                 empresa
             WHERE 
                 idEmpresa  = ?`, [
                 req.body.idEmpresa
             ]);
+
+            const certificadoDates = getCertificateDates(empresa[0].certificadoPem);
 
             const rutaCertificado = await processFilePem(
                 fileCertificates,
@@ -531,6 +521,8 @@ class Empresa {
                 claveCertificadoSunat=?,
                 certificadoPem=?,
                 privatePem=?,
+                certificadoInicio=?,
+                certificadoExpiracion=?,
 
                 idApiSunat=?,
                 claveApiSunat=?,
@@ -574,6 +566,14 @@ class Empresa {
                 req.body.claveCertificado,
                 rutaCertificado.certificate,
                 rutaCertificado.private,
+                certificadoDates.startDateTime
+                ?? rutaCertificado.startDateTime
+                ?? empresa[0].certificadoInicio
+                ?? null,
+                certificadoDates.expirationDateTime
+                ?? rutaCertificado.expirationDateTime
+                ?? empresa[0].certificadoExpiracion
+                ?? null,
 
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
