@@ -353,10 +353,10 @@ async function processFilePem(fileDirectory, file, name, ext, password, existing
 function getCertificateDates(certificatePem) {
 
     if (!certificatePem) {
-       return {
-           startDateTime: null,
-           expirationDateTime: null,
-       }
+        return {
+            startDateTime: null,
+            expirationDateTime: null,
+        }
     }
 
     try {
@@ -374,26 +374,220 @@ function getCertificateDates(certificatePem) {
     }
 }
 
+/**
+ * Procesa y guarda un archivo en el directorio especificado.
+ *
+ * Flujo:
+ * 1. Verifica si existe contenido para procesar.
+ * 2. Genera el nombre final del archivo.
+ * 3. Elimina el archivo anterior si existe.
+ * 4. Guarda el nuevo archivo en formato base64.
+ *
+ * @param {string} fileDirectory Directorio donde se almacenará el archivo.
+ * @param {string} file Contenido del archivo en base64.
+ * @param {string} name Nombre del archivo.
+ * @param {string} ext Extensión del archivo.
+ *
+ * @returns {Promise<string|null>}
+ * Retorna el nombre del archivo generado o null si no se procesó.
+ */
 async function processFile(fileDirectory, file, name, ext) {
-    // Verificar si hay un archivo para procesar
-    if (file === '') {
-        // Si no hay archivo, devolver el nombre del archivo existente
-        return;
+    /**
+      * Validar contenido del archivo.
+      */
+    if (!file || file === '') {
+        return null;
     }
 
-    // Crear el nombre del nuevo archivo
+    /**
+     * Validar nombre y extensión.
+     */
+    if (!name) {
+        throw new Error(
+            'El nombre del archivo es requerido.'
+        );
+    }
+
+    if (!ext) {
+        throw new Error(
+            'La extensión del archivo es requerida.'
+        );
+    }
+
+    /**
+    * Crear nombre y ruta final.
+    */
     const nameFile = `${name}.${ext}`;
-    const filePath = path.join(fileDirectory, nameFile);
+
+    const filePath = path.join(
+        fileDirectory,
+        nameFile
+    );
 
     try {
-        // Si hay un archivo existente, eliminarlo
+        /**
+        * Eliminar archivo anterior si existe.
+        */
         await removeFile(filePath);
 
-        // Escribir el archivo en el directorio especificado
-        await writeFileAsync(filePath, file, 'base64');
+        /**
+        * Guardar nuevo archivo.
+        */
+        await writeFileAsync(
+            filePath,
+            file,
+            'base64'
+        );
+
+        /**
+         * Retornar nombre generado.
+         */
+        return nameFile;
     } catch (error) {
         throw new Error(error.message);
     }
+}
+
+/**
+ * Procesa un archivo en Firebase Storage.
+ *
+ * Casos:
+ * - Eliminar archivo.
+ * - Mantener archivo actual.
+ * - Actualizar archivo.
+ *
+ * @param {object} bucket Bucket de Firebase.
+ * @param {object} fileData Información del archivo.
+ * @param {string|null} currentFile Ruta actual almacenada.
+ * @param {string} folderName Carpeta donde guardar.
+ * @param {string|null} filePrefix Prefijo opcional para el nombre del archivo.
+ *
+ * @returns {Promise<string|null>}
+ * Ruta final del archivo o null.
+ */
+async function processFirebaseFile(
+    bucket,
+    fileData,
+    currentFile,
+    folderName,
+    filePrefix
+) {
+
+    /**
+     * Validar existencia de bucket.
+     */
+    if (!bucket) {
+        return currentFile ?? null;
+    }
+
+    /**
+     * Validar información del archivo.
+     */
+    if (!fileData) {
+        return currentFile ?? null;
+    }
+
+    /**
+     * Caso:
+     * Eliminar archivo existente.
+     */
+    if (
+        fileData.nombre === undefined &&
+        fileData.base64 === undefined
+    ) {
+
+        if (currentFile) {
+
+            const file = bucket.file(currentFile);
+
+            try {
+                await file.delete();
+            } catch (_) { }
+        }
+
+        return null;
+    }
+
+    /**
+     * Caso:
+     * Subir nuevo archivo.
+     */
+    if (fileData.base64 !== undefined) {
+
+        /**
+         * Eliminar archivo anterior.
+         */
+        if (currentFile) {
+
+            const oldFile = bucket.file(currentFile);
+
+            try {
+                const [exists] = await oldFile.exists();
+
+                if (exists) {
+                    await oldFile.delete();
+                }
+            } catch (_) { }
+        }
+
+        /**
+         * Crear buffer.
+         */
+        const buffer = Buffer.from(
+            fileData.base64,
+            'base64'
+        );
+
+        /**
+         * Generar nombre único.
+         */
+        const timestamp = Date.now();
+
+        const uniqueId = Math.random()
+            .toString(36)
+            .substring(2, 9);
+
+        const safeFilePrefix = filePrefix
+            ? filePrefix.replace(/[^a-zA-Z0-9_-]/g, '')
+            : '';
+
+        const prefix = safeFilePrefix
+            ? `${safeFilePrefix}_`
+            : '';
+
+        const fileName =
+            `${prefix}${timestamp}_${uniqueId}.${fileData.extension}`;
+
+        /**
+         * Ruta final.
+         */
+        const filePath =
+            `${folderName}/${fileName}`;
+
+        /**
+         * Subir archivo.
+         */
+        const file = bucket.file(filePath);
+
+        await file.save(buffer, {
+            metadata: {
+                contentType:
+                    'image/' + fileData.extension,
+            }
+        });
+
+        /**
+         * Hacer público.
+         */
+        await file.makePublic();
+
+        return filePath;
+    }
+
+    /**
+     * Mantener archivo actual.
+     */
+    return fileData.nombre ?? null;
 }
 
 function formatMoney(amount, decimalCount = 2, decimal = ".", thousands = "") {
@@ -550,6 +744,7 @@ module.exports = {
     currentDate,
     currentTime,
     dateFormat,
+    processFirebaseFile,
     formatMoney,
     numberFormat,
     isDirectory,

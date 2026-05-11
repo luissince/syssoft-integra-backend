@@ -14,7 +14,8 @@ const {
     processFilePem,
     processFile,
     isFile,
-    getCertificateDates
+    getCertificateDates,
+    processFirebaseFile
 } = require('../tools/Tools');
 const path = require("path");
 const conec = require('../database/mysql-connection');
@@ -218,197 +219,50 @@ class Empresa {
                 req.body.extFireBase
             );
 
-            let rutaLogo = null;
-            let rutaImage = null;
-            let rutaIcon = null;
-            let rutaPortada = null;
-            let rutaBanner = null;
-
             // Proceso para validar si el logo existe y si se debe eliminar o actualizar
-            if (req.body.logo && req.body.logo.nombre === undefined && req.body.logo.base64 === undefined) {
-                if (bucket) {
-                    const file = bucket.file(empresa[0].rutaLogo);
-                    await file.delete();
-                }
-            } else if (req.body.logo && req.body.logo.base64 !== undefined) {
-                if (bucket) {
-                    if (empresa[0].rutaLogo) {
-                        const file = bucket.file(empresa[0].rutaLogo);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
-
-                    const buffer = Buffer.from(req.body.logo.base64, 'base64');
-
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.logo.extension}`;
-
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
-
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.logo.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    rutaLogo = filePath;
-                }
-            } else {
-                rutaLogo = req.body.logo.nombre;
-            }
+            const rutaLogo = await processFirebaseFile(
+                bucket,
+                req.body.logo,
+                empresa[0].rutaLogo,
+                req.body.documento,
+                "empresa"
+            );
 
             // Proceso para validar si la imagen existe y si se debe eliminar o actualizar
-            if (req.body.image && req.body.image.nombre === undefined && req.body.image.base64 === undefined) {
-                if (bucket) {
-                    const file = bucket.file(empresa[0].rutaImage);
-                    await file.delete();
-                }
-            } else if (req.body.image && req.body.image.base64 !== undefined) {
-                if (bucket) {
-                    if (empresa[0].rutaImage) {
-                        const file = bucket.file(empresa[0].rutaImage);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
-
-                    const buffer = Buffer.from(req.body.image.base64, 'base64');
-
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.image.extension}`;
-
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
-
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.image.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    rutaImage = filePath;
-                }
-            } else {
-                rutaImage = req.body.image.nombre;
-            }
+            const rutaImage = await processFirebaseFile(
+                bucket,
+                req.body.image,
+                empresa[0].rutaImage,
+                req.body.documento,
+                "empresa"
+            );
 
             // Proceso para validar el icono existe y si se debe eliminar o actualizar
-            if (req.body.icon && req.body.icon.nombre === undefined && req.body.icon.base64 === undefined) {
-                if (bucket) {
-                    const file = bucket.file(empresa[0].rutaIcon);
-                    await file.delete();
-                }
-            } else if (req.body.icon && req.body.icon.base64 !== undefined) {
-                if (bucket) {
-                    if (empresa[0].rutaIcon) {
-                        const file = bucket.file(empresa[0].rutaIcon);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
-
-                    const buffer = Buffer.from(req.body.icon.base64, 'base64');
-
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.icon.extension}`;
-
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
-
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.icon.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    rutaIcon = filePath;
-                }
-            } else {
-                rutaIcon = req.body.icon.nombre;
-            }
+            const rutaIcon = await processFirebaseFile(
+                bucket,
+                req.body.icon,
+                empresa[0].rutaIcon,
+                req.body.documento,
+                "empresa"
+            );
 
             // Proceso para validar si el bannet existe y si se debe eliminar o actualizar
-            if (req.body.banner && req.body.banner.nombre === undefined && req.body.banner.base64 === undefined) {
-                if (bucket) {
-                    const file = bucket.file(empresa[0].rutaBanner);
-                    await file.delete();
-                }
-            } else if (req.body.banner && req.body.banner.base64 !== undefined) {
-                if (bucket) {
-                    if (empresa[0].rutaBanner) {
-                        const file = bucket.file(empresa[0].rutaBanner);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
-
-                    const buffer = Buffer.from(req.body.banner.base64, 'base64');
-
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.banner.extension}`;
-
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
-
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.banner.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    rutaPortada = filePath;
-                }
-            } else {
-                rutaPortada = req.body.banner.nombre;
-            }
+            const rutaBanner = await processFirebaseFile(
+                bucket,
+                req.body.banner,
+                empresa[0].rutaBanner,
+                req.body.documento,
+                "empresa"
+            );
 
             // Proceso para validar la portada existente y si se debe eliminar o actualizar
-            if (req.body.portada && req.body.portada.nombre === undefined && req.body.portada.base64 === undefined) {
-                if (bucket) {
-                    const file = bucket.file(empresa[0].rutaPortada);
-                    await file.delete();
-                }
-            } else if (req.body.portada && req.body.portada.base64 !== undefined) {
-                if (bucket) {
-                    if (empresa[0].rutaPortada) {
-                        const file = bucket.file(empresa[0].rutaPortada);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
-
-                    const buffer = Buffer.from(req.body.portada.base64, 'base64');
-
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `${timestamp}_${uniqueId}.${req.body.portada.extension}`;
-
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
-
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.portada.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    rutaBanner = filePath;
-                }
-            } else {
-                rutaBanner = req.body.portada.nombre;
-            }
-
+            const rutaPortada = await processFirebaseFile(
+                bucket,
+                req.body.portada,
+                empresa[0].rutaPortada,
+                req.body.documento,
+                "empresa"
+            );
 
             // Proceso para validar los banners existentes y si se debe eliminar o actualizar
             const banners = req.body.banners;
@@ -432,22 +286,52 @@ class Empresa {
                 req.body.idEmpresa
             ]);
 
+            /**
+             * Procesar banners de empresa.
+             */
             let idBanner = 0;
-
             for (const banner of banners) {
+                /**
+                 * =====================================================
+                 * ELIMINAR
+                 * =====================================================
+                 */
                 if (banner.remover !== undefined && banner.remover === true) {
-                    const file = bucket.file(banner.nombre);
-                    await file.delete();
-                } else if (banner.base64 !== undefined) {
+                    if (bucket && banner.nombre) {
+                        const file = bucket.file(banner.nombre);
+                        await file.delete();
+                    }
+
+                    continue;
+                }
+
+                /**
+                 * =====================================================
+                 * NUEVO BANNER
+                 * =====================================================
+                 */
+                if (banner.base64 !== undefined) {
+                    /**
+                     * Crear buffer.
+                     */
                     const buffer = Buffer.from(banner.base64, 'base64');
 
+                    /**
+                     * Generar nombre único.
+                     */
                     const timestamp = Date.now();
+
                     const uniqueId = Math.random().toString(36).substring(2, 9);
                     const fileName = `banner_${timestamp}_${uniqueId}.${banner.extension}`;
 
-                    const folderName = req.body.documento;
-                    const filePath = `${folderName}/${fileName}`;
+                    /**
+                     * Ruta final.
+                     */
+                    const filePath = `${req.body.documento}/${fileName}`;
 
+                    /**
+                    * Subir archivo.
+                    */
                     const file = bucket.file(filePath);
                     await file.save(buffer, {
                         metadata: {
@@ -456,8 +340,10 @@ class Empresa {
                     });
                     await file.makePublic();
 
+                    /**
+                     * Insertar nuevo banner.
+                     */
                     idBanner++;
-
                     await conec.execute(connection, `
                     INSERT INTO empresaBanner(
                         idBanner,
@@ -474,12 +360,29 @@ class Empresa {
                         banner.width,
                         banner.height,
                     ]);
-                } else {
-                    const imageOld = cacheBanners.find((item) => item.idBanner === banner.idBanner);
 
-                    idBanner++;
+                    continue;
+                }
 
-                    await conec.execute(connection, `
+                /**
+                 * =====================================================
+                 * BANNER EXISTENTE
+                 * =====================================================
+                 */
+                const imageOld = cacheBanners.find((item) => item.idBanner === banner.idBanner);
+
+                /**
+                 * Validar existencia.
+                 */
+                if (!imageOld) {
+                    continue;
+                }
+
+                /**
+                 * Mantener banner actual.
+                 */
+                idBanner++;
+                await conec.execute(connection, `
                     INSERT INTO empresaBanner(
                         idBanner,
                         idEmpresa,
@@ -488,14 +391,13 @@ class Empresa {
                         ancho,
                         alto
                     ) VALUES(?,?,?,?,?,?)`, [
-                        idBanner,
-                        req.body.idEmpresa,
-                        imageOld.nombre,
-                        imageOld.extension,
-                        imageOld.ancho,
-                        imageOld.alto,
-                    ]);
-                }
+                    idBanner,
+                    req.body.idEmpresa,
+                    imageOld.nombre,
+                    imageOld.extension,
+                    imageOld.ancho,
+                    imageOld.alto,
+                ]);
             }
 
             // Actualizar informacion de empresa
