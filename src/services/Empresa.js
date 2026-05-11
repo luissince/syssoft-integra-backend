@@ -15,7 +15,8 @@ const {
     processFile,
     isFile,
     getCertificateDates,
-    processFirebaseFile
+    processFirebaseFile,
+    generateFileData
 } = require('../tools/Tools');
 const path = require("path");
 const conec = require('../database/mysql-connection');
@@ -170,8 +171,6 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            const bucket = firebaseService.getBucket();
-
             const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
             const existsCertificates = await isDirectory(fileCertificates);
 
@@ -212,6 +211,9 @@ class Empresa {
                 empresa[0].privatePem
             );
 
+            /**
+             * Procesar archivo de firebase.
+             */
             await processFile(
                 fileCertificates,
                 req.body.fireBase,
@@ -219,45 +221,53 @@ class Empresa {
                 req.body.extFireBase
             );
 
-            // Proceso para validar si el logo existe y si se debe eliminar o actualizar
+            /**
+             * Procesar imagen de logo
+             */
             const rutaLogo = await processFirebaseFile(
-                bucket,
+                firebaseService,
                 req.body.logo,
                 empresa[0].rutaLogo,
                 req.body.documento,
                 "empresa"
             );
 
-            // Proceso para validar si la imagen existe y si se debe eliminar o actualizar
+            /**
+             * Procesar imagen de empresa
+             */
             const rutaImage = await processFirebaseFile(
-                bucket,
+                firebaseService,
                 req.body.image,
                 empresa[0].rutaImage,
                 req.body.documento,
                 "empresa"
             );
 
-            // Proceso para validar el icono existe y si se debe eliminar o actualizar
+            /**
+             * Procesar icono de empresa
+             */
             const rutaIcon = await processFirebaseFile(
-                bucket,
+                firebaseService,
                 req.body.icon,
                 empresa[0].rutaIcon,
                 req.body.documento,
                 "empresa"
             );
 
-            // Proceso para validar si el bannet existe y si se debe eliminar o actualizar
+            /**
+             * Procesar banner de empresa
+             */
             const rutaBanner = await processFirebaseFile(
-                bucket,
+                firebaseService,
                 req.body.banner,
                 empresa[0].rutaBanner,
                 req.body.documento,
                 "empresa"
             );
 
-            // Proceso para validar la portada existente y si se debe eliminar o actualizar
+            // Procesar portada de empresa
             const rutaPortada = await processFirebaseFile(
-                bucket,
+                firebaseService,
                 req.body.portada,
                 empresa[0].rutaPortada,
                 req.body.documento,
@@ -297,11 +307,7 @@ class Empresa {
                  * =====================================================
                  */
                 if (banner.remover !== undefined && banner.remover === true) {
-                    if (bucket && banner.nombre) {
-                        const file = bucket.file(banner.nombre);
-                        await file.delete();
-                    }
-
+                    await firebaseService.deleteFile(banner.nombre);
                     continue;
                 }
 
@@ -312,33 +318,14 @@ class Empresa {
                  */
                 if (banner.base64 !== undefined) {
                     /**
-                     * Crear buffer.
+                     * Generar información del archivo.
                      */
-                    const buffer = Buffer.from(banner.base64, 'base64');
+                    const { buffer, filePath } = generateFileData(banner.base64, banner.extension, req.body.documento, "banner");
 
                     /**
-                     * Generar nombre único.
+                     * Subir archivo.
                      */
-                    const timestamp = Date.now();
-
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `banner_${timestamp}_${uniqueId}.${banner.extension}`;
-
-                    /**
-                     * Ruta final.
-                     */
-                    const filePath = `${req.body.documento}/${fileName}`;
-
-                    /**
-                    * Subir archivo.
-                    */
-                    const file = bucket.file(filePath);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + banner.extension,
-                        }
-                    });
-                    await file.makePublic();
+                    await firebaseService.uploadFile(filePath, buffer, 'image/' + banner.extension);
 
                     /**
                      * Insertar nuevo banner.
@@ -383,14 +370,14 @@ class Empresa {
                  */
                 idBanner++;
                 await conec.execute(connection, `
-                    INSERT INTO empresaBanner(
-                        idBanner,
-                        idEmpresa,
-                        nombre,
-                        extension,
-                        ancho,
-                        alto
-                    ) VALUES(?,?,?,?,?,?)`, [
+                INSERT INTO empresaBanner(
+                    idBanner,
+                    idEmpresa,
+                    nombre,
+                    extension,
+                    ancho,
+                    alto
+                ) VALUES(?,?,?,?,?,?)`, [
                     idBanner,
                     req.body.idEmpresa,
                     imageOld.nombre,

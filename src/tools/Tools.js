@@ -456,7 +456,7 @@ async function processFile(fileDirectory, file, name, ext) {
  * - Mantener archivo actual.
  * - Actualizar archivo.
  *
- * @param {object} bucket Bucket de Firebase.
+ * @param {firebaseService} FireBase Bucket de Firebase.
  * @param {object} fileData Información del archivo.
  * @param {string|null} currentFile Ruta actual almacenada.
  * @param {string} folderName Carpeta donde guardar.
@@ -466,128 +466,134 @@ async function processFile(fileDirectory, file, name, ext) {
  * Ruta final del archivo o null.
  */
 async function processFirebaseFile(
-    bucket,
+    firebaseService,
     fileData,
     currentFile,
     folderName,
     filePrefix
 ) {
 
-    /**
-     * Validar existencia de bucket.
-     */
-    if (!bucket) {
-        return currentFile ?? null;
-    }
-
-    /**
-     * Validar información del archivo.
-     */
-    if (!fileData) {
-        return currentFile ?? null;
-    }
-
-    /**
-     * Caso:
-     * Eliminar archivo existente.
-     */
-    if (
-        fileData.nombre === undefined &&
-        fileData.base64 === undefined
-    ) {
-
-        if (currentFile) {
-
-            const file = bucket.file(currentFile);
-
-            try {
-                await file.delete();
-            } catch (_) { }
-        }
-
-        return null;
-    }
-
-    /**
-     * Caso:
-     * Subir nuevo archivo.
-     */
-    if (fileData.base64 !== undefined) {
-
+    try {
         /**
-         * Eliminar archivo anterior.
-         */
-        if (currentFile) {
-
-            const oldFile = bucket.file(currentFile);
-
-            try {
-                const [exists] = await oldFile.exists();
-
-                if (exists) {
-                    await oldFile.delete();
-                }
-            } catch (_) { }
+             * Validar existencia de firebaseService.
+             */
+        if (!firebaseService) {
+            return currentFile ?? null;
         }
 
         /**
-         * Crear buffer.
+         * Validar información del archivo.
          */
-        const buffer = Buffer.from(
-            fileData.base64,
-            'base64'
-        );
+        if (!fileData) {
+            return currentFile ?? null;
+        }
 
         /**
-         * Generar nombre único.
+         * Caso:
+         * Eliminar archivo existente.
          */
-        const timestamp = Date.now();
+        if (
+            fileData.nombre === undefined &&
+            fileData.base64 === undefined
+        ) {
 
-        const uniqueId = Math.random()
-            .toString(36)
-            .substring(2, 9);
-
-        const safeFilePrefix = filePrefix
-            ? filePrefix.replace(/[^a-zA-Z0-9_-]/g, '')
-            : '';
-
-        const prefix = safeFilePrefix
-            ? `${safeFilePrefix}_`
-            : '';
-
-        const fileName =
-            `${prefix}${timestamp}_${uniqueId}.${fileData.extension}`;
-
-        /**
-         * Ruta final.
-         */
-        const filePath =
-            `${folderName}/${fileName}`;
-
-        /**
-         * Subir archivo.
-         */
-        const file = bucket.file(filePath);
-
-        await file.save(buffer, {
-            metadata: {
-                contentType:
-                    'image/' + fileData.extension,
+            if (currentFile) {
+                await firebaseService.deleteFile(currentFile);
             }
-        });
+
+            return null;
+        }
 
         /**
-         * Hacer público.
+         * Caso:
+         * Subir nuevo archivo.
          */
-        await file.makePublic();
+        if (fileData.base64 !== undefined) {
 
-        return filePath;
+            /**
+             * Eliminar archivo anterior.
+             */
+            if (currentFile) {
+                await firebaseService.deleteFile(currentFile);
+            }
+
+            const { buffer, filePath } = generateFileData(fileData.base64, fileData.extension, folderName, filePrefix);
+
+            /**
+             * Subir archivo.
+             */
+
+            await firebaseService.uploadFile(filePath, buffer, 'image/' + fileData.extension);
+
+            return filePath;
+        }
+
+        /**
+         * Mantener archivo actual.
+         */
+        return fileData.nombre ?? null;
+    } catch (error) {
+        throw error;
     }
+}
+
+/**
+ * Genera información del archivo.
+ *
+ * @param {string} base64 Archivo en base64.
+ * @param {string} extension Extensión del archivo.
+ * @param {string} folderName Carpeta destino.
+ * @param {string|null} filePrefix Prefijo opcional.
+ *
+ * @returns {{
+ *  buffer: Buffer,
+ *  fileName: string,
+ *  filePath: string
+ * }}
+ */
+function generateFileData(
+    base64,
+    extension,
+    folderName,
+    filePrefix = null
+) {
 
     /**
-     * Mantener archivo actual.
+     * Crear buffer.
      */
-    return fileData.nombre ?? null;
+    const buffer = Buffer.from(base64, "base64");
+
+    /**
+     * Generar nombre único.
+     */
+    const timestamp = Date.now();
+    const uniqueId = Math.random().toString(36).substring(2, 9);
+
+    /**
+     * Sanitizar prefijo.
+     */
+    const safeFilePrefix = !filePrefix ? "" : filePrefix.replace(/[^a-zA-Z0-9_-]/g, "");
+
+    /**
+     * Generar prefijo.
+     */
+    const prefix = safeFilePrefix ? `${safeFilePrefix}_` : '';
+
+    /**
+     * Generar nombre archivo.
+     */
+    const fileName = `${prefix}${timestamp}_${uniqueId}.${extension}`;
+
+    /**
+     * Generar ruta final.
+     */
+    const filePath = `${folderName}/${fileName}`;
+
+    return {
+        buffer,
+        fileName,
+        filePath
+    };
 }
 
 function formatMoney(amount, decimalCount = 2, decimal = ".", thousands = "") {
@@ -745,6 +751,7 @@ module.exports = {
     currentTime,
     dateFormat,
     processFirebaseFile,
+    generateFileData,
     formatMoney,
     numberFormat,
     isDirectory,
