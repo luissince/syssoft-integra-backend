@@ -40,9 +40,9 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
-    LEFT JOIN documentoactivodetalle dd 
+    LEFT JOIN documentoActivoDetalle dd 
     	ON dd.idInventarioActivo = ia.idInventarioActivo 
-    JOIN documentoactivo da 
+    JOIN documentoActivo da 
     	ON da.idDocumentoActivo = dd.idDocumentoActivo
     JOIN persona p2 
     	on p2.idPersona = da.idPersona 

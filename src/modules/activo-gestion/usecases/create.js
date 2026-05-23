@@ -10,11 +10,11 @@ module.exports = ({ conec }) => async function create(data) {
         const date = currentDate();
         const time = currentTime();
 
-        const resultDocumentoActivo = await conec.execute(connection, 'SELECT idDocumentoActivo FROM documentoactivo');
+        const resultDocumentoActivo = await conec.execute(connection, 'SELECT idDocumentoActivo FROM documentoActivo');
         const idDocumentoActivo = generateAlphanumericCode("DA0001", resultDocumentoActivo, 'idDocumentoActivo');
 
         await conec.execute(connection, `
-        INSERT INTO documentoactivo(
+        INSERT INTO documentoActivo(
             idDocumentoActivo,
             tipo,
             idPersona,

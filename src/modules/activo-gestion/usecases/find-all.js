@@ -13,32 +13,32 @@ module.exports = ({ conec }) => async function findAll(data) {
         aa.idPersona,
         aa.documentoPdf,
         td.nombre AS documento,
-        P.documento AS numeroDocumento,
-        P.informacion AS responsable,
+        p.documento AS numeroDocumento,
+        p.informacion AS responsable,
         da.tipo,
         aa.fecha,
         aa.hora,
         aa.idUsuario
     FROM 
-        asignacionactivo aa
+        asignacionActivo aa
     JOIN 
     	persona p ON p.idPersona = aa.idPersona
    	JOIN
-    	tipodocumento td ON td.idTipoDocumento = p.idTipoDocumento
+    	tipoDocumento td ON td.idTipoDocumento = p.idTipoDocumento
     LEFT JOIN
-    	documentoactivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
+    	documentoActivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
     WHERE 
         ? = 0
     OR
-        ? = 1 AND (P.informacion like concat(?,'%'))
+        ? = 1 AND (p.informacion like concat(?,'%'))
     GROUP BY 
     	aa.idAsignacionActivo,
         aa.idDocumentoActivo,
         aa.idPersona,
         aa.documentoPdf,
         td.nombre,
-        P.documento,
-        P.informacion,
+        p.documento,
+        p.informacion,
         da.tipo,
         aa.fecha,
         aa.hora,
@@ -64,7 +64,7 @@ module.exports = ({ conec }) => async function findAll(data) {
             ia.serie,
             u.descripcion AS ubicacion
         FROM 
-            documentoactivodetalle dd
+            documentoActivoDetalle dd
         LEFT JOIN 
         	inventarioActivo ia ON ia.idInventarioActivo = dd.idInventarioActivo
         JOIN 
@@ -90,17 +90,17 @@ module.exports = ({ conec }) => async function findAll(data) {
     const total = await conec.query(`SELECT 
         COUNT(*) AS Total
     FROM 
-        asignacionactivo aa
+        asignacionActivo aa
     JOIN 
     	persona p ON p.idPersona = aa.idPersona
    	JOIN
-    	tipodocumento td ON td.idTipoDocumento = p.idTipoDocumento
+    	tipoDocumento td ON td.idTipoDocumento = p.idTipoDocumento
     LEFT JOIN
-    	documentoactivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
+    	documentoActivo da ON da.idDocumentoActivo = aa.idDocumentoActivo
     WHERE 
         ? = 0
     OR
-        ? = 1 AND (P.informacion like concat(?,'%'))`, [
+        ? = 1 AND (p.informacion like concat(?,'%'))`, [
         parseInt(opcion),
         parseInt(opcion),
         buscar,
