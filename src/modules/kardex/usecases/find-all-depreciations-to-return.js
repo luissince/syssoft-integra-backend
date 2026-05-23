@@ -89,12 +89,14 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         kardex k
     JOIN inventario i
         ON k.idInventario = i.idInventario
+    JOIN inventarioActivo ia 
+         ON ia.idInventario = K.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
     JOIN tipoKardex tk 
         ON tk.IdTipoKardex = k.idTipoKardex
     JOIN ubicacion u 
-        ON u.idUbicacion = k.idUbicacion
+        ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
     WHERE 

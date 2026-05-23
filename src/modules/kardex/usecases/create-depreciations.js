@@ -17,10 +17,10 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
         SELECT 
             k.idKardex,
             i.idProducto,
-            k.serie,
+            ia.serie,
             k.costo,
-            k.vidaUtil,
-            k.valorResidual,
+            ia.vidaUtil,
+            ia.valorResidual,
             k.fecha,
             p.idMetodoDepreciacion
         FROM 
@@ -29,8 +29,10 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
             inventario i ON k.idInventario = i.idInventario
         JOIN 
             producto p ON p.idProducto = i.idProducto
+        JOIN 
+            inventarioActivo ia ON ia.idInventario = i.idInventario
         WHERE 
-            i.idProducto = ? AND k.serie = ?`, [
+            i.idProducto = ? AND ia.serie = ?`, [
             idProducto, 
             serie
         ]);
