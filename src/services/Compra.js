@@ -355,7 +355,7 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
-
+                    console.log("inventarioDetalle", inventarioDetalle);
                     let idInventarioLote = null;
                     let idInventarioActivo = null;
 
@@ -388,6 +388,37 @@ class Compra {
 
                     // Insertar información en el inventario activo - en caso el producto tengo control de activos fijos
                     if (inventarioDetalle.serie) {
+                        // Obtener lista de categorías de productos con control de activo fijo
+                        const producto = await conec.execute(connection, `
+                        SELECT 
+                            idCategoria 
+                        FROM 
+                            producto 
+                        WHERE 
+                            idProducto = ?`, [
+                            item.idProducto
+                        ]);
+                        console.log("producto", producto[0]);
+                        const categoria = await conec.execute(connection, `
+                        SELECT  
+                            codigo 
+                        FROM
+                            categoria
+                        WHERE
+                            idCategoria = ?`, [
+                            producto[0].idCategoria
+                        ]);
+                        
+                        let correlativo = null;
+                        if(categoria.length !== 0){
+                            if(categoria[0].codigo){
+                                const listaInventarioActivo = await conec.execute(connection, 'SELECT correlativo FROM inventarioActivo');
+                                const correlativoInicial = `${listaInventarioActivo[0].correlativo.slice(0,2)}0001`;
+                                const correlativoAutogenerado = generateAlphanumericCode(correlativoInicial, listaInventarioActivo, 'correlativo');
+                                correlativo = correlativoAutogenerado;
+                            }
+                        }
+
                         // Inserta información en el Kardex con ID del activo
                         const result = await conec.execute(connection, ` 
                         INSERT INTO inventarioActivo(
@@ -397,16 +428,18 @@ class Compra {
                             vidaUtil,                                
                             valorResidual,
                             idUbicacion,
+                            correlativo,
                             fecha,
                             hora,
                             idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
                             Number(inventarioDetalle.cantidad),
                             inventarioDetalle.vidaUtil,
                             inventarioDetalle.valorResidual,
                             inventarioDetalle.idUbicacion,
+                            correlativo,
                             date,
                             time,
                             idUsuario
@@ -540,7 +573,7 @@ class Compra {
             }
 
             // Confirma la transacción
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return sendSave(res, {
                 idCompra: idCompra,
                 message: "Se registró correctamente la compra."
