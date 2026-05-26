@@ -35,7 +35,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     JOIN tipoKardex tk 
         ON tk.IdTipoKardex = k.idTipoKardex
     JOIN inventarioActivo ia 
-         ON ia.idInventario = K.idInventario and ia.estado = 'ASIGNADO'
+         ON ia.idInventario = k.idInventario and ia.estado = 'ASIGNADO'
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
@@ -90,7 +90,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     JOIN inventario i
         ON k.idInventario = i.idInventario
     JOIN inventarioActivo ia 
-         ON ia.idInventario = K.idInventario
+         ON ia.idInventario = k.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
     JOIN tipoKardex tk 
