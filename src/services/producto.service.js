@@ -334,6 +334,7 @@ class ProductoService {
             p.idCategoria,
             p.idMedida,
             p.idMarca,
+            IFNULL(ia.correlativo, "N/A") AS correlativo,
             p.nombre,
             p.codigo,
             p.sku,
@@ -353,6 +354,10 @@ class ProductoService {
             producto AS p
         INNER JOIN 
             precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
+        LEFT JOIN
+    		inventario AS i ON i.idProducto = p.idProducto
+    	LEFT JOIN 
+    		inventarioactivo ia ON ia.idInventario = i.idInventario
         WHERE 
             p.idProducto = ?`, [
             req.params.idProducto
