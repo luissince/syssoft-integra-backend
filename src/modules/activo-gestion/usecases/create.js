@@ -35,11 +35,11 @@ module.exports = ({ conec }) => async function create(data) {
         if (Array.isArray(activos) && activos.length > 0) {
             for (const activo of activos) {
 
-                const resultDocumentoActivoDetalle = await conec.execute(connection, 'SELECT idDocumentoDetalle FROM documentoactivodetalle');
+                const resultDocumentoActivoDetalle = await conec.execute(connection, 'SELECT idDocumentoDetalle FROM documentoActivoDetalle');
                 const idDocumentoDetalle = generateAlphanumericCode("DD0001", resultDocumentoActivoDetalle, 'idDocumentoDetalle');
 
                 await conec.execute(connection, `
-                INSERT INTO documentoactivodetalle(
+                INSERT INTO documentoActivoDetalle(
                     idDocumentoDetalle,
                     idDocumentoActivo,
                     idInventarioActivo,
@@ -66,11 +66,11 @@ module.exports = ({ conec }) => async function create(data) {
             }
         }
 
-        const resultAsignacionActivo = await conec.execute(connection, 'SELECT idAsignacionActivo FROM asignacionactivo');
+        const resultAsignacionActivo = await conec.execute(connection, 'SELECT idAsignacionActivo FROM asignacionActivo');
         const idAsignacionActivo = generateAlphanumericCode("AA0001", resultAsignacionActivo, 'idAsignacionActivo');
 
         await conec.execute(connection, `
-        INSERT INTO asignacionactivo(
+        INSERT INTO asignacionActivo(
             idAsignacionActivo,
             idDocumentoActivo,
             idPersona,
