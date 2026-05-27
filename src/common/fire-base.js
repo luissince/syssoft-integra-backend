@@ -37,12 +37,15 @@ class FireBase {
 
     async deleteFile(filePath) {
         try {
-
             if (!filePath) {
                 return false;
             }
 
             const bucket = this.getBucket();
+
+            if (!bucket) {
+                return false;
+            }
 
             const file = bucket.file(filePath);
 
@@ -67,12 +70,15 @@ class FireBase {
 
     async fileExists(filePath) {
         try {
-
             if (!filePath) {
                 return false;
             }
 
             const bucket = this.getBucket();
+
+            if (!bucket) {
+                return false;
+            }
 
             const file = bucket.file(filePath);
 
@@ -91,8 +97,11 @@ class FireBase {
 
     async downloadFile(filePath) {
         try {
-
             const bucket = this.getBucket();
+
+            if (!bucket) {
+                return null;
+            }
 
             const file = bucket.file(filePath);
 
@@ -115,8 +124,11 @@ class FireBase {
         contentType
     ) {
         try {
-
             const bucket = this.getBucket();
+
+            if (!bucket) {
+                return false;
+            }
 
             const file = bucket.file(filePath);
 
@@ -131,7 +143,6 @@ class FireBase {
             return filePath;
 
         } catch (error) {
-
             this.handleFirebaseError(
                 error,
                 'No se pudo subir el archivo.'
