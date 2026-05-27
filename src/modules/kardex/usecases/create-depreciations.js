@@ -21,7 +21,7 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
             k.costo,
             ia.vidaUtil,
             ia.valorResidual,
-            k.fecha,
+            ia.fechaDepreciacion,
             p.idMetodoDepreciacion
         FROM 
             kardex k
@@ -53,7 +53,7 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
 
         const registros = [];
 
-        let fechaInicio = new Date(activo.fecha);
+        let fechaInicio = new Date(activo.fechaDepreciacion);
 
         // 👉 Fecha fin real (vida útil completa)
         const fechaFinTotal = new Date(fechaInicio);

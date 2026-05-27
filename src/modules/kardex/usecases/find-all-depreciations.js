@@ -10,7 +10,8 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         p.idMetodoDepreciacion,
         p.nombre AS producto,
         -- FECHA
-        k.fecha AS fechaAdquisicion,
+        ia.fechaAdquisicion,
+        ia.fechaDepreciacion,
         DATE_FORMAT(k.fecha, '%d/%m/%Y') AS fecha,
         k.hora,
         -- ALMACEN
@@ -34,7 +35,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ON tk.IdTipoKardex = k.idTipoKardex
     JOIN inventarioActivo ia 
          ON ia.idInventario = k.idInventario
-    JOIN ubicacion u 
+    LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
@@ -96,7 +97,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ON tk.IdTipoKardex = k.idTipoKardex
     JOIN inventarioActivo ia 
          ON ia.idInventario = k.idInventario
-    JOIN ubicacion u 
+    LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen

@@ -398,7 +398,7 @@ class Compra {
                             idProducto = ?`, [
                             item.idProducto
                         ]);
-                        console.log("producto", producto[0]);
+
                         const categoria = await conec.execute(connection, `
                         SELECT  
                             codigo 
@@ -408,13 +408,28 @@ class Compra {
                             idCategoria = ?`, [
                             producto[0].idCategoria
                         ]);
-                        
+
                         let correlativo = null;
-                        if(categoria.length !== 0){
-                            if(categoria[0].codigo){
-                                const listaInventarioActivo = await conec.execute(connection, 'SELECT correlativo FROM inventarioActivo');
-                                const correlativoInicial = `${listaInventarioActivo[0].correlativo.slice(0,2)}0001`;
+                        if (categoria.length !== 0) {
+                            if (categoria[0].codigo) {
+                                const listaInventarioActivo =
+                                    await conec.execute(connection, `
+                                        SELECT ia.correlativo 
+                                        FROM inventarioActivo ia
+                                        INNER JOIN inventario i on I.idInventario = ia.idInventario
+                                        INNER JOIN producto p on p.idProducto = i.idProducto 
+                                        WHERE p.idCategoria = ?
+                                        `, [producto[0].idCategoria]);
+
+                                //Agregamos el codigo de la categoría a la lista de correlativos para generar el nuevo código autogenerado solo si no existe
+                                if (!listaInventarioActivo.some(item => item.correlativo === categoria[0].codigo)) {
+                                    listaInventarioActivo.push({ correlativo: categoria[0].codigo });
+                                }
+
+                                const correlativoInicial = `${categoria[0].codigo.slice(0, 2)}0001`;
+
                                 const correlativoAutogenerado = generateAlphanumericCode(correlativoInicial, listaInventarioActivo, 'correlativo');
+
                                 correlativo = correlativoAutogenerado;
                             }
                         }
@@ -429,10 +444,12 @@ class Compra {
                             valorResidual,
                             idUbicacion,
                             correlativo,
+                            fechaDepreciacion,
+                            fechaAdquisicion,
                             fecha,
                             hora,
                             idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
                             Number(inventarioDetalle.cantidad),
@@ -440,6 +457,8 @@ class Compra {
                             inventarioDetalle.valorResidual,
                             inventarioDetalle.idUbicacion,
                             correlativo,
+                            inventarioDetalle.fechaDepreciacion,
+                            inventarioDetalle.fechaAdquisicion,
                             date,
                             time,
                             idUsuario
@@ -573,7 +592,7 @@ class Compra {
             }
 
             // Confirma la transacción
-            await conec.rollback(connection);
+            await conec.commit(connection);
             return sendSave(res, {
                 idCompra: idCompra,
                 message: "Se registró correctamente la compra."
