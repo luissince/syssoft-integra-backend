@@ -6,28 +6,28 @@ x-service-template: &backend-service
 services:
   sysintegra-services:
     <<: *backend-service
-    image: sysintegra-backend-image
+    image: sysintegra-backend
 
   importmuneli-services:
     <<: *backend-service
-    image: importmuneli-backend-image
+    image: importmuneli-backend
 
   leatsac-services:
     <<: *backend-service
-    image: leatsac-backend-image
+    image: leatsac-backend
 
   ferreteria-rym-services:
     <<: *backend-service
-    image: ferreteria-rym-backend-image
+    image: ferreteria-rym-backend
 
   supermarketya-services:
     <<: *backend-service
-    image: supermarketya-backend-image
+    image: supermarketya-backend
 
   dracoly-services:
     <<: *backend-service
-    image: dracoly-backend-image
+    image: dracoly-backend
 
   masa-y-miga-services:
     <<: *backend-service
-    image: masa-y-miga-backend-image
+    image: masa-y-miga-backend
