@@ -1,0 +1,33 @@
+x-service-template: &backend-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+services:
+  sysintegra-services:
+    <<: *backend-service
+    image: sysintegra-backend-image
+
+  importmuneli-services:
+    <<: *backend-service
+    image: importmuneli-backend-image
+
+  leatsac-services:
+    <<: *backend-service
+    image: leatsac-backend-image
+
+  ferreteria-rym-services:
+    <<: *backend-service
+    image: ferreteria-rym-backend-image
+
+  supermarketya-services:
+    <<: *backend-service
+    image: supermarketya-backend-image
+
+  dracoly-services:
+    <<: *backend-service
+    image: dracoly-backend-image
+
+  masa-y-miga-services:
+    <<: *backend-service
+    image: masa-y-miga-backend-image

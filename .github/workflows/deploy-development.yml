@@ -6,21 +6,22 @@ on:
       - "test"
 
 jobs:
-  build-and-deploy-test:
-    runs-on: self-hosted
+  build-and-push:
+    name: Build and Push Docker Image to ECR
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - environment: test
+          - environment: sysintegra
             service: sysintegra-services
 
     environment: ${{ matrix.environment }}
     
     steps:
-      - name: Checkout código
+      - name: Checkout code
         uses: actions/checkout@v3
     
-      - name: Crear archivo .env
+      - name: Create .env file
         run: |
           cat > .env <<EOL
           PORT="${{secrets.PORT}}"
@@ -57,6 +58,22 @@ jobs:
           AMQP_PASSWORD=${{ secrets.AMQP_PASSWORD }}
           AMQP_VHOST=${{ secrets.AMQP_VHOST }}
           EOL
-    
-      - name: Creando y ejecutando contenedor
-        run: docker compose -f docker-compose.yml up --build ${{ matrix.service }} -d
+
+      - name: Build Docker image
+        run: docker compose -f docker-compose.build.yml build ${{ matrix.service }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Tag back-end image
+        run: docker tag ${{ matrix.environment }}-backend ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
+
+      - name: Push back-end image to ECR
+        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest

@@ -167,9 +167,7 @@ class Ajuste {
             const operacion = idTipoAjuste === "TA0001" ? 1 : -1;
 
             for (const item of detalles) {
-                const cantidad = item.lotes
-                    ? item.lotes.reduce((acc, lote) => acc + Number(lote.cantidadAjustar), 0)
-                    : Number(item.cantidad);
+                const cantidad = Number(item.cantidad);
 
                 await conec.execute(connection, `
                 INSERT INTO ajusteDetalle(
@@ -204,92 +202,36 @@ class Ajuste {
                     item.idProducto
                 ]);
 
-                const insertarKardex = async (loteId = null, cantidadAjuste = cantidad) => {
-
-                    if (loteId) {
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex, 
-                            idProducto, 
-                            idTipoKardex, 
-                            idMotivoKardex, 
-                            idAjuste,
-                            detalle, 
-                            cantidad, 
-                            costo, 
-                            idAlmacen, 
-                            idInventario, 
-                            idLote,
-                            fecha, 
-                            hora, 
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            item.idProducto,
-                            tipoKardex,
-                            motivoKardex,
-                            idAjuste,
-                            detalleKardex,
-                            cantidadAjuste,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            loteId,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-                    } else {
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex, 
-                            idProducto, 
-                            idTipoKardex, 
-                            idMotivoKardex, 
-                            idAjuste,
-                            detalle, 
-                            cantidad, 
-                            costo, 
-                            idAlmacen, 
-                            idInventario, 
-                            fecha, 
-                            hora, 
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            item.idProducto,
-                            tipoKardex,
-                            motivoKardex,
-                            idAjuste,
-                            detalleKardex,
-                            cantidadAjuste,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-                    }
-                };
-
-                if (item.lotes) {
-                    for (const lote of item.lotes) {
-                        await conec.execute(connection, `
-                        UPDATE 
-                            lote 
-                        SET 
-                            cantidad = cantidad + ? 
-                        WHERE 
-                            idLote = ?`, [
-                            lote.cantidadAjustar * operacion,
-                            lote.idLote
-                        ]);
-                        await insertarKardex(lote.idLote, lote.cantidadAjustar);
-                    }
-                } else {
-                    await insertarKardex();
-                }
+                await conec.execute(connection, `
+                INSERT INTO kardex(
+                    idKardex, 
+                    idProducto, 
+                    idTipoKardex, 
+                    idMotivoKardex, 
+                    idAjuste,
+                    detalle, 
+                    cantidad, 
+                    costo, 
+                    idAlmacen, 
+                    idInventario, 
+                    fecha, 
+                    hora, 
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    generarIdKardex(),
+                    item.idProducto,
+                    tipoKardex,
+                    motivoKardex,
+                    idAjuste,
+                    detalleKardex,
+                    cantidad,
+                    costo,
+                    idAlmacen,
+                    idInventario,
+                    date,
+                    time,
+                    idUsuario
+                ]);
 
                 await conec.execute(connection, `
                 UPDATE 
@@ -360,20 +302,7 @@ class Ajuste {
 
             // Funciones reutilizables
             const insertarKardex = async (k, cantidad) => {
-                if (k.idLote) {
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex, idProducto, idTipoKardex, idMotivoKardex, idAjuste, detalle,
-                        cantidad, costo, idAlmacen, idInventario, idLote, fecha, hora, idUsuario
-                    ) VALUES (
-                        ?,?,?,?,?,?,
-                        ?,?,?,?,?,?,?,?
-                    )`, [
-                        generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
-                        cantidad, k.costo, k.idAlmacen, k.idInventario, k.idLote, date, time, req.query.idUsuario
-                    ]);
-                } else {
-                    await conec.execute(connection, `
+                await conec.execute(connection, `
                     INSERT INTO kardex(
                         idKardex, idProducto, idTipoKardex, idMotivoKardex, idAjuste, detalle,
                         cantidad, costo, idAlmacen, idInventario, fecha, hora, idUsuario
@@ -381,11 +310,9 @@ class Ajuste {
                         ?,?,?,?,?,?,
                         ?,?,?,?,?,?,?
                     )`, [
-                        generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
-                        cantidad, k.costo, k.idAlmacen, k.idInventario, date, time, req.query.idUsuario
-                    ]);
-                }
-
+                    generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
+                    cantidad, k.costo, k.idAlmacen, k.idInventario, date, time, req.query.idUsuario
+                ]);
             };
 
             const actualizarInventario = async (idInventario, cantidad) => {
@@ -395,22 +322,15 @@ class Ajuste {
                 );
             };
 
-            const actualizarLote = async (idLote, cantidad) => {
-                await conec.execute(connection, `
-                UPDATE lote SET cantidad = cantidad + ? WHERE idLote = ?`,
-                    [cantidad * operacion, idLote]
-                );
-            };
 
             // Procesar cada detalle
             for (const item of ajusteDetalles) {
                 const kardexes = await conec.execute(connection, `
-                    SELECT idProducto, cantidad, costo, idAlmacen, idInventario, idLote
+                    SELECT idProducto, cantidad, costo, idAlmacen, idInventario
                     FROM kardex 
                     WHERE idAjuste = ? AND idProducto = ?`, [req.query.idAjuste, item.idProducto]);
 
                 for (const k of kardexes) {
-                    if (k.idLote) await actualizarLote(k.idLote, k.cantidad);
                     await insertarKardex(k, k.cantidad);
                     await actualizarInventario(k.idInventario, k.cantidad);
                 }

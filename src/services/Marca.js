@@ -1,7 +1,7 @@
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 const { sendError, sendSuccess, sendSave, sendClient } = require("../tools/Message");
-const { currentDate, currentTime, generateAlphanumericCode } = require("../tools/Tools");
+const { currentDate, currentTime, generateAlphanumericCode, generateFileData } = require("../tools/Tools");
 
 class Marca {
 
@@ -18,16 +18,9 @@ class Marca {
       const bucket = firebaseService.getBucket();
 
       const resultLista = list.map(function (item, index) {
-        if(bucket && item.imagen) {
-          return {
-            ...item,
-            imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-            id: (index + 1) + parseInt(req.query.posicionPagina)
-          }
-        }
-
         return {
           ...item,
+          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
           id: index + 1 + parseInt(req.query.posicionPagina),
         };
       });
@@ -80,27 +73,34 @@ class Marca {
     try {
       connection = await conec.beginTransaction();
 
-      const bucket = firebaseService.getBucket();
+      const [empresa] = await conec.query(`
+      SELECT
+        idEmpresa,
+        documento,
+        razonSocial,
+        nombreEmpresa,
+        rutaLogo,
+        rutaImage,
+        usuarioSolSunat,
+        claveSolSunat
+      FROM 
+          empresa 
+      LIMIT 
+          1`);
+
+      if (!empresa) {
+        throw new Error("No se encontró la empresa.");
+      }
 
       let imagen = null;
 
       if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-        if (bucket) {
-          const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+        const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "brand");
 
-          const timestamp = Date.now();
-          const uniqueId = Math.random().toString(36).substring(2, 9);
-          const fileName = `brand_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+        const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-          const file = bucket.file(fileName);
-          await file.save(buffer, {
-            metadata: {
-              contentType: 'image/' + req.body.imagen.extension,
-            }
-          });
-          await file.makePublic();
-
-          imagen = fileName;
+        if (file) {
+          imagen = filePath;
         }
       }
 
@@ -149,7 +149,24 @@ class Marca {
     try {
       connection = await conec.beginTransaction();
 
-      const bucket = firebaseService.getBucket();
+      const [empresa] = await conec.query(`
+      SELECT
+          idEmpresa,
+          documento,
+          razonSocial,
+          nombreEmpresa,
+          rutaLogo,
+          rutaImage,
+          usuarioSolSunat,
+          claveSolSunat
+      FROM 
+          empresa 
+      LIMIT 
+          1`);
+
+      if (!empresa) {
+        throw new Error("No se encontró la empresa.");
+      }
 
       const marca = await await conec.execute(connection, `
         SELECT 
@@ -164,37 +181,18 @@ class Marca {
       let imagen = null;
 
       if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-        if (bucket) {
-          if (marca[0].imagen) {
-            const file = bucket.file(marca[0].imagen);
-            await file.delete();
-          }
-        }
+
+        await firebaseService.deleteFile(marca[0].imagen);
 
       } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-        if (bucket) {
-          if (marca[0].imagen) {
-            const file = bucket.file(marca[0].imagen);
-            if (file.exists()) {
-              await file.delete();
-            }
-          }
+        await firebaseService.deleteFile(marca[0].imagen);
 
-          const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+        const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "brand");
 
-          const timestamp = Date.now();
-          const uniqueId = Math.random().toString(36).substring(2, 9);
-          const fileName = `brand_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+        const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-          const file = bucket.file(fileName);
-          await file.save(buffer, {
-            metadata: {
-              contentType: 'image/' + req.body.imagen.extension,
-            }
-          });
-          await file.makePublic();
-
-          imagen = fileName;
+        if (file) {
+          imagen = filePath;
         }
       } else {
         imagen = req.body.imagen.nombre;
@@ -261,12 +259,7 @@ class Marca {
         return sendClient(res, "No se puede eliminar la marca porque no existe.");
       }
 
-      if (marca[0].imagen) {
-        if (bucket) {
-          const file = bucket.file(marca[0].imagen);
-          await file.delete();
-        }
-      }
+      await firebaseService.deleteFile(marca[0].imagen);
 
       await conec.execute(connection, `DELETE FROM marca WHERE idMarca  = ?`, [
         req.query.idMarca

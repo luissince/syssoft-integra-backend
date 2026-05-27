@@ -587,7 +587,7 @@ function generateFileData(
     /**
      * Generar ruta final.
      */
-    const filePath = `${folderName}/${fileName}`;
+    const filePath = folderName ? `${folderName}/${fileName}` : fileName;
 
     return {
         buffer,

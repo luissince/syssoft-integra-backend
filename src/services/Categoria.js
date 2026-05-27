@@ -18,15 +18,9 @@ class Categoria {
       const bucket = firebaseService.getBucket();
 
       const resultLista = list.map(function (item, index) {
-        if (bucket && item.imagen) {
-          return {
-            ...item,
-            imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-            id: (index + 1) + parseInt(req.query.posicionPagina)
-          }
-        }
         return {
           ...item,
+          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
           id: index + 1 + parseInt(req.query.posicionPagina),
         };
       });
@@ -78,57 +72,68 @@ class Categoria {
     let connection = null;
     try {
       connection = await conec.beginTransaction();
+      
+      const date = currentDate();
+      const time = currentTime();
 
-      const bucket = firebaseService.getBucket();
+      const [empresa] = await conec.execute(connection, `
+      SELECT
+          idEmpresa,
+          documento,
+          razonSocial,
+          nombreEmpresa,
+          rutaLogo,
+          rutaImage,
+          usuarioSolSunat,
+          claveSolSunat
+      FROM 
+          empresa 
+      LIMIT 
+          1`);
+
+      if (!empresa) {
+        throw new Error("No se encontró la empresa.");
+      }
 
       let imagen = null;
 
       if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-        if (bucket) {
-          const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+        const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "category");
 
-          const timestamp = Date.now();
-          const uniqueId = Math.random().toString(36).substring(2, 9);
-          const fileName = `category_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+        const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-          const file = bucket.file(fileName);
-          await file.save(buffer, {
-            metadata: {
-              contentType: 'image/' + req.body.imagen.extension,
-            }
-          });
-          await file.makePublic();
-
-          imagen = fileName;
+        if (file) {
+          imagen = filePath;
         }
       }
 
       const result = await conec.execute(connection, "SELECT idCategoria FROM categoria");
       const idCategoria = generateAlphanumericCode("CT0001", result, 'idCategoria');
 
-      await conec.execute(connection, `INSERT INTO categoria(
-            idCategoria,
-            codigo,
-            nombre,
-            descripcion,
-            estado,
-            imagen,
-            fecha,
-            hora,
-            fupdate,
-            hupdate,
-            idUsuario
-          ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
+      await conec.execute(connection, `
+      INSERT INTO categoria(
+        idCategoria,
+        codigo,
+        nombre,
+        descripcion,
+        estado,
+        imagen,
+        fecha,
+        hora,
+        fupdate,
+        hupdate,
+        idUsuario) 
+      VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
         idCategoria,
         req.body.codigo,
         req.body.nombre,
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
-        currentDate(),
-        currentTime(),
+        date,
+        time,
+        date,
+        time,
         req.body.idUsuario,
       ]);
 
@@ -148,7 +153,27 @@ class Categoria {
     try {
       connection = await conec.beginTransaction();
 
-      const bucket = firebaseService.getBucket();
+      const date = currentDate();
+      const time = currentTime();
+
+      const [empresa] = await conec.query(`
+      SELECT
+          idEmpresa,
+          documento,
+          razonSocial,
+          nombreEmpresa,
+          rutaLogo,
+          rutaImage,
+          usuarioSolSunat,
+          claveSolSunat
+      FROM 
+          empresa 
+      LIMIT 
+          1`);
+
+      if (!empresa) {
+        throw new Error("No se encontró la empresa.");
+      }
 
       const categoria = await await conec.execute(connection, `
         SELECT 
@@ -163,37 +188,19 @@ class Categoria {
       let imagen = null;
 
       if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-        if (bucket) {
-          if (categoria[0].imagen) {
-            const file = bucket.file(categoria[0].imagen);
-            await file.delete();
-          }
-        }
+
+        await firebaseService.deleteFile(categoria[0].imagen);
 
       } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-        if (bucket) {
-          if (categoria[0].imagen) {
-            const file = bucket.file(categoria[0].imagen);
-            if (file.exists()) {
-              await file.delete();
-            }
-          }
 
-          const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+        await firebaseService.deleteFile(categoria[0].imagen);
 
-          const timestamp = Date.now();
-          const uniqueId = Math.random().toString(36).substring(2, 9);
-          const fileName = `category_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+        const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "category");
 
-          const file = bucket.file(fileName);
-          await file.save(buffer, {
-            metadata: {
-              contentType: 'image/' + req.body.imagen.extension,
-            }
-          });
-          await file.makePublic();
+        const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-          imagen = fileName;
+        if (file) {
+          imagen = filePath;
         }
       } else {
         imagen = req.body.imagen.nombre;
@@ -218,8 +225,8 @@ class Categoria {
         req.body.descripcion,
         req.body.estado,
         imagen,
-        currentDate(),
-        currentTime(),
+        date,
+        time,
         req.body.idUsuario,
         req.body.idCategoria,
       ]);
@@ -259,12 +266,7 @@ class Categoria {
         return sendClient(res, "No se puede eliminar la categoría porque no existe.");
       }
 
-      if (categoria[0].imagen) {
-        if (bucket) {
-          const file = bucket.file(categoria[0].imagen);
-          await file.delete();
-        }
-      }
+      await firebaseService.deleteFile(categoria[0].imagen);
 
       await conec.execute(connection, `DELETE FROM categoria WHERE idCategoria  = ?`, [
         req.query.idCategoria
