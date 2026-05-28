@@ -2,6 +2,8 @@ services:
   sysintegra-services:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/syssoftintegra/back-end-development:${NAME_SERVICE}-latest
     container_name: ${NAME_SERVICE}-backend
+    networks:
+      - luis
     volumes:
       - sysintegra-backend-volumen:/app/src/path
 
