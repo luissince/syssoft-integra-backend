@@ -6,8 +6,8 @@ x-service-template: &backend-service
 services:
   sysintegra-services:
     <<: *backend-service
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/syssoftintegra/back-end-development:${NAME_SERVICE}-latest
-    container_name: ${NAME_SERVICE}-backend
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
     volumes:
       - sysintegra-backend-volumen:/app/src/path
 
