@@ -1,4 +1,4 @@
-const { currentDate, currentTime } = require("../../../tools/Tools");
+const { currentDate, currentTime, generateAlphanumericCode } = require("../../../tools/Tools");
 
 module.exports = ({ conec }) => async function create(data) {
     const {
