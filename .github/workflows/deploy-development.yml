@@ -16,6 +16,9 @@ jobs:
             service: sysintegra-services
 
     environment: ${{ matrix.environment }}
+
+    env:
+      ECR_IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
     
     steps:
       - name: Checkout code
@@ -73,10 +76,10 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Tag back-end image
-        run: docker tag ${{ matrix.environment }}-backend ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
+        run: docker tag ${{ matrix.environment }}-backend $ECR_IMAGE_URI
 
       - name: Push back-end image to ECR
-        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
+        run: docker push $ECR_IMAGE_URI
 
   deploy-to-runs-on:
     name: Deploy to Production Server
@@ -92,7 +95,8 @@ jobs:
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      NAME_SERVICE: ${{ matrix.environment }}
+      CONTAINER_NAME: ${{ matrix.environment }}-backend
+      IMAGE_NAME: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
 
     steps:
       - name: Checkout code
@@ -109,7 +113,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1 
       
       - name: Download image from Amazon ECR
-        run: docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
+        run: docker pull $IMAGE_NAME
 
       - name: Create and run container
         run: docker compose -f docker-compose.prod.yml up ${{ matrix.service }} -d
@@ -127,10 +131,6 @@ jobs:
         include:
           - environment: sysintegra
             service: sysintegra-services
-
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
 
     steps:
       - name: Configure AWS credentials
