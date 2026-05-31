@@ -357,7 +357,7 @@ class ProductoService {
         LEFT JOIN
     		inventario AS i ON i.idProducto = p.idProducto
     	LEFT JOIN 
-    		inventarioactivo ia ON ia.idInventario = i.idInventario
+    		inventarioActivo ia ON ia.idInventario = i.idInventario
         WHERE 
             p.idProducto = ?`, [
             req.params.idProducto
