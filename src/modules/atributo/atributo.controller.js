@@ -11,6 +11,7 @@ module.exports = {
     findAll: makeController(cargo.findAll, (req) => req.query),
     findById: makeController(cargo.findById, (req) => req.params),
     options: makeController(cargo.options, (req) => req.params),
+    combo: makeController(cargo.combo, (req) => req.query),
     update: asyncHandler(async (req, res) => {
         const data = await cargo.update(req.body);
         return sendSave(res, data);

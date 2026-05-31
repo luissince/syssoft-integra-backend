@@ -467,6 +467,17 @@ class Compra {
                         idInventarioActivo = result.insertId;
                     }
 
+                    for (const atributo of inventarioDetalle.atributosAsignados) {
+                        await conec.execute(connection, `
+                            INSERT INTO inventarioAtributo(
+                                idInventarioActivo,
+                                idAtributo
+                            ) VALUES(?,?)`, [
+                            idInventarioActivo,
+                            atributo.idAtributo
+                        ]);
+                    }
+
                     await conec.execute(connection, `
                     INSERT INTO kardex(
                         idKardex,

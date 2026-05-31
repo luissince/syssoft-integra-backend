@@ -23,6 +23,7 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
         ON k.idInventario = i.idInventario
     JOIN inventarioActivo ia 
         ON ia.idInventario = k.idInventario
+        AND ia.idInventarioActivo = k.idInventarioActivo
     JOIN producto p 
         ON p.idProducto = i.idProducto
     JOIN almacen al 
@@ -32,7 +33,6 @@ module.exports = ({ conec }) => async function matricsDepreciacion(data) {
     AND
         al.idAlmacen = ?      
     GROUP BY
-        ia.serie,
         p.idMetodoDepreciacion,
         k.fecha,
         k.costo,

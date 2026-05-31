@@ -5,6 +5,7 @@ const create = require("./usecases/create");
 const deleteById = require("./usecases/delete-by-id");
 const findAll = require("./usecases/find-all");
 const findById = require("./usecases/find-by-id");
+const combo = require("./usecases/combo");
 const options = require("./usecases/options");
 const update = require("./usecases/update");
 
@@ -14,6 +15,7 @@ class AtributoService {
         this.deleteById = deleteById(container);
         this.findAll = findAll(container);
         this.findById = findById(container);
+        this.combo = combo(container);
         this.options = options(container);
         this.update = update(container);
     }

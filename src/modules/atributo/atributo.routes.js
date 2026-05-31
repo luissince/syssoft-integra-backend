@@ -10,6 +10,7 @@ const atributoController = require('./atributo.controller');
 router.get('/', atributoController.findAll);
 router.get('/:idAtributo/id', atributoController.findById);
 router.get('/:idTipoAtributo/options', atributoController.options);
+router.get('/combo', atributoController.combo);
 
 /**
  * =========================
