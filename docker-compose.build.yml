@@ -20,14 +20,18 @@ services:
     <<: *backend-service
     image: ferreteria-rym-backend
 
-  supermarketya-services:
-    <<: *backend-service
-    image: supermarketya-backend
+  # supermarketya-services:
+  #   <<: *backend-service
+  #   image: supermarketya-backend
 
   dracoly-services:
     <<: *backend-service
     image: dracoly-backend
 
-  masa-y-miga-services:
-    <<: *backend-service
-    image: masa-y-miga-backend
+  # masa-y-miga-services:
+  #   <<: *backend-service
+  #   image: masa-y-miga-backend
+
+  # main-services:
+  #   <<: *frontend-service
+  #   image: main-frontend

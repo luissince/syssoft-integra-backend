@@ -11,39 +11,52 @@ services:
     volumes:
       - sysintegra-backend-volumen:/app/src/path
 
-  # importmuneli-services:
-  #   image: importmuneli-backend-image
-  #   container_name: importmuneli-backend
-  #   volumes:
-  #     - importmuneli-backend-volumen:/app/src/path
+  importmuneli-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - importmuneli-backend-volumen:/app/src/path
 
-  # leatsac-services:
-  #   image: leatsac-backend-image
-  #   container_name: leatsac-backend
-  #   volumes:
-  #     - leatsac-backend-volumen:/app/src/path
+  leatsac-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - leatsac-backend-volumen:/app/src/path
     
-  # ferreteria-rym-services:
-  #   image: ferreteria-rym-backend-image
-  #   container_name: ferreteria-rym-backend
-  #   volumes:
-  #     - ferreteria-rym-backend-volumen:/app/src/path
+  ferreteria-rym-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - ferreteria-rym-backend-volumen:/app/src/path
 
   # supermarketya-services:
-  #   image: supermarketya-backend-image
-  #   container_name: supermarketya-backend
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
   #   volumes:
   #     - supermarketya-backend-volumen:/app/src/path
 
-  # dracoly-services:
-  #   image: dracoly-backend-image
-  #   container_name: dracoly-backend
-  #   volumes:
-  #     - dracoly-backend-volumen:/app/src/path
+  dracoly-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - dracoly-backend-volumen:/app/src/path
 
   # masa-y-miga-services:
-  #   image: masa-y-miga-backend-image
-  #   container_name: masa-y-miga-backend
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
+  #   volumes:
+  #     - masa-y-miga-backend-volumen:/app/src/path
+
+  # main-services:
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
   #   volumes:
   #     - masa-y-miga-backend-volumen:/app/src/path
 
@@ -53,9 +66,10 @@ networks:
 
 volumes:
   sysintegra-backend-volumen:
-  # leatsac-backend-volumen:
-  # ferreteria-rym-backend-volumen:
-  # importmuneli-backend-volumen:
+  leatsac-backend-volumen:
+  ferreteria-rym-backend-volumen:
+  importmuneli-backend-volumen:
   # supermarketya-backend-volumen:
-  # dracoly-backend-volumen:
+  dracoly-backend-volumen:
   # masa-y-miga-backend-volumen:
+  # main-backend-volumen:
