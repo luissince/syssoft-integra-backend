@@ -1,0 +1,75 @@
+x-service-template: &backend-service
+  networks:
+    - luis
+  restart: always
+
+services:
+  sysintegra-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - sysintegra-backend-volumen:/app/src/path
+
+  importmuneli-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - importmuneli-backend-volumen:/app/src/path
+
+  leatsac-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - leatsac-backend-volumen:/app/src/path
+    
+  ferreteria-rym-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - ferreteria-rym-backend-volumen:/app/src/path
+
+  # supermarketya-services:
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
+  #   volumes:
+  #     - supermarketya-backend-volumen:/app/src/path
+
+  dracoly-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - dracoly-backend-volumen:/app/src/path
+
+  # masa-y-miga-services:
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
+  #   volumes:
+  #     - masa-y-miga-backend-volumen:/app/src/path
+
+  # main-services:
+  #   <<: *backend-service
+  #   image: ${IMAGE_NAME}
+  #   container_name: ${CONTAINER_NAME}
+  #   volumes:
+  #     - masa-y-miga-backend-volumen:/app/src/path
+
+networks:
+  luis:
+    external: true
+
+volumes:
+  sysintegra-backend-volumen:
+  leatsac-backend-volumen:
+  ferreteria-rym-backend-volumen:
+  importmuneli-backend-volumen:
+  # supermarketya-backend-volumen:
+  dracoly-backend-volumen:
+  # masa-y-miga-backend-volumen:
+  # main-backend-volumen:

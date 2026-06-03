@@ -2,6 +2,7 @@ const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
+    generateFileData,
 } = require('../tools/Tools');
 const { sendSuccess, sendSave, sendClient, sendError } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
@@ -38,16 +39,9 @@ class Sucursal {
 
             const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                        id: (index + 1) + parseInt(req.query.posicionPagina)
-                    }
-                }
-
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -77,41 +71,42 @@ class Sucursal {
     async add(req, res) {
         let connection = null;
         try {
-            const bucket = firebaseService.getBucket();
-
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
+
+            const [empresa] = await conec.execute(connection, `
+            SELECT
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage,
+                usuarioSolSunat,
+                claveSolSunat
+            FROM 
+                empresa 
+            LIMIT 
+                1`);
+
+            if (!empresa) {
+                throw new Error("No se encontró la empresa.");
+            }
+
 
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                if (bucket) {
-                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "branch");
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `branch_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
-
-                    imagen = fileName;
+                if (file) {
+                    imagen = filePath;
                 }
             }
-
-            // const fileDirectory = path.join(__dirname, '..', 'path', 'proyect');
-            // const exists = await isDirectory(fileDirectory);
-
-            // if (!exists) {
-            //     await mkdir(fileDirectory);
-            //     await chmod(fileDirectory);
-            // }
-
-            // const imagen = await processImage(fileDirectory, req.body.image, req.body.extension, null);
 
             const resultSucursal = await conec.execute(connection, 'SELECT idSucursal FROM sucursal');
             const idSucursal = generateAlphanumericCode("SC0001", resultSucursal, 'idSucursal');
@@ -138,7 +133,6 @@ class Sucursal {
                 idUsuario
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
-                //datos
                 req.body.nombre,
                 req.body.telefono,
                 req.body.celular,
@@ -151,10 +145,10 @@ class Sucursal {
                 imagen,
                 req.body.estado,
                 req.body.principal,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ])
 
@@ -201,6 +195,7 @@ class Sucursal {
             ]);
 
             const bucket = firebaseService.getBucket();
+            
             let respuesta = { ...result };
             if (bucket && result.imagen) {
                 respuesta = {
@@ -233,41 +228,21 @@ class Sucursal {
                 req.body.idSucursal
             ]);
 
-            const bucket = firebaseService.getBucket();
-
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-                if (bucket) {
-                    if (sucursal[0].imagen) {
-                        const file = bucket.file(sucursal[0].imagen);
-                        await file.delete();
-                    }
-                }
+
+                await firebaseService.deleteFile(sucursal[0].imagen);
 
             } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                if (bucket) {
-                    if (sucursal[0].imagen) {
-                        const file = bucket.file(sucursal[0].imagen);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
 
-                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                await firebaseService.deleteFile(sucursal[0].imagen);
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `branch_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "branch");
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
+                const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
+                if (file) {
                     imagen = fileName;
                 }
             } else {
@@ -331,7 +306,7 @@ class Sucursal {
         let connection = null;
         try {
             const bucket = firebaseService.getBucket();
-            
+
             connection = await conec.beginTransaction();
 
             const sucursal = await conec.execute(connection, `SELECT imagen FROM sucursal WHERE idSucursal = ?`, [
@@ -415,7 +390,7 @@ class Sucursal {
             const bucket = firebaseService.getBucket();
 
             const newLista = lista.map(function (item) {
-                if(bucket && item.imagen){
+                if (bucket && item.imagen) {
                     return {
                         ...item,
                         imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
@@ -454,7 +429,7 @@ class Sucursal {
             const newLista = lista.map(function (item) {
                 return {
                     ...item,
-                      imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                 }
             });
 

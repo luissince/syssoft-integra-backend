@@ -4,6 +4,7 @@ const {
     currentTime,
     generateAlphanumericCode,
     generateNumericCode,
+    generateFileData,
 } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const firebaseService = require('../common/fire-base');
@@ -22,17 +23,9 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                        id: (index + 1) + parseInt(req.query.posicionPagina)
-                    }
-                }
-
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -70,7 +63,6 @@ class Producto {
                 costo,
                 precio,
                 idTipoProducto,
-                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -136,25 +128,34 @@ class Producto {
 
             // const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, null);
 
+            const [empresa] = await conec.query(`
+            SELECT
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage,
+                usuarioSolSunat,
+                claveSolSunat
+            FROM 
+                empresa 
+            LIMIT 
+                1`);
+
+            if (!empresa) {
+                throw new Error("No se encontró la empresa.");
+            }
+
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                if (bucket) {
-                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "product");
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `product_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
-
-                    imagen = fileName;
+                if (file) {
+                    imagen = filePath;
                 }
             }
 
@@ -177,7 +178,6 @@ class Producto {
                 idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
-                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -188,7 +188,7 @@ class Producto {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idProducto,
                 idCategoria,
                 idMedida,
@@ -203,7 +203,6 @@ class Producto {
                 idTipoTratamientoProducto,
                 costo,
                 idTipoProducto,
-                lote,
                 publicar,
                 negativo,
                 preferido,
@@ -404,19 +403,10 @@ class Producto {
 
             for (const imagen of imagenes) {
                 if (imagen.base64 !== undefined) {
-                    const buffer = Buffer.from(imagen.base64, 'base64');
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `product_${req.body.codigo}_${timestamp}_${uniqueId}.${imagen.extension}`;
+                    const { buffer, filePath } = generateFileData(imagen.base64, imagen.extension, empresa.documento, "product");
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
+                    await firebaseService.uploadFile(filePath, buffer, 'image/' + imagen.extension);
 
                     idImagen++;
 
@@ -431,7 +421,7 @@ class Producto {
                     ) VALUES(?,?,?,?,?,?)`, [
                         idImagen,
                         idProducto,
-                        fileName,
+                        filePath,
                         imagen.extension,
                         imagen.width,
                         imagen.height,
@@ -445,13 +435,13 @@ class Producto {
 
             for (const color of colores) {
                 await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO productoAtributo(
+                    idProducto,
+                    idAtributo,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
                     currentDate(),
@@ -462,13 +452,13 @@ class Producto {
 
             for (const color of tallas) {
                 await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO productoAtributo(
+                    idProducto,
+                    idAtributo,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
                     currentDate(),
@@ -479,13 +469,13 @@ class Producto {
 
             for (const color of sabores) {
                 await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO productoAtributo(
+                    idProducto,
+                    idAtributo,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
                     currentDate(),
@@ -525,7 +515,6 @@ class Producto {
                 pc.valor AS precio,
                 p.costo,
                 p.idTipoProducto,
-                p.lote,
                 p.publicar,
                 p.negativo,
                 p.preferido,
@@ -724,56 +713,24 @@ class Producto {
                 }
             }
 
-            const validateProducto = await conec.execute(connection, `SELECT * FROM producto WHERE idProducto = ?`, [
-                req.body.idProducto
-            ]);
+            const [empresa] = await conec.query(`
+            SELECT
+                idEmpresa,
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                rutaImage,
+                usuarioSolSunat,
+                claveSolSunat
+            FROM 
+                empresa 
+            LIMIT 
+                1`);
 
-            if (validateProducto[0].lote === 1 && req.body.lote === false) {
-                let validateLotes = [];
-                const inventarios = await conec.execute(connection, `
-                    SELECT 
-                        * 
-                    FROM 
-                        inventario AS i
-                    WHERE
-                        i.idProducto = ?`, [
-                    req.body.idProducto
-                ]);
-
-                for (const inventario of inventarios) {
-                    const lotes = await conec.execute(connection, `
-                        SELECT
-                            *
-                        FROM
-                            lote 
-                        WHERE 
-                            idInventario = ?`, [
-                        inventario.idInventario
-                    ]);
-
-                    for (const lote of lotes) {
-                        if (lote.estado === 1 && lote.cantidad > 0) {
-                            validateLotes.push(true);
-                            break;
-                        }
-                    }
-                }
-
-                if (validateLotes.length > 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, "El producto aún tiene lotes activos.");
-                }
+            if (!empresa) {
+                throw new Error("No se encontró la empresa.");
             }
-
-            // const fileDirectory = path.join(__dirname, '..', 'path', 'product');
-            // const exists = await isDirectory(fileDirectory);
-
-            // if (!exists) {
-            //     await mkdir(fileDirectory);
-            //     await chmod(fileDirectory);
-            // }
-
-            // const imagen = await processImage(fileDirectory, req.body.image, req.body.ext, producto[0].imagen);
 
             const producto = await await conec.execute(connection, `
             SELECT 
@@ -789,36 +746,18 @@ class Producto {
             let imagen = null;
 
             if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-                if (bucket) {
-                    if (producto[0].imagen) {
-                        const file = bucket.file(producto[0].imagen);
-                        await file.delete();
-                    }
+                if (bucket && producto[0].imagen) {
+                    await firebaseService.deleteFile(producto[0].imagen);
                 }
-
             } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                if (bucket) {
-                    if (producto[0].imagen) {
-                        const file = bucket.file(producto[0].imagen);
-                        if (file.exists()) {
-                            await file.delete();
-                        }
-                    }
+                await firebaseService.deleteFile(producto[0].imagen);
 
-                    const buffer = Buffer.from(req.body.imagen.base64, 'base64');
+                const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "product");
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `product_${timestamp}_${uniqueId}.${req.body.imagen.extension}`;
+                const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + req.body.imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
-                    imagen = fileName;
+                if (file) {
+                    imagen = filePath;
                 }
             } else {
                 imagen = req.body.imagen.nombre;
@@ -840,7 +779,6 @@ class Producto {
                 descripcionLarga = ?,
                 idTipoTratamientoProducto = ?,
                 costo = ?,
-                lote = ?,
                 publicar = ?,
                 negativo = ?,
                 preferido = ?,
@@ -863,7 +801,6 @@ class Producto {
                 req.body.descripcionLarga,
                 req.body.idTipoTratamientoProducto,
                 req.body.costo,
-                req.body.lote,
                 req.body.publicar,
                 req.body.negativo,
                 req.body.preferido,
@@ -971,22 +908,12 @@ class Producto {
 
             for (const imagen of req.body.imagenes) {
                 if (imagen.remover !== undefined && imagen.remover === true) {
-                    const file = bucket.file(imagen.nombre);
-                    await file.delete();
+                    await firebaseService.deleteFile(imagen.nombre);
                 } else if (imagen.base64 !== undefined) {
-                    const buffer = Buffer.from(imagen.base64, 'base64');
 
-                    const timestamp = Date.now();
-                    const uniqueId = Math.random().toString(36).substring(2, 9);
-                    const fileName = `product_${req.body.codigo}_${timestamp}_${uniqueId}.${imagen.extension}`;
+                    const { buffer, filePath } = generateFileData(imagen.base64, imagen.extension, empresa.documento, "product");
 
-                    const file = bucket.file(fileName);
-                    await file.save(buffer, {
-                        metadata: {
-                            contentType: 'image/' + imagen.extension,
-                        }
-                    });
-                    await file.makePublic();
+                    await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
                     idImagen++;
 
@@ -1001,7 +928,7 @@ class Producto {
                     ) VALUES(?,?,?,?,?,?)`, [
                         idImagen,
                         req.body.idProducto,
-                        fileName,
+                        filePath,
                         imagen.extension,
                         imagen.width,
                         imagen.height,
@@ -1108,30 +1035,97 @@ class Producto {
 
             connection = await conec.beginTransaction();
 
-            await conec.execute(connection, `    
-                INSERT INTO auditoria(
-                    idReferencia,
-                    idUsuario,
-                    tipo,
-                    descripción
-                ) VALUES(?,?,?,?)`, [
-                idProducto,
-                idUsuario,
-                'ELIMINAR',
-                'ELIMINACIÓN DEL PRODUCTO',
-                date,
-                time,
+            // Validar que el producto exista
+            const producto = await conec.execute(connection, `
+            SELECT 
+                imagen
+            FROM 
+                producto 
+            WHERE 
+                idProducto = ?`, [
+                idProducto
             ]);
 
-            await conec.execute(connection, `
+            if (producto.length === 0) {
+                throw new Error("El producto no existe, verifique el código o actualiza la lista.");
+            }
+
+            const kardexs = await conec.execute(connection, `
+            SELECT 
+                * 
+            FROM                 
+                kardex AS k
+            WHERE 
+                k.idProducto = ? `, [
+                idProducto
+            ]);
+
+            if (kardexs.length === 0) {
+                await conec.execute(connection, `DELETE FROM inventario WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM precio WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM productoDetalle WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM productoAtributo WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `DELETE FROM producto WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
+                const productoImagenes = await conec.execute(connection, `
+                SELECT 
+                    nombre
+                FROM 
+                    productoImagen 
+                WHERE 
+                    idProducto = ?`, [
+                    idProducto
+                ]);
+
+                await firebaseService.deleteFile(producto[0].imagen);
+
+                for (const productoImagen of productoImagenes) {
+                    await firebaseService.deleteFile(productoImagen.nombre);
+                }
+            } else {
+                await conec.execute(connection, `
                 UPDATE 
                     producto 
                 SET 
                     estado = -1 
                 WHERE 
                     idProducto = ?`, [
-                idProducto
-            ]);
+                    idProducto
+                ]);
+
+                await conec.execute(connection, `    
+                INSERT INTO auditoria(
+                    idReferencia,
+                    idUsuario,
+                    tipo,
+                    descripción
+                ) VALUES(?,?,?,?)`, [
+                    idProducto,
+                    idUsuario,
+                    'ELIMINAR',
+                    'ELIMINACIÓN DEL PRODUCTO',
+                    date,
+                    time,
+                ]);
+            }
 
             await conec.commit(connection)
             return sendSave(res, "Se eliminó correctamente el producto.");
@@ -1168,32 +1162,6 @@ class Producto {
         }
     }
 
-    async getLote(req, res) {
-        try {
-            const { idInventario } = req.params;
-
-            const result = await conec.query(`
-            SELECT 
-                l.idLote,
-                l.codigoLote, 
-                DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento, 
-                DATEDIFF(l.fechaVencimiento, CURDATE()) AS diasRestantes,
-                l.cantidad
-            FROM 
-                lote AS l
-            WHERE
-                l.idInventario = ? AND l.cantidad > 0 AND l.estado = 1
-            ORDER BY 
-                l.fechaVencimiento 
-            ASC`, [
-                idInventario
-            ]);
-            return sendSuccess(res, result);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/getLote", error);
-        }
-    }
-
     async filter(req, res) {
         try {
             const result = await conec.procedure(`CALL Filtrar_Productos(?)`, [
@@ -1202,13 +1170,10 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
             const newData = result.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
-                return item;
+                return {
+                    ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                };
             });
 
             return sendSuccess(res, newData);
@@ -1226,13 +1191,10 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
             const newData = result.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
-                return item;
+                return {
+                    ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                };
             });
 
             return sendSuccess(res, newData);
@@ -1255,16 +1217,9 @@ class Producto {
             ]);
 
             const resultLista = result.map(function (item, index) {
-                if (bucket) {
-                    return {
-                        ...item,
-                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                        id: (index + 1) + parseInt(req.query.posicionPagina)
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -1292,15 +1247,9 @@ class Producto {
             ])
 
             const resultLista = result.map(function (item) {
-                if (bucket) {
-                    return {
-                        ...item,
-                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                        // imagen: !item.imagen ? null : `${process.env.APP_URL}/files/product/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                 }
             });
 
@@ -1504,15 +1453,9 @@ class Producto {
 
             const list = await conec.procedure(`CALL Listar_Productos_Web_Index(?)`, [parseInt(limit)]);
             const newList = list.map(function (item, index) {
-                if (bucket) {
-                    return {
-                        ...item,
-                        id: index + 1,
-                        imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     id: index + 1,
                 }
             });
@@ -1907,13 +1850,10 @@ class Producto {
                 // Productos Vendidos con Detalles de Costo y Ganancia
                 "2": {
                     data: result[1].length > 0 ? result[1].map((item) => {
-                        if (bucket && item.imagen) {
-                            return {
-                                ...item,
-                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                            }
-                        }
-                        return item;
+                        return {
+                            ...item,
+                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                        };
                     }) : [],
                     descripcion: "Productos Vendidos con Detalles de Costo y Ganancia"
                 },
@@ -1935,26 +1875,20 @@ class Producto {
                 // Productos con Bajo Inventario que Requieren Reorden
                 "6": {
                     data: result[5].length > 0 ? result[5].map((item) => {
-                        if (bucket && item.imagen) {
-                            return {
-                                ...item,
-                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                            }
-                        }
-                        return item;
+                        return {
+                            ...item,
+                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                        };
                     }) : [],
                     descripcion: "Productos con Bajo Inventario que Requieren Reorden"
                 },
                 // Productos sin Ventas Hoy pero con Inventario Disponible
                 "7": {
                     data: result[6].length > 0 ? result[6].map((item) => {
-                        if (bucket && item.imagen) {
-                            return {
-                                ...item,
-                                imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                            }
-                        }
-                        return item;
+                        return {
+                            ...item,
+                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                        };
                     }) : [],
                     descripcion: "Productos sin Ventas Hoy pero con Inventario Disponible"
                 },

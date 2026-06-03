@@ -106,14 +106,9 @@ class GuiaRemision {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
+            const listaDetalles = detalles.map(item => {               
                 return {
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
                 }
             });

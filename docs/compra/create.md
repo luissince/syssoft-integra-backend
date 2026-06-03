@@ -53,13 +53,11 @@ Registra una nueva compra en el sistema, valida si está asociada a una orden de
 - `plazo`
 - `compraOrdenCompra`
 - `compraDetalle`
-- `lote` (por `LAST_INSERT_ID()`)
 
 ### ➕ Insertadas (`INSERT INTO`)
 - `compra`
 - `compraDetalle`
 - `kardex`
-- `lote`
 - `transaccion`
 - `transaccionDetalle`
 - `plazo`
@@ -86,7 +84,6 @@ Registra una nueva compra en el sistema, valida si está asociada a una orden de
 - Inserta en `compraDetalle`
 - Registra en `kardex`
 - Actualiza `inventario`
-- Si hay lotes, registra en `lote` y en `kardex`
 
 ### 4. **Pago contado**
 - Inserta en `transaccion` y `transaccionDetalle`

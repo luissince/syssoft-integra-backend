@@ -8,17 +8,15 @@ class Inventario {
             const {
                 opcion,
                 buscar,
-                idSucursal,
                 idAlmacen,
                 estado,
                 posicionPagina,
                 filasPorPagina
             } = req.query;
 
-            const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?,?)`, [
+            const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 buscar,
-                idSucursal,
                 idAlmacen,
                 estado,
                 parseInt(posicionPagina),
@@ -29,43 +27,16 @@ class Inventario {
 
             // Genera lista con índice
             const resultLista = await Promise.all(lista.map(async (item, index) => {
-                const lotes = await conec.query(`
-                    SELECT 
-                        l.idLote,
-                        l.codigoLote,
-                        DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
-                        DATEDIFF(l.fechaVencimiento, CURDATE()) AS diasRestantes,
-                        l.cantidad,
-                        a.nombre AS almacen,
-                        a.direccion AS ubicacion,
-                        CASE 
-                        WHEN l.cantidad <= 10 THEN 'Crítico'
-                        WHEN l.cantidad <= 30 THEN 'Bajo'
-                        ELSE 'Óptimo'
-                        END AS estado
-                    FROM 
-                        lote AS l
-                    INNER JOIN 
-                        inventario AS i ON i.idInventario = l.idInventario
-                    INNER JOIN 
-                        almacen AS a ON a.idAlmacen = i.idAlmacen
-                    WHERE 
-                        l.idInventario = ? AND l.cantidad > 0 AND l.estado = 1`,
-                    [item.idInventario]
-                );
-
                 return {
                     ...item,
                     id: (index + 1) + parseInt(posicionPagina),
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
-                    lotes: lotes
                 };
             }));
 
-            const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?)`, [
                 parseInt(opcion),
                 buscar,
-                idSucursal,
                 idAlmacen,
                 estado,
             ]);
@@ -93,25 +64,8 @@ class Inventario {
                 req.params.idAlmacen
             ]);
 
-            const lote = await conec.query(`
-            SELECT 
-                COUNT(*) AS totalLotesPorVencer
-            FROM 
-                lote AS l
-            INNER JOIN 
-                inventario AS i ON i.idInventario = l.idInventario
-            INNER JOIN 
-                almacen AS a ON a.idAlmacen = i.idAlmacen
-            WHERE 
-                    i.idAlmacen = ? AND l.estado = 1
-                AND 
-                    DATEDIFF(l.fechaVencimiento, CURDATE()) BETWEEN 0 AND 30;`, [
-                req.params.idAlmacen
-            ]);
-
             return {
                 ...cantidades[0],
-                ...lote[0]
             }
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";

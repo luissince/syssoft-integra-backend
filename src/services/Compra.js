@@ -281,7 +281,7 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
-                const cantidad = !item.lote ? item.cantidad : item.lotes.reduce((acumulador, lote) => acumulador + + Number(lote.cantidad.value), 0);
+                const cantidad = item.cantidad;
 
                 // Calcular es costo actual en base a la formula de costo promedio ponderado
                 const valorTotalInventarioInicial = await conec.execute(connection, `
@@ -321,38 +321,36 @@ class Compra {
                 ]);
 
                 // Inserta información en el Kardex
-                if (!item.lote) {
-                    await conec.execute(connection, `
-                    INSERT INTO kardex(
-                        idKardex,
-                        idProducto,
-                        idTipoKardex,
-                        idMotivoKardex,
-                        idCompra,
-                        detalle,
-                        cantidad,
-                        costo,
-                        idAlmacen,
-                        idInventario,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
-                        item.idProducto,
-                        'TK0001',
-                        'MK0002',
-                        idCompra,
-                        'INGRESO POR COMPRA',
-                        cantidad,
-                        item.costo,
-                        idAlmacen,
-                        inventario[0].idInventario,
-                        date,
-                        time,
-                        idUsuario
-                    ]);
-                }
+                await conec.execute(connection, `
+                INSERT INTO kardex(
+                    idKardex,
+                    idProducto,
+                    idTipoKardex,
+                    idMotivoKardex,
+                    idCompra,
+                    detalle,
+                    cantidad,
+                    costo,
+                    idAlmacen,
+                    idInventario,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    `KD${String(idKardex += 1).padStart(4, '0')}`,
+                    item.idProducto,
+                    'TK0001',
+                    'MK0002',
+                    idCompra,
+                    'INGRESO POR COMPRA',
+                    cantidad,
+                    item.costo,
+                    idAlmacen,
+                    inventario[0].idInventario,
+                    date,
+                    time,
+                    idUsuario
+                ]);
 
                 // Actualiza el inventario
                 await conec.execute(connection, `
@@ -365,61 +363,6 @@ class Compra {
                     cantidad,
                     inventario[0].idInventario
                 ]);
-
-                if (item.lote) {
-                    for (const lote of item.lotes) {
-                        await conec.execute(connection, `
-                        INSERT INTO lote (
-                            idInventario,
-                            codigoLote,
-                            fechaVencimiento,
-                            cantidad
-                        ) VALUES(?,?,?,?)`, [
-                            inventario[0].idInventario,
-                            lote.serie.value,
-                            lote.fechaVencimiento.value,
-                            lote.cantidad.value
-                        ]);
-
-                        // Obtener el ID insertado
-                        const [idLote] = await conec.execute(connection, 'SELECT LAST_INSERT_ID() AS id');
-
-                        // Inserta información en el Kardex con ID del lote
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            idLote,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
-                            item.idProducto,
-                            'TK0001',
-                            'MK0002',
-                            idCompra,
-                            `INGRESO POR COMPRA (LOTE: ${lote.serie.value})`,
-                            lote.cantidad.value,
-                            item.costo,
-                            idAlmacen,
-                            inventario[0].idInventario,
-                            idLote.id,
-                            date,
-                            time,
-                            idUsuario
-                        ]);
-                    }
-
-                }
 
                 // Actualizar el costo del producto
                 if (costo > 0) {
@@ -489,13 +432,13 @@ class Compra {
                 // Proceso de registro  
                 for (const item of bancosAgregados) {
                     await conec.execute(connection, `
-                        INSERT INTO transaccionDetalle(
-                            idTransaccionDetalle,
-                            idTransaccion,
-                            idBanco,
-                            monto,
-                            observacion
-                        ) VALUES(?,?,?,?,?)`, [
+                    INSERT INTO transaccionDetalle(
+                        idTransaccionDetalle,
+                        idTransaccion,
+                        idBanco,
+                        monto,
+                        observacion
+                    ) VALUES(?,?,?,?,?)`, [
                         idTransaccionDetalle,
                         idTransaccion,
                         item.idBanco,
@@ -569,9 +512,7 @@ class Compra {
                         fecha, 
                         hora,
                         idUsuario
-                    ) 
-                    VALUES
-                        (?,?,?,?,?,?)`, [
+                    ) VALUES (?,?,?,?,?,?)`, [
                     idCompraOrdenCompra,
                     idCompra,
                     idOrdenCompra,
@@ -643,7 +584,6 @@ class Compra {
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idCompraDetalle ASC) AS id,
                 p.idProducto,
-                p.lote,
                 c.idAlmacen,
                 p.imagen,
                 p.nombre AS producto,
@@ -675,59 +615,15 @@ class Compra {
 
             const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
                 }
             });
 
-            for (const item of listaDetalles) {
-                if (item.lote === 1) {
-                    // Buscar el ID de inventario
-                    const inventario = await conec.query(`
-                    SELECT 
-                        idInventario 
-                    FROM 
-                        inventario 
-                    WHERE 
-                        idProducto = ? AND idAlmacen = ?`, [
-                        item.idProducto,
-                        item.idAlmacen
-                    ]);
-
-                    if (inventario.length > 0) {
-                        const lotes = await conec.query(`
-                        SELECT 
-                            l.codigoLote,
-                            DATE_FORMAT(l.fechaVencimiento, '%d/%m/%Y') AS fechaVencimiento,
-                            l.cantidad
-                        FROM 
-                            lote AS l
-                        INNER JOIN
-                            kardex AS k ON l.idLote = k.idLote
-                        WHERE 
-                            l.idInventario = ? AND k.idCompra = ?`, [
-                            inventario[0].idInventario,
-                            req.query.idCompra,
-                        ]);
-
-                        item.lotes = lotes;
-                    } else {
-                        item.lotes = [];
-                    }
-                } else {
-                    item.lotes = null;
-                }
-            }
-
             // Obtener información de transaccion asociados a la compra
             const transaccion = await conec.query(`
-                SELECT 
+            SELECT 
                 t.idTransaccion,
                 DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
                 t.hora,
@@ -890,8 +786,7 @@ class Compra {
                     k.cantidad,
                     k.costo,
                     k.idAlmacen,
-                    k.idInventario,
-                    k.idLote  
+                    k.idInventario
                 FROM 
                     kardex AS k 
                 WHERE 
@@ -901,56 +796,8 @@ class Compra {
                 ]);
 
                 for (const kardex of kardexes) {
-                    // Si el producto tiene lote, restaurar la cantidad del lote
-                    if (kardex.idLote) {
-                        await conec.execute(connection, `
-                        UPDATE 
-                            lote 
-                        SET 
-                            cantidad = cantidad + ?,
-                            estado = 0
-                        WHERE 
-                            idLote = ?`, [
-                            kardex.cantidad,
-                            kardex.idLote
-                        ]);
-
-                        // Inserta un nuevo registro en el kardex
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            idLote,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            kardex.idProducto,
-                            'TK0002',
-                            'MK0004',
-                            req.query.idCompra,
-                            'ANULACIÓN DE LA COMPRA',
-                            kardex.cantidad,
-                            kardex.costo,
-                            kardex.idAlmacen,
-                            kardex.idInventario,
-                            kardex.idLote,
-                            date,
-                            time,
-                            req.query.idUsuario
-                        ]);
-                    } else {
-                        // Inserta un nuevo registro en el kardex
-                        await conec.execute(connection, `
+                    // Inserta un nuevo registro en el kardex
+                    await conec.execute(connection, `
                         INSERT INTO kardex(
                             idKardex,
                             idProducto,
@@ -966,21 +813,20 @@ class Compra {
                             hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            generarIdKardex(),
-                            kardex.idProducto,
-                            'TK0002',
-                            'MK0004',
-                            req.query.idCompra,
-                            'ANULACIÓN DE LA COMPRA',
-                            kardex.cantidad,
-                            kardex.costo,
-                            kardex.idAlmacen,
-                            kardex.idInventario,
-                            date,
-                            time,
-                            req.query.idUsuario
-                        ]);
-                    }
+                        generarIdKardex(),
+                        kardex.idProducto,
+                        'TK0002',
+                        'MK0004',
+                        req.query.idCompra,
+                        'ANULACIÓN DE LA COMPRA',
+                        kardex.cantidad,
+                        kardex.costo,
+                        kardex.idAlmacen,
+                        kardex.idInventario,
+                        date,
+                        time,
+                        req.query.idUsuario
+                    ]);
 
                     // Actualiza la cantidad en el inventario
                     await conec.execute(connection, `
@@ -1111,14 +957,9 @@ class Compra {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
+            const listaDetalles = detalles.map(item => {                
                 return {
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
                 }
             });
