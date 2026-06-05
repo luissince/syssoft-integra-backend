@@ -1,8 +1,7 @@
 const { calculateDepreciationToday } = require("../../../tools/Tools");
 
 module.exports = ({ conec }) => async function findAllDepreciacion(data) {
-    const { opcion, idProducto, idAlmacen, posicionPagina, filasPorPagina } = data;
-
+    const { opcion, idProducto, idAlmacen, correlativo, posicionPagina, filasPorPagina } = data;
     const result = await conec.query(`
     SELECT 
         -- PRODUCTO
@@ -22,6 +21,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         -- SERIE
         ia.idInventarioActivo,
         ia.serie,
+        ia.correlativo,
         ia.vidaUtil,
         ia.valorResidual,
         u.descripcion AS ubicacion
@@ -33,41 +33,38 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ON p.idProducto = i.idProducto
     JOIN tipoKardex tk 
         ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN inventarioActivo ia 
-         ON ia.idInventario = k.idInventario
+    JOIN inventarioActivo ia
+        ON ia.idInventarioActivo = k.idInventarioActivo
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
     WHERE 
-        (? = 0 AND p.idProducto = ?)
+        (? = 0 AND al.idAlmacen = ?)
     OR
         (? = 1 AND p.idProducto = ? AND al.idAlmacen = ?) 
+    OR
+        (? = 2 AND p.idProducto = ? AND al.idAlmacen = ? AND ia.correlativo = ?) 
     GROUP BY
         p.idProducto,
-        p.idMetodoDepreciacion,
-        k.fecha,
-        k.hora,
-        al.nombre,
-        ia.cantidad,
-        k.costo,
         ia.idInventarioActivo,
-        ia.serie,
-        ia.vidaUtil,
-        ia.valorResidual,
-        u.descripcion
+        ia.serie
     ORDER BY 
         k.fecha ASC,
         k.hora  ASC
     LIMIT
         ?, ?`, [
         opcion,
-        idProducto,
+        idAlmacen,
 
         opcion,
         idProducto,
         idAlmacen,
-
+        
+        opcion,
+        idProducto,
+        idAlmacen,
+        correlativo,
         parseInt(posicionPagina),
         parseInt(filasPorPagina)
     ]);
@@ -95,22 +92,33 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ON p.idProducto = i.idProducto
     JOIN tipoKardex tk 
         ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN inventarioActivo ia 
-         ON ia.idInventario = k.idInventario
+    JOIN inventarioActivo ia
+        ON ia.idInventarioActivo = k.idInventarioActivo
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
         ON al.idAlmacen = i.idAlmacen
     WHERE 
-        (? = 0 AND p.idProducto = ?)
+        (? = 0 AND al.idAlmacen = ?)
     OR
-        (? = 1 AND p.idProducto = ? AND al.idAlmacen = ?)`, [
+        (? = 1 AND p.idProducto = ? AND al.idAlmacen = ?)
+    OR
+        (? = 2 AND p.idProducto = ? AND al.idAlmacen = ? AND ia.correlativo = ?)
+    GROUP BY
+        p.idProducto,
+        ia.idInventarioActivo,
+        ia.serie`, [
         opcion,
-        idProducto,
+        idAlmacen,
 
         opcion,
         idProducto,
         idAlmacen,
+
+        opcion,
+        idProducto,
+        idAlmacen,
+        correlativo
     ]);
 
     return { "result": list, "total": total[0].Total };
