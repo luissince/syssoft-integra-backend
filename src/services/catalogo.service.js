@@ -217,18 +217,36 @@ class Catalogo {
             const date = currentDate();
             const time = currentTime();
 
+            const catalogo = await conec.execute(connection, `
+                SELECT 
+                    pdfKey
+                FROM 
+                    catalogo 
+                WHERE 
+                    idCatalogo = ?`, [
+                data.idCatalogo
+            ]);
+
+            if (catalogo.length === 0) {
+                throw new Error("No se encontro registros del catálogo.");
+            }
+
+            await S3Singleton.deleteObject(catalogo[0].pdfKey);
+
             await conec.execute(connection, `
             UPDATE 
                 catalogo 
             SET
                 nombre = ?,
                 fecha = ?,
-                hora = ?
+                hora = ?,
+                pdfEstado = ?
             WHERE 
                 idCatalogo = ?`, [
                 data.nombre,
                 date,
                 time,
+                "LIBRE",
                 data.idCatalogo,
             ]);
 
