@@ -1,5 +1,5 @@
 // src/config/s3.js
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { S3Client, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 /**
@@ -37,6 +37,28 @@ class S3Singleton {
     const bucket = process.env.PDF_BUCKET;
     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
     return await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+  }
+
+  /**
+   * Elimina un objeto del bucket de S3.
+   * @param {string} key - Nombre o key del objeto en el bucket.
+   * @returns {Promise<boolean>} True si se eliminó correctamente, false en caso contrario.
+   */
+  static async deleteObject(key) {
+    const s3 = S3Singleton.getInstance();
+
+    try {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: process.env.PDF_BUCKET,
+          Key: key,
+        }),
+      );
+
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 }
 
