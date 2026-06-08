@@ -180,7 +180,7 @@ class ProductoService {
                 descripcionLarga,
                 idTipoTratamientoProducto,
                 idMetodoDepreciacion,
-                costo,
+                precio ? precio : 0,
                 idTipoProducto,
                 publicar,
                 negativo,
@@ -225,10 +225,10 @@ class ProductoService {
                 idPrecio,
                 idProducto,
                 "Precio Normal",
-                precio,
+                 precio ? precio : 0,
                 1
             ])
-
+            console.log("entro*-**********************")
             for (const precio of precios) {
                 idPrecio++;
 
@@ -584,7 +584,7 @@ class ProductoService {
                 req.body.descripcionLarga,
                 req.body.idTipoTratamientoProducto,
                 req.body.idMetodoDepreciacion,
-                req.body.costo,
+                req.body.costo ? req.body.costo : 0,
                 req.body.publicar,
                 req.body.negativo,
                 req.body.preferido,
