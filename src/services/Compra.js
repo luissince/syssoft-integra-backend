@@ -355,7 +355,6 @@ class Compra {
                 }
 
                 for (const inventarioDetalle of item.inventarioDetalles) {
-                    console.log("inventarioDetalle", inventarioDetalle);
                     let idInventarioLote = null;
                     let idInventarioActivo = null;
 
@@ -448,8 +447,9 @@ class Compra {
                             fechaAdquisicion,
                             fecha,
                             hora,
-                            idUsuario
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                            idUsuario,
+                            costo
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
                             Number(inventarioDetalle.cantidad),
@@ -461,7 +461,8 @@ class Compra {
                             inventarioDetalle.fechaAdquisicion,
                             date,
                             time,
-                            idUsuario
+                            idUsuario,
+                            inventarioDetalle.costoActivo
                         ]);
 
                         idInventarioActivo = result.insertId;

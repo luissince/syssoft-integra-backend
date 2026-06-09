@@ -51,7 +51,6 @@ class Categoria {
         idCategoria,
         codigo,
         nombre,
-        porcentaje,
         descripcion,
         estado,
         imagen
