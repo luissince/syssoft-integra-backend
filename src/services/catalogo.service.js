@@ -258,11 +258,11 @@ class Catalogo {
             for (const item of data.productos) {
                 count++;
                 await conec.execute(connection, `
-                    INSERT INTO catalogoDetalle(
-                        idCatalogoDetalle,
-                        idCatalogo,
-                        idProducto
-                    ) VALUES(?,?,?)`, [
+                INSERT INTO catalogoDetalle(
+                    idCatalogoDetalle,
+                    idCatalogo,
+                    idProducto
+                ) VALUES(?,?,?)`, [
                     count,
                     data.idCatalogo,
                     item.idProducto
@@ -311,9 +311,11 @@ class Catalogo {
             throw new Error("Se produjo un error al generar el catálogo.");
         }
 
-        if (catalogo[0].pdfKey) {
-            const url = await S3Singleton.getSignedUrlFromS3(catalogo[0].pdfKey);
-            return { url };
+        if (catalogo[0].pdfEstado === "LISTO") {
+            if (catalogo[0].pdfKey) {
+                const url = await S3Singleton.getSignedUrlFromS3(catalogo[0].pdfKey);
+                return { url };
+            }
         }
 
         await conec.query(`
@@ -327,63 +329,62 @@ class Catalogo {
         ]);
 
         const empresa = await conec.query(`
-                SELECT
-                    documento,
-                    razonSocial,
-                    nombreEmpresa,
-                    rutaLogo
-                FROM 
-                    empresa`);
+        SELECT
+            documento,
+            razonSocial,
+            nombreEmpresa,
+            rutaLogo
+        FROM 
+            empresa`);
 
         const sucursal = await conec.query(`
-                SELECT 
-                    s.nombre,
-                    s.telefono,
-                    s.celular,
-                    s.email,
-                    s.paginaWeb,
-                    s.direccion,
-    
-                    ub.departamento,
-                    ub.provincia,
-                    ub.distrito
-                FROM 
-                    sucursal AS s
-                INNER JOIN
-                    ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
-                WHERE 
-                    s.principal = 1`);
+        SELECT 
+            s.nombre,
+            s.telefono,
+            s.celular,
+            s.email,
+            s.paginaWeb,
+            s.direccion,
+
+            ub.departamento,
+            ub.provincia,
+            ub.distrito
+        FROM 
+            sucursal AS s
+        INNER JOIN
+            ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+        WHERE 
+            s.principal = 1`);
 
         const moneda = await conec.query(`
-                SELECT 
-                    codiso,
-                    simbolo
-                FROM 
-                    moneda 
-                WHERE 
-                    nacional = 1;`);
+        SELECT 
+            codiso,
+            simbolo
+        FROM 
+            moneda 
+        WHERE 
+            nacional = 1;`);
 
         const productos = await conec.query(`
-                SELECT 
-                    
-                    p.idProducto,
-                    p.nombre,
-                    p.codigo,
-                    p.imagen,
-                    p.descripcionCorta,
-                    md.nombre AS nombreMedido
-                FROM 
-                    catalogo AS c
-                INNER JOIN 
-                    catalogoDetalle AS cd ON c.idCatalogo = cd.idCatalogo
-                INNER JOIN
-                    producto AS p ON cd.idProducto = p.idProducto
-                INNER JOIN 
-                    medida AS md ON md.idMedida = p.idMedida 
-                WHERE 
-                    c.idCatalogo = ?
-                ORDER BY 
-                    p.nombre ASC`, [
+        SELECT 
+            p.idProducto,
+            p.nombre,
+            p.codigo,
+            p.imagen,
+            p.descripcionCorta,
+            md.nombre AS nombreMedido
+        FROM 
+            catalogo AS c
+        INNER JOIN 
+            catalogoDetalle AS cd ON c.idCatalogo = cd.idCatalogo
+        INNER JOIN
+            producto AS p ON cd.idProducto = p.idProducto
+        INNER JOIN 
+            medida AS md ON md.idMedida = p.idMedida 
+        WHERE 
+            c.idCatalogo = ?
+        ORDER BY 
+            p.nombre ASC`, [
             data.idCatalogo
         ]);
 
