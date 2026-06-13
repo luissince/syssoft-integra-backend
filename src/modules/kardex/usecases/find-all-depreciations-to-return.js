@@ -83,21 +83,18 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     });
 
     const total = await conec.query(`
-    SELECT 
-       COUNT(*) AS Total
-    FROM 
-        kardex k
-    JOIN inventario i
-        ON k.idInventario = i.idInventario
-    JOIN inventarioActivo ia 
-         ON ia.idInventario = k.idInventario
-    JOIN producto p 
+    SELECT
+        COUNT(DISTINCT ia.idInventarioActivo) AS total
+    FROM documentoActivo da
+    INNER JOIN documentoActivoDetalle dd
+        ON dd.idDocumentoActivo = da.idDocumentoActivo
+    INNER JOIN inventarioActivo ia
+        ON ia.idInventarioActivo = dd.idInventarioActivo and ia.estado = 'ASIGNADO'
+    INNER JOIN inventario i
+        ON i.idInventario = ia.idInventario
+    INNER JOIN producto p
         ON p.idProducto = i.idProducto
-    JOIN tipoKardex tk 
-        ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN ubicacion u 
-        ON u.idUbicacion = ia.idUbicacion
-    JOIN almacen al 
+    INNER JOIN almacen al
         ON al.idAlmacen = i.idAlmacen
     WHERE 
         (? = 0 AND p.idProducto = ?)
@@ -111,5 +108,5 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         idAlmacen,
     ]);
 
-    return { "result": list, "total": total[0].Total };
+    return { "result": list, "total": total[0].total };
 }

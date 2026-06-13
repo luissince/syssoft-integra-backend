@@ -62,6 +62,7 @@ module.exports = ({ conec }) => async function findAll(data) {
             dd.cantidad,
             ca.nombre AS categoria,
             ia.serie,
+            ia.correlativo,
             u.descripcion AS ubicacion
         FROM 
             documentoActivoDetalle dd

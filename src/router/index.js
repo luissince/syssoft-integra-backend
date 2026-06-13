@@ -83,6 +83,8 @@ const modules = [
     ["cargo", "../modules/cargo/cargo.routes"],
     ["activo-gestion", "../modules/activo-gestion/activo-gestion.routes"],
     ["atributo", "../modules/atributo/atributo.routes"],
+
+    ["historial", "../modules/historial/historial.routes.js"],
 ];
 
 /**

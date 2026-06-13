@@ -45,6 +45,8 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         (? = 1 AND p.idProducto = ? AND al.idAlmacen = ?) 
     OR
         (? = 2 AND p.idProducto = ? AND al.idAlmacen = ? AND ia.correlativo = ?) 
+    OR
+        (? = 3 AND p.idProducto = ? AND ia.correlativo = ?) 
     GROUP BY
         p.idProducto,
         ia.idInventarioActivo,
@@ -64,6 +66,10 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         opcion,
         idProducto,
         idAlmacen,
+        correlativo,
+
+        opcion,
+        idProducto,
         correlativo,
         parseInt(posicionPagina),
         parseInt(filasPorPagina)
@@ -104,6 +110,8 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         (? = 1 AND p.idProducto = ? AND al.idAlmacen = ?)
     OR
         (? = 2 AND p.idProducto = ? AND al.idAlmacen = ? AND ia.correlativo = ?)
+    OR
+        (? = 3 AND p.idProducto = ? AND ia.correlativo = ?) 
     GROUP BY
         p.idProducto,
         ia.idInventarioActivo,
@@ -118,8 +126,12 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         opcion,
         idProducto,
         idAlmacen,
+        correlativo,
+
+        opcion,
+        idProducto,
         correlativo
     ]);
 
-    return { "result": list, "total": total[0].Total };
+    return { "result": list, "total": total[0].total };
 }
