@@ -625,6 +625,8 @@ class Traslado {
             throw new ClientError("No se pudo obtener datos del detalle de traslado, vuelve a recarga la vista.")
         }
 
+        const bucket = firebaseService.getBucket();
+
         const title = 'Traslado';
 
         const template = size === 'A4' ? 'traslado/a4' : 'traslado/ticket';
