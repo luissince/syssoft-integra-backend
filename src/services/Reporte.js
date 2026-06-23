@@ -3,6 +3,7 @@ const { sendPdf, sendError } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { logoUrl } = require('../common/constants/paths.constants');
 
 class Reporte {
     async generarPreFacturacion(req, res, tipo) {
@@ -87,7 +88,7 @@ class Reporte {
             const newEmpresa = {
                 ...empresa[0],
                 "logoEmpresa": empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
-                "logoDesarrollador": `${process.env.APP_URL}/public/logo.png`,
+                "logoDesarrollador": logoUrl,
             }
 
             let detalles = [];

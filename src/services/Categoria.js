@@ -305,7 +305,6 @@ class Categoria {
 
       return sendSuccess(res, newData);
     } catch (error) {
-      console.log(error);
       return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Categoria/combo", error);
     }
   }

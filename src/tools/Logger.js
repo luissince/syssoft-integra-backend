@@ -6,22 +6,26 @@ const transport = new DailyRotateFile({
     filename: 'logs/log',
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,
-    maxSize: '20m', 
+    maxSize: '20m',
     maxFiles: '5d',
     format: winston.format.json(),
 });
 
 // Configurar el logger
 const logger = winston.createLogger({
+    format: winston.format.combine(
+        winston.format.splat(),      // <-- Agrega esto
+        winston.format.timestamp(),
+        winston.format.colorize(),
+        winston.format.printf(({ level, message, timestamp }) => {
+            return `${new Date(timestamp).toLocaleString()} ${level}: ${message}`;
+        })
+    ),
     transports: [
+        new winston.transports.Console(),
         transport,
     ]
 });
 
-if (process.env.ENVIRONMENT === 'development') {
-    logger.add(new winston.transports.Console({
-        format: winston.format.simple(),
-    }));
-}
 
 module.exports = logger;

@@ -3,10 +3,14 @@ const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
+    renderTemplate,
+    formatDecimal,
 } = require('../tools/Tools');
 const firebaseService = require('../common/fire-base');
 const RabbitMQ = require('../common/rabbitmq');
 const S3Singleton = require('../common/s3');
+const { cssUrl, noImageUrl, catalogCssUrl, logoUrl } = require('../common/constants/paths.constants');
+const { CATALOG_PDF_GENERATED_PATTERN, CATALOG_PDF_GENERATED_QUEUE } = require('../common/constants/queues.constants');
 
 class Catalogo {
 
@@ -286,7 +290,7 @@ class Catalogo {
     async documentsPdfCatalog(data) {
         const catalogo = await conec.query(`
             SELECT 
-                c.idCatalogo,
+                c.nombre,
                 c.pdfKey,
                 c.pdfEstado
             FROM 
@@ -317,16 +321,6 @@ class Catalogo {
                 return { url };
             }
         }
-
-        await conec.query(`
-            UPDATE 
-                catalogo 
-            SET 
-                pdfEstado = 'PENDIENTE' 
-            WHERE 
-                idCatalogo = ?`, [
-            data.idCatalogo
-        ]);
 
         const empresa = await conec.query(`
         SELECT
@@ -389,7 +383,7 @@ class Catalogo {
         ]);
 
         const bucket = firebaseService.getBucket();
-        const products = await Promise.all(productos.map(async (item) => {
+        const listaProductos = await Promise.all(productos.map(async (item) => {
             // Clonar el objeto eliminando 'nombreMedido'
             const { nombreMedido, ...copy } = item;
 
@@ -409,86 +403,77 @@ class Catalogo {
                 ...copy,
                 imagen: bucket && item.imagen
                     ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : `${process.env.APP_URL}/files/to/default.png`,
+                    : noImageUrl,
                 medida: { nombre: nombreMedido },
                 precios,
             };
         }));
 
-        const payload = {
-            "company": {
+        const title = `CATALOGO PRODUCTOS - ${catalogo[0].nombre.toUpperCase()}`;
+
+        const html = await renderTemplate('catalog/a4', {
+            style: cssUrl,
+            icon: logoUrl,
+            catalogStyle: catalogCssUrl,
+            title: title,
+            year: currentDate().split('-')[0],
+            formatDecimal,
+            empresa: {
                 ...empresa[0],
                 rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
             },
-            "branch": {
-                "nombre": sucursal[0].nombre,
-                "telefono": sucursal[0].telefono,
-                "celular": sucursal[0].celular,
-                "email": sucursal[0].email,
-                "paginaWeb": sucursal[0].paginaWeb,
-                "direccion": sucursal[0].direccion,
-                "ubigeo": {
-                    "departamento": sucursal[0].departamento,
-                    "provincia": sucursal[0].provincia,
-                    "distrito": sucursal[0].distrito
+
+            sucursal: {
+                nombre: sucursal[0].nombre,
+                telefono: sucursal[0].telefono,
+                celular: sucursal[0].celular,
+                email: sucursal[0].email,
+                paginaWeb: sucursal[0].paginaWeb,
+                direccion: sucursal[0].direccion,
+                ubigeo: {
+                    departamento: sucursal[0].departamento,
+                    provincia: sucursal[0].provincia,
+                    distrito: sucursal[0].distrito
                 }
             },
-            "catalog": catalogo[0],
-            "moneda": moneda[0],
-            "products": products,
-            "webhook": `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
+
+            moneda: moneda[0],
+            productos: listaProductos,
+        });
+
+        const payload = {
+            title: title,
+            htmlContent: html,
+            paper: {
+                paperType:'A4',
+                width: 0,
+                height: 0,
+            },
+            data: {
+                idCatalogo: data.idCatalogo,
+                documento: empresa[0].documento,
+                webhook: `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
+            }
         };
 
-        // Obtener la instancia Singleton de RabbitMQ
-        const rabbit = RabbitMQ.getInstance();
-
-        // Nombre de la cola donde se publicará el mensaje
-        const queue = "catalog_pdf_queue";
-
         // Enviar el mensaje a la cola
-        rabbit.publish(queue, {
-            pattern: queue,
-            data: payload
-        });
+        RabbitMQ.publish(CATALOG_PDF_GENERATED_QUEUE, CATALOG_PDF_GENERATED_PATTERN, payload);
+
+        await conec.query(`
+            UPDATE 
+                catalogo 
+            SET 
+                pdfEstado = 'PENDIENTE' 
+            WHERE 
+                idCatalogo = ?`, [
+            data.idCatalogo
+        ]);
 
         return {
             status: "procesando",
             message: "Se ha enviado el mensaje a la cola. Intente nuevamente en un par de minutos."
         };
     }
-
-    async updateCatalogPdf(data) {
-        let connection = null;
-        try {
-            connection = await conec.beginTransaction();
-
-            await conec.execute(connection, `
-            UPDATE
-                catalogo 
-            SET
-                pdfKey = ?,
-                pdfEstado = ?
-            WHERE
-                idCatalogo = ?`, [
-                data.key,
-                data.status,
-                data.idCatalogo
-            ]);
-
-            await conec.commit(connection);
-
-            return {
-                message: 'Catalogo actualizado correctamente.',
-            }
-        } catch (error) {
-            if (connection != null) {
-                await conec.rollback(connection);
-            }
-
-            throw error;
-        }
-    }
-
 }
 
 module.exports = new Catalogo();

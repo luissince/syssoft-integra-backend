@@ -3,8 +3,5 @@
 .DS_Store
 
 /node_modules
-src/path/certificates
-src/path/company
-src/path/proyect
-src/path/product
+/certificates
 /logs

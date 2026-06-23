@@ -46,7 +46,8 @@ class Producto {
         try {
             connection = await conec.beginTransaction();
 
-            const bucket = firebaseService.getBucket();
+            const date = currentDate();
+            const time = currentTime();
 
             const {
                 idCategoria,
@@ -208,10 +209,10 @@ class Producto {
                 preferido,
                 estado,
                 imagen,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 idUsuario,
             ])
 
@@ -1319,7 +1320,6 @@ class Producto {
                 "maximo": data[0].maximo,
             });
         } catch (error) {
-            console.log(error)
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/rangePriceWeb", error);
         }
     }

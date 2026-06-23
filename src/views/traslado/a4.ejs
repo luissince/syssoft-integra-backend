@@ -1,0 +1,141 @@
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="<%= style %>">
+  <title>
+    <%= title %>
+  </title>
+</head>
+
+<body>
+  <main class="pl-20 pr-20">
+
+    <div id="#header-content" class="flex justify-content-between pb-10">
+      <div>
+        <img src="<%= empresa.rutaLogo ?? icon %>" width="100" height="100" />
+      </div>
+
+      <div class="w-40p text-center">
+        <h3>
+          <%= empresa.nombreEmpresa %>
+        </h3>
+        <p>
+          <%= sucursal.direccion %>
+        </p>
+        <p>
+          <%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito %>
+        </p>
+        <p>
+          <%= sucursal.telefono %> | <%= sucursal.celular %>
+        </p>
+        <p>
+          <%= sucursal.paginaWeb %> | <%= sucursal.email %>m
+        </p>
+      </div>
+
+      <div class="text-center border-1 border-solid flex flex-column justify-content-center pl-20 pr-20 pt-10 pb-10">
+        <h3>
+          RUC: <%= empresa.documento %>
+        </h3>
+        <p>Traslado</p>
+        <p>T001-1</p>
+      </div>
+    </div>
+
+    <div id="#information-content" class="flex justify-content-between pt-10 pb-10">
+      <div class="w-50p">
+        <p class="mb-1"><span class="font-weight-bold">Fecha de Traslado: </span>
+          <%= traslado.fecha %>
+            <%= traslado.hora %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Tipo Traslado:</span>
+          <%= traslado.tipo %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Motivo:</span>
+          <%= traslado.motivo %>
+        </p>
+
+        <p class="mb-1"><span class="font-weight-bold">Observación</span>
+          <%= traslado.observacion %>
+        </p>
+      </div>
+
+      <div class="w-50p pl-5">
+        <p class="mb-1"><span class="font-weight-bold">Sucursal de Origen:</span>
+          <%= traslado.sucursalOrigen %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Almacen de Origen:</span>
+          <%= traslado.almacenOrigen %>
+        </p>
+
+        <p class="mb-1"><span class="font-weight-bold">Sucursal de Destino:</span>
+          <%= traslado.sucursalDestino %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Almacen de Destino:</span>
+          <%= traslado.almacenDestino %>
+        </p>
+      </div>
+    </div>
+
+    <div id="#body-content" class="pt-10 pb-10">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th width="5%" class="text-center">
+              <p>#</p>
+            </th>
+            <th width="30%" class="text-center">
+              <p>Producto</p>
+            </th>
+            <th width="10%" class="text-center">
+              <p>Categoría</p>
+            </th>
+            <th width="10%" class="text-right">
+              <p>Cantidad</p>
+            </th>
+            <th width="10%" class="text-right">
+              <p>Unidad</p>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const item of detalles) { %>
+            <tr>
+              <td class="text-center">
+                <p>
+                  <%= item.id %>
+                </p>
+              </td>
+              <td class="text-left">
+                <p>
+                  <%= item.codigo %>
+                    <br />
+                    <%= item.nombre %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= item.categoria %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= item.cantidad %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= item.medidda %>
+                </p>
+              </td>
+            </tr>
+            <% } %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+
+</html>

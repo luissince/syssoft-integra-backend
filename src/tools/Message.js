@@ -1,4 +1,6 @@
+// src/tools/Message.js
 const logger = require('./Logger');
+const { registerLog } = require('./Tools');
 
 /**
 * Esta función se encarga de resporder las peticiones exitosas con estado 200 http. 
@@ -107,12 +109,12 @@ function sendNoContent(res, result) {
  */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
     if (process.env.ENVIRONMENT === 'development') {
-        console.error(error)
+        logger.error(error);
     }
     if (!error || !error.message) {
-        logger.error(`${title}: ${error}`);
+        registerLog(title, error);
     } else {
-        logger.error(`${title}: ${error.message ?? error}`);
+        registerLog(title, error);
     }
     return res.status(500).send(result);
 }
@@ -129,7 +131,15 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
 *     res.send('<p>some html</p>');
 *     res.status(400).send('Sorry, cant find that');
 */
-function sendClient(res, result) {
+function sendClient(res, result = "Error de cliente", title, error) {
+    if (process.env.ENVIRONMENT === 'development') {
+        logger.warn(error);
+    }
+    if (!error || !error.message) {
+        registerLog(title, error);
+    } else {
+        registerLog(title, error);
+    }
     return res.status(400).send(result);
 }
 
