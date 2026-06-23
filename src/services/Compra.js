@@ -1553,8 +1553,6 @@ class Compra {
 
     async documentsPdfAccountsPayable(req, res) {
         try {
-            console.log(req.params.idPlazo);
-            console.log(req.params.idCompra);
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_PDF}/purchase/pdf/account/payable`,

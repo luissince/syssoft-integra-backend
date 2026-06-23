@@ -1,6 +1,7 @@
 const { promisify } = require('util');
 const fs = require("fs");
 const path = require("path");
+const ejs = require('ejs');
 const lstatAsync = promisify(fs.lstat);
 const unlinkFileAsync = promisify(fs.unlink);
 const readFileAsync = promisify(fs.readFile);
@@ -158,23 +159,63 @@ function currentTime() {
 }
 
 /**
- * 
- * 
- * @param {*} value 
- * @returns 
+ * Formatea una cadena de fecha en un formato de "dd/MM/yyyy"
+ *
+ * @param {string} date
+ * @returns {string} La cadena de fecha formateada.
  */
-function dateFormat(value) {
-    var parts = value.split("-");
-    let today = new Date(parts[0], parts[1] - 1, parts[2]);
-    return (
-        (today.getDate() > 9 ? today.getDate() : "0" + today.getDate()) +
-        "/" +
-        (today.getMonth() + 1 > 9
+function formatDate(date) {
+    const parts = date.split('-');
+
+    if (parts.length !== 3) {
+        return 'Invalid Date';
+    }
+
+    const today = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const day = today.getDate() > 9 ? today.getDate() : '0' + today.getDate();
+    const month =
+        today.getMonth() + 1 > 9
             ? today.getMonth() + 1
-            : "0" + (today.getMonth() + 1)) +
-        "/" +
-        today.getFullYear()
-    );
+            : '0' + (today.getMonth() + 1);
+    const year = today.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+/**
+ * Formatea una cadena de tiempo en un formato de 12 horas (por defecto) o de 24 horas.
+ *
+ * @param {string} time - La cadena de tiempo en formato "HH:mm" o "HH:mm:ss".
+ * @param {boolean} [addSeconds=false] - Indica si se deben incluir los segundos en la salida.
+ * @returns {string} La cadena de tiempo formateada.
+ */
+function formatTime(time, addSeconds = false) {
+    try {
+        const timeRegex =
+            /^(0\d|1\d|2[0-4]):((0[0-9])|([1-5][0-9])|59)(?::([0-5][0-9]))?$/;
+        const match = time.match(timeRegex);
+
+        if (!match) {
+            throw new Error("Invalid Time");
+        }
+
+        const parts = time.split(':');
+
+        const HH = Number(parts[0]);
+        const mm = parts[1];
+        const ss = parts[2] === undefined ? '00' : parts[2];
+
+        const thf = HH % 12 || 12;
+        const ampm = HH < 12 || HH === 24 ? 'AM' : 'PM';
+        const formattedHour = thf < 10 ? '0' + thf : thf;
+
+        if (addSeconds) {
+            return `${formattedHour}:${mm}:${ss} ${ampm}`;
+        }
+
+        return `${formattedHour}:${mm} ${ampm}`;
+    } catch (e) {
+        return e.message ?? "Invalid Time";
+    }
 }
 
 async function processImage(fileDirectory, image, ext, existingImage) {
@@ -213,18 +254,12 @@ async function processImage(fileDirectory, image, ext, existingImage) {
  * @async
  * @function processFilePem
  *
- * @param {string} fileDirectory
- * Directorio donde se almacenará el archivo.
- *
- * @param {string} file
+ * @param {{base64: string, name: string, extension: string, mimeType: string}} file
  * Contenido del archivo codificado en base64.
  * Si viene vacío (''), se devuelve la información existente sin procesar nada.
  *
  * @param {string} name
  * Nombre base que tendrá el archivo guardado.
- *
- * @param {string} ext
- * Extensión del archivo (ejemplo: p12 o pfx).
  *
  * @param {string} password
  * Contraseña del certificado PKCS#12.
@@ -247,10 +282,10 @@ async function processImage(fileDirectory, image, ext, existingImage) {
  * @returns {string} returns.nombre
  * Nombre final del archivo guardado.
  *
- * @returns {string} returns.certificate
+ * @returns {string} returns.certificadoPem
  * Certificado en formato PEM.
  *
- * @returns {string} returns.private
+ * @returns {string} returns.privatePem
  * Clave privada en formato PEM.
  *
  * @returns {string} returns.startDateTime
@@ -267,64 +302,78 @@ async function processImage(fileDirectory, image, ext, existingImage) {
  * - No existe una clave privada dentro del archivo.
  * - Ocurre un problema al leer/escribir archivos.
  */
-async function processFilePem(fileDirectory, file, name, ext, password, existingFile, certificate, private) {
-    // Verificar si hay un archivo para procesar
-    if (file === '') {
-        // Si no hay archivo, devolver el nombre del archivo existente
+async function processFilePem(file, name, password, existingFile, certificadoPem, privatePem) {
+    // Si no hay archivo nuevo, devolver el existente
+    if (!file || file.base64 === undefined) {
         return {
-            "nombre": existingFile,
-            "certificate": certificate,
-            "private": private
-        }
+            nombre: existingFile,
+            certificadoPem,
+            privatePem
+        };
     }
 
     // Crear el nombre del nuevo archivo
-    const nameFile = `${name}.${ext}`;
+    const nameFile = `${name}.${file.extension}`;
 
     try {
-        // Si hay un archivo existente, eliminarlo
-        if (existingFile) {
-            await removeFile(path.join(fileDirectory, existingFile));
-        }
+        // Convertir el Base64 directamente a Buffer
+        const buffer = Buffer.from(file.base64, 'base64');
 
-        // Escribir el archivo en el directorio especificado
-        await writeFileAsync(path.join(fileDirectory, nameFile), file, 'base64');
-
-        // Leer el archivo recién creado y procesarlo
-        const data = await readFileAsync(path.join(fileDirectory, nameFile));
-        const p12Asn1 = forge.asn1.fromDer(data.toString('binary'));
+        // Leer el PKCS12 desde memoria
+        const p12Asn1 = forge.asn1.fromDer(buffer.toString('binary'));
         const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
 
-        // Extraer la clave privada y el certificado del archivo P12
-        const bags = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag });
+        // Obtener la clave privada
+        const keyBags = p12.getBags({
+            bagType: forge.pki.oids.pkcs8ShroudedKeyBag
+        })[forge.pki.oids.pkcs8ShroudedKeyBag];
 
-        if (!bags || bags.length === 0) {
+        if (!keyBags || keyBags.length === 0) {
             throw new Error("No se encontró ninguna clave privada en el archivo.");
         }
 
-        const privateKeyBag = bags[forge.pki.oids.pkcs8ShroudedKeyBag][0];
-        const privateKey = privateKeyBag.key;
+        const privateKey = keyBags[0].key;
 
-        const certBag = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag][0];
-        const cert = certBag.cert;
+        // Obtener el certificado
+        const certBags = p12.getBags({
+            bagType: forge.pki.oids.certBag
+        })[forge.pki.oids.certBag];
 
-        // Convertir la clave privada y el certificado en formato PEM
-        const privateKeyPem = forge.pki.privateKeyInfoToPem(
-            forge.pki.wrapRsaPrivateKey(
-                forge.pki.privateKeyToAsn1(privateKey)
-            )
-        );
-        const certPem = forge.pki.certificateToPem(cert);
-
-
-        // Devolver la información procesada
-        return {
-            "nombre": nameFile,
-            "certificate": certPem,
-            "private": privateKeyPem,
-            "startDateTime": cert.validity.notBefore || null,
-            "expirationDateTime": cert.validity.notAfter || null,
+        if (!certBags || certBags.length === 0) {
+            throw new Error("No se encontró ningún certificado en el archivo.");
         }
+
+        const cert = certBags[0].cert;
+
+        return {
+            nombre: nameFile,
+            certificadoPem: forge.pki.certificateToPem(cert),
+            privatePem: forge.pki.privateKeyInfoToPem(
+                forge.pki.wrapRsaPrivateKey(
+                    forge.pki.privateKeyToAsn1(privateKey)
+                )
+            ),
+            startDateTime: cert.validity.notBefore ?? null,
+            expirationDateTime: cert.validity.notAfter ?? null
+        };
+
+        // // Convertir la clave privada y el certificado en formato PEM
+        // const privateKeyPem = forge.pki.privateKeyInfoToPem(
+        //     forge.pki.wrapRsaPrivateKey(
+        //         forge.pki.privateKeyToAsn1(privateKey)
+        //     )
+        // );
+        // const certPem = forge.pki.certificateToPem(cert);
+
+
+        // // Devolver la información procesada
+        // return {
+        //     "nombre": nameFile,
+        //     "certificadoPem": certPem,
+        //     "privatePem": privateKeyPem,
+        //     "startDateTime": cert.validity.notBefore || null,
+        //     "expirationDateTime": cert.validity.notAfter || null,
+        // }
     } catch (error) {
         throw new Error(error.message);
     }
@@ -475,8 +524,8 @@ async function processFirebaseFile(
 
     try {
         /**
-             * Validar existencia de firebaseService.
-             */
+         * Validar existencia de firebaseService.
+         */
         if (!firebaseService) {
             return currentFile ?? null;
         }
@@ -492,11 +541,7 @@ async function processFirebaseFile(
          * Caso:
          * Eliminar archivo existente.
          */
-        if (
-            fileData.nombre === undefined &&
-            fileData.base64 === undefined
-        ) {
-
+        if (fileData.nombre === undefined && fileData.base64 === undefined) {
             if (currentFile) {
                 await firebaseService.deleteFile(currentFile);
             }
@@ -523,7 +568,7 @@ async function processFirebaseFile(
              * Subir archivo.
              */
 
-            await firebaseService.uploadFile(filePath, buffer, 'image/' + fileData.extension);
+            await firebaseService.uploadFile(filePath, buffer, fileData.mimeType);
 
             return filePath;
         }
@@ -740,16 +785,85 @@ function responseSSE(req, res, callback) {
     }));
 };
 
+/**
+ * Función encarga de esperar un tiempo determinado antes de devolver un Promise.
+ *
+ * @param {number} time - Tiempo de espera del time out
+ * @returns {Promise<void>}
+ */
 function sleep(time) {
     return new Promise((resolve) => setTimeout(resolve, time));
 };
+
+function formatDecimal(
+    amount,
+    decimalCount = 2,
+    decimal = '.',
+    thousands = ',',
+) {
+    if (!isNumeric(amount)) return '0.00';
+
+    decimalCount = Number.isInteger(decimalCount) ? Math.abs(decimalCount) : 2;
+
+    const number = Number(amount);
+
+    const negativeSign = number < 0 ? '-' : '';
+
+    const roundedAmount = Math.abs(rounded(number, decimalCount)).toFixed(
+        decimalCount,
+    );
+
+    const [integerPart, decimalPart] = roundedAmount.split('.');
+
+    const integerFormatted = integerPart.replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        thousands,
+    );
+    let decimalFormatted = '';
+    if (decimalCount) {
+        decimalFormatted = decimal + (decimalPart || '0'.repeat(decimalCount));
+    }
+
+    return negativeSign + integerFormatted + decimalFormatted;
+}
+
+function rounded(amount, decimalCount = 2) {
+    if (!isNumeric(amount)) return Number('0.00');
+
+    const number = Number(amount);
+
+    decimalCount = Number.isInteger(decimalCount) ? Math.abs(decimalCount) : 2;
+
+    const negativeSign = number < 0 ? '-' : '';
+
+    const parsedAmount = Math.abs(number);
+    const fixedAmount = parsedAmount.toFixed(decimalCount);
+
+    return Number(negativeSign + fixedAmount);
+}
+
+function isNumeric(valor) {
+    return !isNaN(valor) && !isNaN(parseFloat(valor));
+}
+
+async function renderTemplate(template, data) {
+    const file = path.join(
+        process.cwd(),
+        'src',
+        'views',
+        `${template}.ejs`
+    );
+
+    return ejs.renderFile(file, data);
+}
 
 module.exports = {
     formatNumberWithZeros,
     isNumber,
     currentDate,
     currentTime,
-    dateFormat,
+    formatDate,
+    formatTime,
     processFirebaseFile,
     generateFileData,
     formatMoney,
@@ -770,5 +884,7 @@ module.exports = {
     rounded,
     registerLog,
     responseSSE,
-    sleep
+    sleep,
+    formatDecimal,
+    renderTemplate
 };

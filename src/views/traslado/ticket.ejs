@@ -1,0 +1,153 @@
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="<%= style %>">
+  <title>
+    <%= title %>
+  </title>
+</head>
+
+<body>
+  <main class="pl-10 pr-10 pt-10 pb-10">
+    <div class="text-center pb-10">
+      <img width="100" ssrc="<%= empresa.rutaLogo ?? icon %>" class="mb-5" />
+      <br />
+      <h2 class="font-weight-bold text-uppercase">
+        <%= empresa.nombreEmpresa %>
+      </h2>
+      <p>
+        RUC: <%= empresa.documento %>
+      </p>
+      <p>
+        <%= sucursal.direccion %>
+      </p>
+      <p>
+        <%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito %>
+      </p>
+      <p>
+        Telf.: <%= sucursal.telefono %>
+      </p>
+      <p>
+        Cel.: <%= sucursal.celular %>
+      </p>
+      <p>
+        <%= sucursal.email %>
+      </p>
+      <p>
+        <%= sucursal.paginaWeb %>
+      </p>
+    </div>
+
+    <div class="border-1 border-dashed"></div>
+
+    <div class="text-center pt-5 pb-5">
+      <p class="font-weight-bold text-uppercase font-size-13">
+        Traslado
+      </p>
+      <p class="font-weight-bold font-size-13">
+        T001-1-
+      </p>
+    </div>
+
+    <div class="pt-5 pb-5">
+      <p><span class="font-weight-bold">Fecha de Traslado: </span>
+        <%= traslado.fecha %>
+          <%= traslado.hora %>
+      </p>
+
+      <p><span class="font-weight-bold">Tipo Traslado:</span>
+        <%= traslado.tipo %>
+      </p>
+
+      <p><span class="font-weight-bold">Motivo</span>
+        <%= traslado.motivo %>
+      </p>
+
+      <p><span class="font-weight-bold">Destinatario:</span>
+        <%= traslado.motivo %>
+      </p>
+
+      <p><span class="font-weight-bold">Observación:</span>
+        <%= traslado.observacion %>
+      </p>
+
+      <p><span class="font-weight-bold">Sucursal de Origen:</span>
+        <%= traslado.sucursalOrigen %>
+      </p>
+
+      <p><span class="font-weight-bold">Almacen de Origen:</span>
+        <%= traslado.almacenOrigen %>
+      </p>
+
+      <p><span class="font-weight-bold">Sucursal de Destino:</span>
+        <%= traslado.sucursalDestino %>
+      </p>
+
+      <p><span class="font-weight-bold">Almacen de Destino:</span>
+        <%= traslado.almacenDestino %>
+      </p>
+    </div>
+
+    <div class="border-1 border-dashed"></div>
+
+    <div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th width="5%" class="text-center">
+              <p>#</p>
+            </th>
+            <th width="30%" class="text-center">
+              <p>Producto</p>
+            </th>
+            <th width="10%" class="text-center">
+              <p>Categoría</p>
+            </th>
+            <th width="10%" class="text-right">
+              <p>Cantidad</p>
+            </th>
+            <th width="10%" class="text-right">
+              <p>Unidad</p>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const item of detalles) { %>
+            <tr>
+              <td class="text-center">
+                <p>
+                  <%= item.id %>
+                </p>
+              </td>
+              <td class="text-left">
+                <p>
+                  <%= item.codigo %>
+                    <br />
+                    <%= item.nombre %>
+                </p>
+              </td>
+              <td class="text-center">
+                <p>
+                  <%= item.categoria %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= item.cantidad %>
+                </p>
+              <td class="text-right">
+                <p>
+                  <%= item.medidda %>
+                </p>
+              </td>
+            </tr>
+            <% } %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+
+</html>

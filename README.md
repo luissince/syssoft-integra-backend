@@ -1,6 +1,6 @@
 # Microservicio encargado de la gestión de puntos de ventas
 
-<img src="src/path/to/logo.png" alt="Imagen SysSoft Integra" width="200" />
+<img src="public/logo.png" alt="Imagen SysSoft Integra" width="200" />
 
 <font size="5" face="Qwitcher Grypen">
 Aplicación para el control de puntos de ventas.
@@ -115,89 +115,59 @@ A continuación, se presenta la configuración de las variables de entorno utili
 Puerto para la ejecución del servidor
 
 ```bash
+# GENERAL
 PORT=5000
-```
 
-Ip pública o remota de la base de datos
+# URL DEL SERVIDOR BACKEND
+APP_URL="http://localhost"
 
-```bash
-DB_HOST=
-```
+# URL DEL SERVICIO DE PDF
+APP_PDF="http://localhost:8000"
 
-Nombre del usuario de la base de datos
+# URL DEL SERVICIO DE CPE SUNAT
+APP_CPE_SUNAT="http://localhost:9000"
 
-```bash
-DB_USER=
-```
+# URL DEL SERVICIO DE APIS PERU
+APP_APIS_PERU="https://api.com"
 
-Contraseña del usuario de la base de datos
+# URL DEL SERVIDOR DE EMAIL
+APP_EMAIL="http://localhost:8100"
 
-```bash
-DB_PASSWORD=
-```
+# TOKEN DE ACCESO
+TOKEN_ACCESS="replace_me"
 
-Nombre de la base de datos
-
-```bash
-DB_NAME=
-```
-
-Puerto de la base de datos
-
-```bash
+# DATABASE
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=123456
+DB_NAME=dabase_name
 DB_PORT=3306
-```
 
-Nombre de la cuenta
-
-```bash
-CLOUDFLARE_ACCOUNT_ID="replace_me"
-```
-
-ApiKey de la cuenta
-
-```bash
-CLOUDFLARE_ACCESS_KEY_ID="replace_me"
-```
-
-ApiKey secreta de la cuenta
-
-```bash
-CLOUDFLARE_SECRET_ACCESS_KEY="replace_me"
-```
-
-Nombre del bucket
-
-```bash
-CLOUDFLARE_BUCKET_NAME="replace_me"
-```
-
-Nombre del bucket
-
-```bash
-FIREBASE_BUCKET="replace_me"
-```
-
-URL publica
-
-```bash
-FIREBASE_URL_PUBLIC="replace_me"
-```
-
-Nombre del archivo de configuración
-
-```bash
-FIREBASE_FILE_ACCOUNT_NAME="replace_me"
-```
-
-Configuración de la zona horaria
-
-```bash
+# ZONA HORARIA
 TZ="America/Lima"
-```
 
-```bash
+# ENVIRONMENT (development, production)
 ENVIRONMENT="development"
+
+# FIREBASE
+FIREBASE_SERVICE_ACCOUNT="replace_me"
+FIREBASE_BUCKET=replace_me
+FIREBASE_URL_PUBLIC=replace_me
+FIREBASE_FILE_ACCOUNT_NAME=replace_me
+
+# AWS - S3
+AWS_REGION_S3=replace_me
+AWS_ACCESS_KEY_ID_S3=replace_me
+AWS_SECRET_ACCESS_KEY_S3=replace_me
+PDF_BUCKET=replace_me
+
+# RABBIT
+AMQP_PROTOCOL = "amqp"
+AMQP_HOSTNAME = "localhost"
+AMQP_PORT = "5672"
+AMQP_USERNAME = "username"
+AMQP_PASSWORD = "password"
+AMQP_VHOST = "/"
 ```
 
 ### 6. Ejecute **npm run dev** para iniciar el Banck-end en modo desarrollo

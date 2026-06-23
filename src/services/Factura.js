@@ -358,6 +358,7 @@ class Factura {
                                 validarInventario++;
 
                                 mensajeInventario.push({
+                                    "codigo": item.codigo,
                                     "nombre": item.nombreProducto,
                                     "cantidadActual": cantidadActual,
                                     "cantidadReal": cantidadReal
