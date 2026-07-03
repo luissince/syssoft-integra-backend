@@ -1,6 +1,6 @@
 // services/FirebaseService.js
 const admin = require('firebase-admin');
-const logger = require('../tools/Logger');
+const { registerLog } = require('../tools/Tools');
 
 class FireBase {
     constructor() {
@@ -9,8 +9,12 @@ class FireBase {
 
     initializeFirebase() {
         try {
-            // Carga el archivo de credenciales de firebase
-            const serviceAccount = require(`../path/certificates/${process.env.FIREBASE_FILE_ACCOUNT_NAME}`);
+            const serviceAccount = JSON.parse(
+                Buffer.from(
+                    process.env.FIREBASE_SERVICE_ACCOUNT,
+                    "base64"
+                ).toString("utf8")
+            );
 
             // Inicializa la app de firebase
             admin.initializeApp({
@@ -22,7 +26,7 @@ class FireBase {
             this.bucket = admin.storage().bucket();
         } catch (error) {
             this.bucket = null;
-            throw error;
+            registerLog('FireBase/initializeFirebase', error);
         }
     }
 
@@ -154,10 +158,7 @@ class FireBase {
         error,
         defaultMessage
     ) {
-        logger.error(
-            'FirebaseService',
-            error.stack || error.message || error
-        );
+        registerLog('FireBase/handleFirebaseError', error);
 
         let message = defaultMessage;
 

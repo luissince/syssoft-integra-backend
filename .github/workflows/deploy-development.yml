@@ -43,6 +43,7 @@ jobs:
           DB_NAME="${{secrets.DB_NAME}}"
           DB_PORT="${{secrets.DB_PORT}}"
 
+          FIREBASE_SERVICE_ACCOUNT="${{secrets.FIREBASE_SERVICE_ACCOUNT}}"
           FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
           FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
           FIREBASE_FILE_ACCOUNT_NAME="${{secrets.FIREBASE_FILE_ACCOUNT_NAME}}"
@@ -94,8 +95,6 @@ jobs:
             service: sysintegra-services
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       CONTAINER_NAME: ${{ matrix.environment }}-backend
       IMAGE_NAME: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/syssoftintegra/back-end-development:${{ matrix.environment }}-latest
 

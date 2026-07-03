@@ -202,7 +202,6 @@ class Sunat {
 
             sendSuccess(res, response.data);
         } catch (error) {
-            console.log(error);
             const errorResponse = new ErrorResponse(error);
             sendError(res, errorResponse.getMessage(), "Sunat/factura", error)
         }

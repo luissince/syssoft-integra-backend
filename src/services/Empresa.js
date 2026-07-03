@@ -1,24 +1,14 @@
 const {
     sendSuccess,
-    sendClient,
     sendError,
 } = require('../tools/Message');
 const {
     currentDate,
     currentTime,
-    isDirectory,
-    writeFile,
-    mkdir,
-    chmod,
-    generateAlphanumericCode,
     processFilePem,
-    processFile,
-    isFile,
-    getCertificateDates,
     processFirebaseFile,
     generateFileData
 } = require('../tools/Tools');
-const path = require("path");
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 
@@ -71,8 +61,6 @@ class Empresa {
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
-                rutaBanner,
-                rutaPortada,
                 usuarioSolSunat,
                 claveSolSunat,
                 certificadoSunat,
@@ -113,21 +101,11 @@ class Empresa {
 
             const respuesta = {
                 ...empresa,
-
+                certificadoSunat: createFileData(empresa.certificadoSunat),
                 rutaLogo: createFileData(empresa.rutaLogo),
                 rutaImage: createFileData(empresa.rutaImage),
                 rutaIcon: createFileData(empresa.rutaIcon),
-                rutaPortada: createFileData(empresa.rutaPortada),
-                rutaBanner: createFileData(empresa.rutaBanner),
             };
-
-            const serviceAccountKey = await isFile(path.join(__dirname, '..', 'path', 'certificates', 'serviceAccountKey.json'));
-
-            if (serviceAccountKey) {
-                respuesta.certificadoFirebase = "services.json"
-            } else {
-                respuesta.certificadoFirebase = null;
-            }
 
             const banners = await conec.query(`
                 SELECT
@@ -171,21 +149,15 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            const fileCertificates = path.join(__dirname, '..', 'path', 'certificates');
-            const existsCertificates = await isDirectory(fileCertificates);
-
-            if (!existsCertificates) {
-                await mkdir(fileCertificates);
-                await chmod(fileCertificates);
-            }
+            const date = currentDate();
+            const time = currentTime();
 
             const empresa = await conec.execute(connection, `
             SELECT
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
-                rutaBanner,
-                rutaPortada,
+
                 certificadoSunat,
                 certificadoPem,
                 privatePem,
@@ -198,27 +170,24 @@ class Empresa {
                 req.body.idEmpresa
             ]);
 
-            const certificadoDates = getCertificateDates(empresa[0].certificadoPem);
-
-            const rutaCertificado = await processFilePem(
-                fileCertificates,
+            /**
+             * Procesar archivo del certificado de sunat.
+             */
+            const processCertificado = await processFilePem(
                 req.body.certificado,
                 req.body.documento,
-                req.body.extCertificado,
                 req.body.claveCertificado,
                 empresa[0].certificadoSunat,
                 empresa[0].certificadoPem,
                 empresa[0].privatePem
             );
 
-            /**
-             * Procesar archivo de firebase.
-             */
-            await processFile(
-                fileCertificates,
-                req.body.fireBase,
-                process.env.FIREBASE_FILE_ACCOUNT_NAME,
-                req.body.extFireBase
+            const rutaCertificado = await processFirebaseFile(
+                firebaseService,
+                req.body.certificado,
+                empresa[0].certificadoSunat,
+                req.body.documento,
+                "empresa"
             );
 
             /**
@@ -254,41 +223,21 @@ class Empresa {
                 "empresa"
             );
 
-            /**
-             * Procesar banner de empresa
-             */
-            const rutaBanner = await processFirebaseFile(
-                firebaseService,
-                req.body.banner,
-                empresa[0].rutaBanner,
-                req.body.documento,
-                "empresa"
-            );
-
-            // Procesar portada de empresa
-            const rutaPortada = await processFirebaseFile(
-                firebaseService,
-                req.body.portada,
-                empresa[0].rutaPortada,
-                req.body.documento,
-                "empresa"
-            );
-
             // Proceso para validar los banners existentes y si se debe eliminar o actualizar
             const banners = req.body.banners;
 
             const cacheBanners = await conec.execute(connection, `
-                SELECT 
-                    idBanner,
-                    idEmpresa,
-                    nombre,
-                    extension,
-                    ancho,
-                    alto
-                FROM
-                    empresaBanner
-                WHERE
-                    idEmpresa = ?`, [
+            SELECT 
+                idBanner,
+                idEmpresa,
+                nombre,
+                extension,
+                ancho,
+                alto
+            FROM
+                empresaBanner
+            WHERE
+                idEmpresa = ?`, [
                 req.body.idEmpresa
             ]);
 
@@ -400,8 +349,6 @@ class Empresa {
                 rutaLogo=?,
                 rutaImage=?,
                 rutaIcon=?,
-                rutaPortada=?,
-                rutaBanner=?,
 
                 usuarioSolSunat=?,
                 claveSolSunat=?,
@@ -445,24 +392,16 @@ class Empresa {
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
-                rutaPortada,
-                rutaBanner,
 
                 req.body.usuarioSolSunat,
                 req.body.claveSolSunat,
 
-                rutaCertificado.nombre,
+                rutaCertificado,
                 req.body.claveCertificado,
-                rutaCertificado.certificate,
-                rutaCertificado.private,
-                certificadoDates.startDateTime
-                ?? rutaCertificado.startDateTime
-                ?? empresa[0].certificadoInicio
-                ?? null,
-                certificadoDates.expirationDateTime
-                ?? rutaCertificado.expirationDateTime
-                ?? empresa[0].certificadoExpiracion
-                ?? null,
+                processCertificado.certificadoPem,
+                processCertificado.privatePem,
+                processCertificado.startDateTime ?? empresa[0].certificadoInicio ?? null,
+                processCertificado.expirationDateTime ?? empresa[0].certificadoExpiracion ?? null,
 
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
@@ -483,8 +422,8 @@ class Empresa {
                 req.body.politicasPrivacidad,
                 req.body.terminosCondiciones,
 
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idEmpresa
             ]);
@@ -523,7 +462,7 @@ class Empresa {
 
             return sendSuccess(res, empresa);
         } catch (error) {
-            return sendClient(res, "Iniciar configuración.");
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/config", error);
         }
     }
 
@@ -532,82 +471,12 @@ class Empresa {
         try {
             connection = await conec.beginTransaction();
 
-            const empresa = await conec.execute(connection, `SELECT * FROM empresa`);
+            const empresa = await conec.execute(connection, `SELECT * FROM empresa LIMIT 1`);
             if (empresa.length > 0) {
                 await conec.rollback(connection);
                 return sendSuccess(res, "Ya existe una empresa registrada.");
             }
 
-            const listaEmpresa = await conec.execute(connection, 'SELECT idEmpresa FROM empresa');
-            const idEmpresa = generateAlphanumericCode("EM0001", listaEmpresa, 'idEmpresa');
-
-            const file = path.join(__dirname, '../', 'path/company');
-            if (!isDirectory(file)) {
-                mkdir(file);
-                chmod(file);
-            }
-
-            let fileLogo = "";
-            let fileImage = "";
-
-            if (req.body.logo !== "") {
-                const nameImage = `${Date.now() + 'logo'}.${req.body.extlogo}`;
-
-                writeFile(path.join(file, nameImage), req.body.logo)
-                fileLogo = nameImage;
-            }
-
-            if (req.body.image !== "") {
-                const nameImage = `${Date.now() + 'image'}.${req.body.extimage}`;
-
-                writeFile(path.join(file, nameImage), req.body.image);
-                fileImage = nameImage;
-            }
-
-            await conec.execute(connection, `
-            INSERT INTO empresa(
-                idEmpresa,
-                idTipoDocumento,
-                documento,
-                razonSocial,
-                nombreEmpresa,
-                logo,
-                image,
-                extlogo,
-                extimage,
-                rutaLogo,
-                rutaImage,
-                useSol,
-                claveSol,
-                certificado,
-                claveCert,
-                fecha,
-                hora,
-                fupdate,
-                hupdate
-            ) VALUES(?,?,?,?,,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                idEmpresa,
-                'TD0003',
-                req.body.documento,
-                req.body.razonSocial,
-                req.body.nombreEmpresa,
-                req.body.logo,
-                req.body.image,
-                req.body.extlogo,
-                req.body.extimage,
-                fileLogo,
-                fileImage,
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
-            ]);
 
             await conec.commit(connection);
             return sendSuccess(res, "Se registró correctamente la empresa.");
@@ -651,9 +520,7 @@ class Empresa {
                 politicasPrivacidad,
                 terminosCondiciones,
                 rutaImage,
-                rutaIcon,
-                rutaPortada,
-                rutaBanner
+                rutaIcon
             FROM 
                 empresa
             LIMIT 
@@ -664,22 +531,20 @@ class Empresa {
             if (bucket) {
                 result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
                 result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
-                result[0].rutaPortada = result[0].rutaPortada ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaPortada}` : null;
-                result[0].rutaBanner = result[0].rutaBanner ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaBanner}` : null;
             }
 
             const banners = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    idBanner,
-                    idEmpresa,
-                    nombre,
-                    ancho,
-                    alto
-                FROM 
-                    empresaBanner 
-                WHERE 
-                    idEmpresa = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                idBanner,
+                idEmpresa,
+                nombre,
+                ancho,
+                alto
+            FROM 
+                empresaBanner 
+            WHERE 
+                idEmpresa = ?`, [
                 result[0].idEmpresa
             ]);
 

@@ -3,6 +3,7 @@ const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../t
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
 const firebaseService = require('../common/fire-base');
+const { noImageUrl } = require('../common/constants/paths.constants');
 
 class OrdenCompra {
 
@@ -812,7 +813,7 @@ class OrdenCompra {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : `${process.env.APP_URL}/files/to/default.png`,
+                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
                             },
                             "medida": {
                                 "nombre": item.medida,
