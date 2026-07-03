@@ -42,59 +42,6 @@ class GuiaRemision {
         }
     }
 
-    async id(req, res) {
-        try {
-            const ajuste = await conec.query(`
-            SELECT 
-                a.idAjuste,
-                DATE_FORMAT(a.fecha,'%d/%m/%Y') AS fecha,
-                a.hora,
-                tp.nombre AS tipo,
-                mt.nombre AS motivo,
-                al.nombre AS almacen,
-                a.observacion,
-                a.estado
-            FROM 
-                ajuste AS a 
-            INNER JOIN 
-                tipoAjuste as tp ON tp.idTipoAjuste = a.idTipoAjuste
-            INNER JOIN 
-                motivoAjuste as mt on mt.idMotivoAjuste = a.idMotivoAjuste
-            INNER JOIN 
-                almacen as al on al.idAlmacen = a.idAlmacen
-            INNER JOIN 
-                usuario us on us.idUsuario = a.idUsuario
-            WHERE 
-                a.idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
-
-            const detalle = await conec.query(`
-            SELECT 
-                p.codigo,
-                p.nombre as producto,
-                aj.cantidad,
-                m.nombre as unidad,
-                c.nombre as categoria
-            FROM 
-                ajusteDetalle AS aj
-            INNER JOIN 
-                producto as p on p.idProducto = aj.idProducto
-            INNER JOIN 
-                medida as m on m.idMedida = p.idMedida
-            INNER JOIN 
-                categoria as c on c.idCategoria = p.idCategoria
-            WHERE 
-                aj.idAjuste = ?`, [
-                req.query.idAjuste,
-            ])
-
-            return sendSuccess(res, { cabecera: ajuste[0], detalle });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "GuiaRemision/id", error)
-        }
-    }
-
     async detail(req, res) {
         try {
             const guiaRemision = await conec.procedure(`CALL Guia_Remision_Por_Id(?)`, [
@@ -106,7 +53,7 @@ class GuiaRemision {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {               
+            const listaDetalles = detalles.map(item => {
                 return {
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
@@ -119,8 +66,10 @@ class GuiaRemision {
         }
     }
 
-    async detailUpdate(req, res) {
+    async id(req, res) {
         try {
+            const { idGuiaRemision } = req.params;
+
             const guiaRemision = await conec.query(`
             SELECT
                 v.idVenta,
@@ -129,6 +78,7 @@ class GuiaRemision {
                 v.numeracion,
                 cl.documento,
                 cl.informacion,
+
                 gui.idModalidadTraslado,
                 gui.idMotivoTraslado,
                 DATE_FORMAT(gui.fechaTraslado,'%Y-%m-%d') AS fechaTraslado,
@@ -140,13 +90,19 @@ class GuiaRemision {
                 gui.idConductor,
                 cd.documento AS documentoCoductor,
                 cd.informacion AS informacionConductor,
+
+                gui.codigoAnexoPartida,
                 gui.direccionPartida,
-                gui.direccionLlegada,                
+
+                gui.codigoAnexoLlegada,
+                gui.direccionLlegada,        
+
                 up.idUbigeo AS idUbigeopPartida,
                 up.departamento AS departamentoPartida,
                 up.provincia AS provinciaPartida,
                 up.distrito AS distritoPartida,
                 up.ubigeo AS ubigeoPartida,
+                
                 ul.idUbigeo AS idUbigeoLlegada,
                 ul.departamento AS departamentoLlegada,
                 ul.provincia AS provinciaLlegada,
@@ -155,12 +111,6 @@ class GuiaRemision {
             FROM
                 guiaRemision AS gui
             INNER JOIN 
-                venta AS v ON v.idVenta = gui.idVenta
-            INNER JOIN 
-                comprobante AS cv on cv.idComprobante = v.idComprobante
-            INNER JOIN 
-                persona AS cl ON cl.idPersona = v.idCliente
-            INNER JOIN 
                 vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
             INNER JOIN 
                 persona AS cd ON cd.idPersona = gui.idConductor
@@ -168,9 +118,17 @@ class GuiaRemision {
                 ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
             INNER JOIN 
                 ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+
+            INNER JOIN 
+                venta AS v ON v.idVenta = gui.idVenta
+            INNER JOIN 
+                comprobante AS cv on cv.idComprobante = v.idComprobante
+            INNER JOIN 
+                persona AS cl ON cl.idPersona = v.idCliente
+
             WHERE  
                 gui.idGuiaRemision = ?`, [
-                req.query.idGuiaRemision,
+                idGuiaRemision,
             ]);
 
             return sendSuccess(res, { cabecera: guiaRemision[0] });
@@ -184,8 +142,12 @@ class GuiaRemision {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const {
                 idVenta,
+                idTraslado,
                 idSucursal,
                 idComprobante,
                 idModalidadTraslado,
@@ -195,13 +157,17 @@ class GuiaRemision {
                 peso,
                 idVehiculo,
                 idConductor,
+
+                codigoAnexoPartida,
                 direccionPartida,
                 idUbigeoPartida,
+
+                codigoAnexoLlegada,
                 direccionLlegada,
                 idUbigeoLlegada,
                 estado,
                 idUsuario,
-                detalle
+                detalles
             } = req.body;
 
             const result = await conec.execute(connection, 'SELECT idGuiaRemision FROM guiaRemision');
@@ -233,7 +199,8 @@ class GuiaRemision {
             await conec.execute(connection, `INSERT INTO guiaRemision(
                 idGuiaRemision,
                 idSucursal,
-                idVenta,                
+                idVenta,          
+                idTraslado,
                 idComprobante,
                 serie,
                 numeracion,
@@ -244,18 +211,23 @@ class GuiaRemision {
                 peso,
                 idVehiculo,
                 idConductor,
+
+                codigoAnexoPartida,
                 direccionPartida,
                 idUbigeoPartida,
+
+                codigoAnexoLlegada,
                 direccionLlegada,
                 idUbigeoLlegada,
                 fecha,
                 hora,
                 estado,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idGuiaRemision,
                 idSucursal,
                 idVenta,
+                idTraslado,
                 idComprobante,
                 comprobante[0].serie,
                 numeracion,
@@ -266,12 +238,16 @@ class GuiaRemision {
                 peso,
                 idVehiculo,
                 idConductor,
+
+                codigoAnexoPartida,
                 direccionPartida,
                 idUbigeoPartida,
+
+                codigoAnexoLlegada,
                 direccionLlegada,
                 idUbigeoLlegada,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 estado,
                 idUsuario
             ]);
@@ -279,7 +255,7 @@ class GuiaRemision {
             const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
             let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
 
-            for (const producto of detalle) {
+            for (const producto of detalles) {
                 await conec.execute(connection, `
                 INSERT INTO guiaRemisionDetalle(
                     idGuiaRemisionDetalle,
@@ -315,13 +291,13 @@ class GuiaRemision {
             connection = await conec.beginTransaction();
 
             const guiaRemision = await conec.execute(connection, `
-                SELECT 
-                    idGuiaRemision,
-                    estado
-                FROM 
-                    guiaRemision 
-                WHERE 
-                    idGuiaRemision = ?`, [
+            SELECT 
+                idGuiaRemision,
+                estado
+            FROM 
+                guiaRemision 
+            WHERE 
+                idGuiaRemision = ?`, [
                 req.body.idGuiaRemision
             ]);
 
@@ -347,8 +323,12 @@ class GuiaRemision {
                     peso = ?,
                     idVehiculo = ?,
                     idConductor = ?,
+
+                    codigoAnexoPartida = ?,
                     direccionPartida = ?,
                     idUbigeoPartida = ?,
+
+                    codigoAnexoLlegada = ?,
                     direccionLlegada = ?,
                     idUbigeoLlegada = ?,
                     numeroTicketSunat = '',
@@ -363,8 +343,12 @@ class GuiaRemision {
                 req.body.peso,
                 req.body.idVehiculo,
                 req.body.idConductor,
+
+                req.body.codigoAnexoPartida,
                 req.body.direccionPartida,
                 req.body.idUbigeoPartida,
+
+                req.body.codigoAnexoLlegada,
                 req.body.direccionLlegada,
                 req.body.idUbigeoLlegada,
                 // currentDate(),
@@ -384,7 +368,7 @@ class GuiaRemision {
             const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
             let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
 
-            for (const producto of req.body.detalle) {
+            for (const producto of req.body.detalles) {
                 await conec.execute(connection, `
                 INSERT INTO guiaRemisionDetalle(
                     idGuiaRemisionDetalle,
@@ -473,6 +457,7 @@ class GuiaRemision {
                 razonSocial,
                 nombreEmpresa,
                 rutaLogo,
+                paginaWeb,
                 tipoEnvio
             FROM 
                 empresa`);
@@ -567,7 +552,6 @@ class GuiaRemision {
                 s.telefono,
                 s.celular,
                 s.email,
-                s.paginaWeb,
                 s.direccion,
 
                 ub.departamento,
@@ -613,7 +597,7 @@ class GuiaRemision {
                     "telefono": sucursal[0].telefono,
                     "celular": sucursal[0].celular,
                     "email": sucursal[0].email,
-                    "paginaWeb": sucursal[0].paginaWeb,
+                    "paginaWeb": empresa[0].paginaWeb,
                     "direccion": sucursal[0].direccion,
                     "ubigeo": {
                         "departamento": sucursal[0].departamento,

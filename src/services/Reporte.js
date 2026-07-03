@@ -60,6 +60,7 @@ class Reporte {
                 razonSocial,
                 nombreEmpresa,
                 rutaLogo,
+                paginaWeb,
                 tipoEnvio
             FROM 
                 empresa
@@ -67,21 +68,20 @@ class Reporte {
                 1`);
 
             const sucursal = await conec.query(`
-                SELECT 
-                    s.telefono,
-                    s.celular,
-                    s.email,
-                    s.paginaWeb,
-                    s.direccion,
-                    u.departamento,
-                    u.provincia,
-                    u.distrito
-                FROM 
-                    sucursal AS s
-                INNER JOIN
-                    ubigeo AS u ON u.idUbigeo = s.idUbigeo
-                WHERE
-                    s.idSucursal = ?`, [
+            SELECT 
+                s.telefono,
+                s.celular,
+                s.email,
+                s.direccion,
+                u.departamento,
+                u.provincia,
+                u.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS u ON u.idUbigeo = s.idUbigeo
+            WHERE
+                s.idSucursal = ?`, [
                 req.body.idSucursal
             ]);
 

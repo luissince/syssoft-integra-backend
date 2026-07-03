@@ -4,10 +4,12 @@ const firebaseService = require('../common/fire-base');
 const { ClientError } = require('../tools/Error');
 const { default: axios } = require('axios');
 const { cssUrl, logoUrl } = require('../common/constants/paths.constants');
+const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 
 class Traslado {
 
     async list(req) {
+
         const lista = await conec.procedure(`CALL Listar_Traslado(?,?,?,?,?,?,?,?)`, [
             parseInt(req.query.opcion),
             req.query.buscar,
@@ -19,12 +21,23 @@ class Traslado {
             parseInt(req.query.filasPorPagina)
         ])
 
-        const resultLista = lista.map(function (item, index) {
+        const resultLista = await Promise.all(lista.map(async function (item, index) {
+            const guiaRemision = await conec.query(`
+            SELECT 
+                COUNT(*) AS total
+            FROM 
+                guiaRemision as gui 
+            WHERE 
+                gui.idTraslado = ?`, [
+                item.idTraslado
+            ]);
+
             return {
                 ...item,
+                guiaRemision: guiaRemision.length > 0 ? guiaRemision[0].total : 0,
                 id: (index + 1) + parseInt(req.query.posicionPagina)
             }
-        });
+        }));
 
         const total = await conec.procedure(`CALL Listar_Traslado_Count(?,?,?,?,?,?)`, [
             parseInt(req.query.opcion),
@@ -47,6 +60,7 @@ class Traslado {
             a.observacion,
             tt.nombre AS tipo,
             mt.nombre AS motivo,
+            so.nombre AS sucursalOrigen,
             alo.nombre AS almacenOrigen,
             ald.nombre AS almacenDestino,
             COALESCE(sd.nombre, '') AS sucursalDestino,
@@ -60,6 +74,8 @@ class Traslado {
             motivoTraslado AS mt ON mt.idMotivoTraslado = a.idMotivoTraslado
         INNER JOIN 
             usuario AS u ON u.idUsuario = a.idUsuario
+        INNER JOIN
+            sucursal AS so ON so.idSucursal = a.idSucursalOrigen
         INNER JOIN 
             almacen AS alo ON alo.idAlmacen = a.idAlmacenOrigen
         INNER JOIN 
@@ -114,10 +130,10 @@ class Traslado {
             const {
                 idTipoTraslado,
                 idMotivoTraslado,
+                idSucursalOrigen,
                 idAlmacenOrigen,
-                idAlmacenDestino,
                 idSucursalDestino,
-                idSucursal,
+                idAlmacenDestino,
                 observacion,
                 idUsuario,
                 detalles
@@ -137,10 +153,10 @@ class Traslado {
                 idTraslado,
                 idTipoTraslado,
                 idMotivoTraslado,
+                idSucursalOrigen,
                 idAlmacenOrigen,
-                idAlmacenDestino,
                 idSucursalDestino,
-                idSucursal,
+                idAlmacenDestino,
                 observacion,
                 fecha,
                 hora,
@@ -149,10 +165,10 @@ class Traslado {
                 idTraslado,
                 idTipoTraslado,
                 idMotivoTraslado,
+                idSucursalOrigen,
                 idAlmacenOrigen,
-                idAlmacenDestino,
                 idSucursalDestino,
-                idSucursal,
+                idAlmacenDestino,
                 observacion,
                 date,
                 time,
@@ -272,8 +288,8 @@ class Traslado {
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     detalle.idProducto,
-                    'TK0002',
-                    'MK0002',
+                    TIPO_KARDEX.SALIDA,
+                    MOTIVO_KARDEX.AJUSTE,
                     idTraslado,
                     'SALIDA POR TRASLADO',
                     cantidad,
@@ -304,8 +320,8 @@ class Traslado {
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     detalle.idProducto,
-                    'TK0001',
-                    'MK0002',
+                    TIPO_KARDEX.INGRESO,
+                    MOTIVO_KARDEX.AJUSTE,
                     idTraslado,
                     'INGRESO POR TRASLADO',
                     cantidad,
@@ -336,6 +352,10 @@ class Traslado {
         try {
             // Inicia una transacción de la base de datos
             connection = await conec.beginTransaction();
+
+            // Fecha y hora
+            const date = currentDate();
+            const time = currentTime();
 
             // Obtiene información del traslado con el ID proporcionado
             const traslado = await conec.execute(connection, `
@@ -416,7 +436,7 @@ class Traslado {
                 ]);
 
                 for (const kardex of kardexes) {
-                    if (kardex.idTipoKardex === "TK0001") {
+                    if (kardex.idTipoKardex === TIPO_KARDEX.INGRESO) {
 
                         // Actualiza el inventario en el almacén de destino (reversa de operaciones)
                         await conec.execute(connection, `
@@ -443,22 +463,22 @@ class Traslado {
                             costo,
                             idAlmacen,
                             idInventario,
-                            hora,
                             fecha,
+                            hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             item.idProducto,
-                            'TK0002',
-                            'MK0002',
+                            TIPO_KARDEX.SALIDA,
+                            MOTIVO_KARDEX.AJUSTE,
                             req.query.idTraslado,
                             'ANULAR INGRESO POR TRASLADO',
                             kardex.cantidad,
                             kardex.costo,
                             kardex.idAlmacen,
                             kardex.idInventario,
-                            currentTime(),
-                            currentDate(),
+                            date,
+                            time,
                             req.query.idUsuario
                         ]);
                     } else {
@@ -487,22 +507,22 @@ class Traslado {
                             costo,
                             idAlmacen,
                             idInventario,
-                            hora,
                             fecha,
+                            hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             item.idProducto,
-                            'TK0001',
-                            'MK0002',
+                            TIPO_KARDEX.INGRESO,
+                            MOTIVO_KARDEX.AJUSTE,
                             req.query.idTraslado,
                             'ANULAR SALIDA POR TRASLADO',
                             kardex.cantidad,
                             kardex.costo,
                             kardex.idAlmacen,
                             kardex.idInventario,
-                            currentTime(),
-                            currentDate(),
+                            date,
+                            time,
                             req.query.idUsuario
                         ]);
                     }
@@ -530,6 +550,7 @@ class Traslado {
             documento,
             razonSocial,
             nombreEmpresa,
+            paginaWeb,
             rutaLogo
         FROM 
             empresa`);
@@ -544,7 +565,6 @@ class Traslado {
             s.telefono,
             s.celular,
             s.email,
-            s.paginaWeb,
             s.direccion,
 
             ub.departamento,
@@ -583,7 +603,7 @@ class Traslado {
         INNER JOIN 
             motivoTraslado AS mt ON mt.idMotivoTraslado = a.idMotivoTraslado
         INNER JOIN
-            sucursal AS so ON so.idSucursal = a.idSucursal
+            sucursal AS so ON so.idSucursal = a.idSucursalOrigen
         INNER JOIN 
             almacen AS alo ON alo.idAlmacen = a.idAlmacenOrigen
         INNER JOIN 
@@ -674,6 +694,85 @@ class Traslado {
 
         const response = await axios.request(options);
         return response;
+    }
+
+    async shippingGuide(req) {
+        const { idTraslado } = req.params;
+
+        const result = await conec.query(`
+        SELECT
+            tr.idTraslado,
+
+            suo.codigoAnexo AS codigoAnexoPartida,
+            suo.direccion AS direccionPartida,
+            ubpo.idUbigeo AS idUbigeoPartida,
+            ubpo.departamento AS departamentoPartida,
+            ubpo.provincia AS provinciaPartida,
+            ubpo.distrito AS distritoPartida,
+            ubpo.ubigeo AS ubigeoPartida,
+
+            sud.codigoAnexo AS codigoAnexoLlegada,
+            sud.direccion AS direccionLlegada,
+            ubde.idUbigeo AS idUbigeoLlegada,
+            ubde.departamento AS departamentoLlegada,
+            ubde.provincia AS provinciaLlegada,
+            ubde.distrito AS distritoLlegada,
+            ubde.ubigeo AS ubigeoLlegada
+        FROM 
+            traslado tr
+        LEFT JOIN sucursal suo
+            ON suo.idSucursal = tr.idSucursalOrigen
+        LEFT JOIN ubigeo ubpo
+            ON ubpo.idUbigeo = suo.idUbigeo
+        LEFT JOIN sucursal sud
+            ON sud.idSucursal = tr.idSucursalDestino
+        LEFT JOIN ubigeo ubde
+            ON ubde.idUbigeo = sud.idUbigeo
+        WHERE tr.idTraslado = ?`, [
+            idTraslado
+        ]);
+
+        if (result.length === 0) {
+            throw new Error("No se encontro registros de la traslado.");
+        }
+
+        return result[0];
+    }
+
+    async shippingGuideDetails(req) {
+        const { idTraslado } = req.params;
+
+        const details = await conec.query(`
+        SELECT 
+            p.codigo,
+            aj.idProducto,
+            p.nombre as producto,
+            m.nombre as medida,
+            p.imagen,
+            aj.cantidad            
+        FROM 
+            trasladoDetalle as aj
+        INNER JOIN 
+            producto as p on p.idProducto = aj.idProducto
+        INNER JOIN 
+            medida as m on m.idMedida = p.idMedida
+        WHERE 
+            aj.idTraslado = ?
+        ORDER BY 
+            aj.idTrasladoDetalle ASC`, [
+            idTraslado
+        ]);
+
+        const bucket = firebaseService.getBucket();
+        const newDetails = details.map(item => {
+            return {
+                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                ...item,
+            }
+        });
+
+
+        return newDetails;
     }
 
 }

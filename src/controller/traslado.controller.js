@@ -13,5 +13,8 @@ module.exports = {
     pdf: asyncHandler(async (req, res) =>{
         const data = await traslado.pdf(req);
         return sendFile(res, data);
-    })
+    }),
+    shippingGuide: makeController(traslado.shippingGuide, (req) => req),
+
+    shippingGuideDetails: makeController(traslado.shippingGuideDetails, (req) => req),
 };
