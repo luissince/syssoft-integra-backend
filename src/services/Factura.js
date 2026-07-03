@@ -3,6 +3,7 @@ const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require('../t
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 
 class Factura {
 
@@ -23,13 +24,13 @@ class Factura {
 
             const resultLista = await Promise.all(lista.map(async function (item, index) {
                 const guiaRemision = await conec.query(`
-                    SELECT 
-                        COUNT(*) AS total
-                    FROM 
-                        guiaRemision as gui 
-                    WHERE 
-                        gui.idVenta = ?`, [
-                    item.idVenta
+                SELECT 
+                    COUNT(*) AS total
+                FROM 
+                    guiaRemision as gui 
+                WHERE 
+                    gui.idVenta = ?`, [
+                item.idVenta
                 ]);
 
                 return {
@@ -572,8 +573,8 @@ class Factura {
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             item.idProducto,
-                            'TK0002',
-                            'MK0003',
+                            TIPO_KARDEX.SALIDA,
+                            MOTIVO_KARDEX.SALIDA,
                             idVenta,
                             'SALIDA DEL PRODUCTO POR VENTA',
                             cantidad,
@@ -902,7 +903,7 @@ class Factura {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {               
+            const listaDetalles = detalles.map(item => {
                 return {
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
@@ -1107,8 +1108,8 @@ class Factura {
                     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         `KD${String(idKardex += 1).padStart(4, '0')}`,
                         item.idProducto,
-                        'TK0001',
-                        'MK0004',
+                        TIPO_KARDEX.INGRESO,
+                        MOTIVO_KARDEX.DEVOLUCION,
                         req.query.idVenta,
                         'ANULACIÓN DE LA VENTA',
                         item.cantidad,
@@ -1148,53 +1149,138 @@ class Factura {
         }
     }
 
-    async filtrar(req, res) {
+    async filter(req, res) {
         try {
-            const result = await conec.procedure(`CALL Filtrar_Ventas(?,?,?)`, [
-                req.query.tipo,
-                req.query.idSucursal,
-                req.query.filtrar,
-            ])
+            const { filter, idSucursal } = req.params;
+
+            const result = await conec.query(`
+            SELECT 
+                v.idVenta,
+
+                co.nombre AS nombreComprobante,
+                v.serie,
+                v.numeracion,
+
+                p.documento,
+                p.informacion,
+                p.direccion,
+
+                IFNULL(u.idUbigeo,0) AS idUbigeo,
+                IFNULL(u.departamento,'') AS departamento,
+                IFNULL(u.provincia,'') AS provincia,
+                IFNULL(u.distrito,'') AS distrito,
+                IFNULL(u.ubigeo,'') AS ubigeo
+            FROM venta AS v
+            INNER JOIN comprobante AS co
+                ON co.idComprobante = v.idComprobante
+            INNER JOIN persona AS p
+                ON p.idPersona = v.idCliente
+            LEFT JOIN ubigeo AS u
+                ON u.idUbigeo = p.idUbigeo
+            WHERE
+                v.idSucursal = ?
+                AND
+                (
+                    v.serie LIKE CONCAT('%', ?, '%')
+                OR 
+                    v.numeracion LIKE CONCAT('%', ?, '%')
+                OR 
+                    CONCAT(v.serie, '-', v.numeracion) LIKE CONCAT('%', ?, '%')
+                OR 
+                    co.nombre LIKE CONCAT('%', ?, '%')
+                )`, [
+                idSucursal,
+                filter,
+                filter,
+                filter,
+                filter,
+            ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/filtrar", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/shippingGuide", error);
         }
     }
 
-    async detailOnly(req, res) {
+    async shippingGuide(req, res) {
         try {
+            const { idVenta } = req.params;
+
+            const result = await conec.query(`
+            SELECT 
+                v.idVenta,
+                
+                co.nombre AS nombreComprobante,
+                v.serie,
+                v.numeracion,
+
+                p.documento,
+                p.informacion,
+                p.direccion,
+
+                IFNULL(u.idUbigeo,0) AS idUbigeo,
+                IFNULL(u.departamento,'') AS departamento,
+                IFNULL(u.provincia,'') AS provincia,
+                IFNULL(u.distrito,'') AS distrito,
+                IFNULL(u.ubigeo,'') AS ubigeo
+            FROM
+                venta AS v
+            INNER JOIN 
+                comprobante AS co ON co.idComprobante = v.idComprobante
+            INNER JOIN 
+                persona AS p ON p.idPersona = v.idCliente
+            LEFT JOIN
+                ubigeo AS u ON u.idUbigeo = p.idUbigeo
+            WHERE                 
+                v.idVenta = ?`, [
+                idVenta,
+            ]);
+
+            if (result.length === 0) {
+                throw new Error("No se encontro registros de la venta.");
+            }
+
+            return sendSuccess(res, result[0]);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/shippingGuide", error);
+        }
+    }
+
+    async shippingGuideDetails(req, res) {
+        try {
+            const { idVenta } = req.params;
+
             // Obtener detalles de productos vendidos en la venta
-            const detalle = await conec.query(`
+            const details = await conec.query(`
             SELECT 
                 p.codigo,
+                vd.idProducto,
                 p.nombre AS producto,
                 md.nombre AS medida, 
-                m.nombre AS categoria, 
-                vd.idProducto,
-                vd.precio,
-                vd.cantidad,
-                vd.idImpuesto,
-                imp.nombre AS impuesto,
-                imp.porcentaje
+                p.imagen,
+                vd.cantidad
             FROM 
                 ventaDetalle AS vd 
             INNER JOIN 
                 producto AS p ON vd.idProducto = p.idProducto 
             INNER JOIN 
                 medida AS md ON md.idMedida = p.idMedida 
-            INNER JOIN 
-                categoria AS m ON p.idCategoria = m.idCategoria 
-            INNER JOIN 
-                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
             WHERE 
                 vd.idVenta = ?
             ORDER BY 
                 vd.idVentaDetalle ASC`, [
-                req.query.idVenta
+                idVenta
             ]);
 
+            const bucket = firebaseService.getBucket();
+            const newDetails = details.map(item => {
+                return {
+                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    ...item,
+                }
+            });
+
             // Enviar respuesta exitosa con la información recopilada
-            return sendSuccess(res, detalle);
+            return sendSuccess(res, newDetails);
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailOnly", error);
@@ -1419,7 +1505,7 @@ class Factura {
                 req.query.idVenta
             ]);
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {               
+            const listaDetalles = detalles.map(item => {
                 return {
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
@@ -1844,6 +1930,7 @@ class Factura {
                 razonSocial,
                 nombreEmpresa,
                 rutaLogo,
+                paginaWeb,
                 tipoEnvio
             FROM 
                 empresa`);
@@ -1895,7 +1982,6 @@ class Factura {
                 s.telefono,
                 s.celular,
                 s.email,
-                s.paginaWeb,
                 s.direccion,
 
                 ub.departamento,
@@ -1960,7 +2046,7 @@ class Factura {
                     "telefono": sucursal[0].telefono,
                     "celular": sucursal[0].celular,
                     "email": sucursal[0].email,
-                    "paginaWeb": sucursal[0].paginaWeb,
+                    "paginaWeb": empresa[0].paginaWeb,
                     "direccion": sucursal[0].direccion,
                     "ubigeo": {
                         "departamento": sucursal[0].departamento,

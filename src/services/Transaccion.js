@@ -90,33 +90,33 @@ class Transaccion {
             const bucket = firebaseService.getBucket();
 
             const empresa = await conec.query(`
-                SELECT
-                    documento,
-                    razonSocial,
-                    nombreEmpresa,
-                    rutaLogo,
-                    tipoEnvio
-                FROM 
-                    empresa`);
+            SELECT
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                rutaLogo,
+                paginaWeb,
+                tipoEnvio
+            FROM 
+                empresa`);
 
             const sucursal = await conec.query(`
-                SELECT 
-                    s.nombre,
-                    s.telefono,
-                    s.celular,
-                    s.email,
-                    s.paginaWeb,
-                    s.direccion,
-    
-                    ub.departamento,
-                    ub.provincia,
-                    ub.distrito
-                FROM 
-                    sucursal AS s
-                INNER JOIN
-                    ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
-                WHERE 
-                    ? = '' AND s.principal = 1 OR s.idSucursal = ?`, [
+            SELECT 
+                s.nombre,
+                s.telefono,
+                s.celular,
+                s.email,
+                s.direccion,
+
+                ub.departamento,
+                ub.provincia,
+                ub.distrito
+            FROM 
+                sucursal AS s
+            INNER JOIN
+                ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+            WHERE 
+                ? = '' AND s.principal = 1 OR s.idSucursal = ?`, [
                 req.query.idSucursal,
                 req.query.idSucursal,
             ]);
@@ -165,7 +165,7 @@ class Transaccion {
                         telefono: sucursal[0].telefono,
                         celular: sucursal[0].celular,
                         email: sucursal[0].email,
-                        paginaWeb: sucursal[0].paginaWeb,
+                        paginaWeb: empresa[0].paginaWeb,
                         direccion: sucursal[0].direccion,
                         ubigeo: {
                             departamento: sucursal[0].departamento,

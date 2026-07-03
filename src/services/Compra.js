@@ -3,6 +3,7 @@ const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../t
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 
 class Compra {
 
@@ -339,8 +340,8 @@ class Compra {
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                     `KD${String(idKardex += 1).padStart(4, '0')}`,
                     item.idProducto,
-                    'TK0001',
-                    'MK0002',
+                    TIPO_KARDEX.INGRESO,
+                    MOTIVO_KARDEX.AJUSTE,
                     idCompra,
                     'INGRESO POR COMPRA',
                     cantidad,
@@ -815,8 +816,8 @@ class Compra {
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
                         kardex.idProducto,
-                        'TK0002',
-                        'MK0004',
+                        TIPO_KARDEX.SALIDA,
+                        MOTIVO_KARDEX.DEVOLUCION,
                         req.query.idCompra,
                         'ANULACIÓN DE LA COMPRA',
                         kardex.cantidad,
@@ -1381,6 +1382,7 @@ class Compra {
                 razonSocial,
                 nombreEmpresa,
                 rutaLogo,
+                paginaWeb,
                 tipoEnvio
             FROM 
                 empresa`);
@@ -1427,7 +1429,6 @@ class Compra {
                 s.telefono,
                 s.celular,
                 s.email,
-                s.paginaWeb,
                 s.direccion,
 
                 ub.departamento,
@@ -1492,7 +1493,7 @@ class Compra {
                     "telefono": sucursal[0].telefono,
                     "celular": sucursal[0].celular,
                     "email": sucursal[0].email,
-                    "paginaWeb": sucursal[0].paginaWeb,
+                    "paginaWeb": empresa[0].paginaWeb,
                     "direccion": sucursal[0].direccion,
                     "ubigeo": {
                         "departamento": sucursal[0].departamento,

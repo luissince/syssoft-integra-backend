@@ -1,6 +1,7 @@
 const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 
 class Ajuste {
 
@@ -161,8 +162,7 @@ class Ajuste {
 
             const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
-            const tipoKardex = idTipoAjuste === "TA0001" ? "TK0001" : "TK0002";
-            const motivoKardex = "MK0002";
+            const tipoKardex = idTipoAjuste === "TA0001" ? TIPO_KARDEX.INGRESO : TIPO_KARDEX.SALIDA;
             const detalleKardex = idTipoAjuste === "TA0001" ? "INGRESO POR AJUSTE" : "SALIDA POR AJUSTE";
             const operacion = idTipoAjuste === "TA0001" ? 1 : -1;
 
@@ -221,7 +221,7 @@ class Ajuste {
                     generarIdKardex(),
                     item.idProducto,
                     tipoKardex,
-                    motivoKardex,
+                    MOTIVO_KARDEX.AJUSTE,
                     idAjuste,
                     detalleKardex,
                     cantidad,
@@ -296,7 +296,7 @@ class Ajuste {
             const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Determinar operación inversa
-            const tipoKardex = ajuste.idTipoAjuste === "TA0001" ? "TK0002" : "TK0001";
+            const tipoKardex = ajuste.idTipoAjuste === "TA0001" ? TIPO_KARDEX.SALIDA : TIPO_KARDEX.INGRESO;
             const detalleKardex = ajuste.idTipoAjuste === "TA0001" ? "ANULAR AJUSTE DE INGRESO" : "ANULAR AJUSTE DE SALIDA";
             const operacion = ajuste.idTipoAjuste === "TA0001" ? -1 : 1;
 
@@ -310,7 +310,7 @@ class Ajuste {
                         ?,?,?,?,?,?,
                         ?,?,?,?,?,?,?
                     )`, [
-                    generarIdKardex(), k.idProducto, tipoKardex, 'MK0002', req.query.idAjuste, detalleKardex,
+                    generarIdKardex(), k.idProducto, tipoKardex, MOTIVO_KARDEX.AJUSTE, req.query.idAjuste, detalleKardex,
                     cantidad, k.costo, k.idAlmacen, k.idInventario, date, time, req.query.idUsuario
                 ]);
             };

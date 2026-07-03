@@ -8,15 +8,11 @@ const factura = new Factura();
 
 router.get("/list", async (req, res) => await factura.list(req, res));
 
-router.get("/filtrar", async (req, res) => await factura.filtrar(req, res));
-
 router.post("/create", async (req, res) => await factura.create(req, res));
 
 router.delete("/cancel", async (req, res) => await factura.cancel(req, res));
 
 router.get("/detail", async (req, res) => await factura.detail(req, res));
-
-router.get("/detail/only", async (req, res) => await factura.detailOnly(req, res));
 
 router.get("/detail/venta", async (req, res) => await factura.detailVenta(req, res));
 
@@ -29,6 +25,12 @@ router.post("/create/accounts/receivable", async (req, res) => await factura.cre
 router.delete("/cancel/accounts/receivable", async (req, res) => await factura.cancelAccountsReceivable(req, res));
 
 router.get("/dashboard", async (req, res) => await factura.dashboard(req, res));
+
+router.get("/filter/:filter/:idSucursal", async (req, res) => await factura.filter(req, res));
+
+router.get("/shippingGuide/:idVenta", async (req, res) => await factura.shippingGuide(req, res));
+
+router.get("/shippingGuide/:idVenta/details", async (req, res) => await factura.shippingGuideDetails(req, res));
 
 router.get("/documents/pdf/invoices/:idVenta/:size/:outputType", async (req, res) => {
     try {

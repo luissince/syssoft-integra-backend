@@ -79,13 +79,7 @@ class Sucursal {
             const [empresa] = await conec.execute(connection, `
             SELECT
                 idEmpresa,
-                documento,
-                razonSocial,
-                nombreEmpresa,
-                rutaLogo,
-                rutaImage,
-                usuarioSolSunat,
-                claveSolSunat
+                documento
             FROM 
                 empresa 
             LIMIT 
@@ -94,7 +88,6 @@ class Sucursal {
             if (!empresa) {
                 throw new Error("No se encontró la empresa.");
             }
-
 
             let imagen = null;
 
@@ -114,11 +107,12 @@ class Sucursal {
             await conec.execute(connection, `
             INSERT INTO sucursal(
                 idSucursal,
+                idEmpresa,
                 nombre, 
                 telefono,
                 celular,
                 email,
-                paginaWeb,
+                codigoAnexo,
                 direccion,
                 idUbigeo,
                 googleMaps,
@@ -131,14 +125,15 @@ class Sucursal {
                 fupdate,
                 hupdate,
                 idUsuario
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idSucursal,
+                empresa.idEmpresa,
                 req.body.nombre,
                 req.body.telefono,
                 req.body.celular,
                 req.body.email,
-                req.body.paginaWeb,
                 req.body.direccion,
+                req.body.codigoAnexo,
                 req.body.idUbigeo,
                 req.body.googleMaps,
                 req.body.horarioAtencion,
@@ -171,7 +166,7 @@ class Sucursal {
                 IFNULL(p.telefono, '') AS telefono,
                 IFNULL(p.celular, '') AS celular,
                 IFNULL(p.email, '') AS email,
-                IFNULL(p.paginaWeb, '') AS paginaWeb,
+                IFNULL(codigoAnexo, '') AS codigoAnexo,
                 IFNULL(p.direccion, '') AS direccion,
                 IFNULL(p.googleMaps, '') AS googleMaps,
                 IFNULL(p.horarioAtencion, '') AS horarioAtencion,
@@ -243,7 +238,7 @@ class Sucursal {
                 const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
 
                 if (file) {
-                    imagen = fileName;
+                    imagen = filePath;
                 }
             } else {
                 imagen = req.body.imagen.nombre;
@@ -261,7 +256,7 @@ class Sucursal {
                 telefono = ?,
                 celular = ?,
                 email = ?,
-                paginaWeb = ?,
+                codigoAnexo = ?,
                 direccion = ?,
                 idUbigeo = ?,
                 googleMaps = ?,
@@ -278,7 +273,7 @@ class Sucursal {
                 req.body.telefono,
                 req.body.celular,
                 req.body.email,
-                req.body.paginaWeb,
+                req.body.codigoAnexo,
                 req.body.direccion,
                 req.body.idUbigeo,
                 req.body.googleMaps,
@@ -374,7 +369,6 @@ class Sucursal {
                 p.idSucursal,
                 p.nombre,
                 p.email,
-                p.paginaWeb,
                 p.direccion,
                 p.ruta,
                 p.estado
@@ -466,7 +460,6 @@ class Sucursal {
                 p.telefono,
                 p.celular,
                 p.email,
-                p.paginaWeb,
                 p.direccion,
                 p.googleMaps,
                 p.horarioAtencion,

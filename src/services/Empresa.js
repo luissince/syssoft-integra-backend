@@ -448,6 +448,7 @@ class Empresa {
                 documento,
                 razonSocial,
                 nombreEmpresa,
+                paginaWeb,
                 rutaLogo,
                 rutaImage
             FROM 

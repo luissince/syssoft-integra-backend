@@ -9,6 +9,7 @@ const {
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
 const firebaseService = require('../common/fire-base');
 const { default: axios } = require("axios");
+const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 
 class Producto {
 
@@ -298,8 +299,8 @@ class Producto {
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             `KD${String(idKardex += 1).padStart(4, '0')}`,
                             idProducto,
-                            'TK0001',
-                            'MK0001',
+                            TIPO_KARDEX.INGRESO,
+                            MOTIVO_KARDEX.ENTRADA,
                             idInventarioInicial,
                             'INGRESO AL CREAR EL PRODUCTO',
                             inventario.cantidad,
