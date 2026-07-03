@@ -477,9 +477,11 @@ class Sunat {
                 DATE_FORMAT(gui.fecha, '%Y-%m-%d') AS fecha,
                 gui.hora,
                 -- 
+                gui.codigoAnexoPartida,
                 ubp.ubigeo AS ubigeoPartida,
                 gui.direccionPartida,
                 -- 
+                gui.codigoAnexoLlegada,
                 ubl.ubigeo AS ubigeoLlegada,
                 gui.direccionLlegada,
                 -- 
@@ -506,10 +508,11 @@ class Sunat {
                 cpv.nombre AS nombreComprobanteRef,
                 vt.serie AS serieRef,
                 vt.numeracion AS numeracionRef,
-                -- 
-                tdc.codigo AS codDestino,
-                cl.documento AS documentoDestino,
-                cl.informacion AS informacionDestino,
+
+                -- DESTINATARIO
+                COALESCE(tdc.codigo, tpt.codigo) AS codDestino,
+                COALESCE(cl.documento, emp.documento) AS documentoDestino,
+                COALESCE(cl.informacion, emp.razonSocial) AS informacionDestino,
                 -- 
                 IFNULL(gui.numeroTicketSunat, '') AS numeroTicketSunat
             FROM 
@@ -532,14 +535,27 @@ class Sunat {
                 tipoDocumento AS tdp ON tdp.idTipoDocumento = cod.idTipoDocumento
             INNER JOIN 
                 vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
-            INNER JOIN 
+
+            LEFT JOIN 
                 venta AS vt ON vt.idVenta = gui.idVenta
-            INNER JOIN 
+            LEFT JOIN 
                 comprobante AS cpv ON cpv.idComprobante = vt.idComprobante
-            INNER JOIN 
+            LEFT JOIN 
                 persona AS cl ON cl.idPersona = vt.idCliente
-            INNER JOIN 
+            LEFT JOIN 
                 tipoDocumento AS tdc ON  tdc.idTipoDocumento = cl.idTipoDocumento
+
+            LEFT JOIN
+                traslado AS tr ON tr.idTraslado = gui.idTraslado        
+            LEFT JOIN
+                sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
+            LEFT JOIN
+                ubigeo AS ubld ON ubld.idUbigeo = sud.idUbigeo
+            LEFT JOIN
+                empresa AS emp ON emp.idEmpresa = sud.idEmpresa
+            LEFT JOIN
+                tipoDocumento AS tpt ON tpt.idTipoDocumento = emp.idTipoDocumento
+            
             WHERE 
                 gui.idGuiaRemision = ?`, [
                 req.params.idGuiaRemision
@@ -594,7 +610,6 @@ class Sunat {
 
             const publicKey = Buffer.from(flattenedPublicKey, 'base64').toString('utf-8');
 
-
             const options = {
                 method: 'POST',
                 url: `${process.env.APP_CPE_SUNAT}/api/v1/guia/remision`,
@@ -603,7 +618,7 @@ class Sunat {
                 },
                 data: {
                     "guiaRemision": guiaRemision[0],
-                    "empresa": empresa[0],
+                    "empresa": (({ privatePem, certificadoPem, ...rest }) => rest)(empresa[0]),
                     "certificado": {
                         "privateKey": privateKey,
                         "publicKey": publicKey

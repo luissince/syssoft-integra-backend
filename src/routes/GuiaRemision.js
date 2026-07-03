@@ -8,13 +8,11 @@ const guiaRemision = new GuiaRemision();
 
 router.get('/list', async (req, res) => await guiaRemision.list(req, res));
 
-router.get('/id', async (req, res) => await guiaRemision.id(req, res));
+router.post('/create', async (req, res) => await guiaRemision.create(req, res));
 
 router.get('/detail', async (req, res) => await guiaRemision.detail(req, res));
 
-router.get('/detail/update', async (req, res) => await guiaRemision.detailUpdate(req, res));
-
-router.post('/create', async (req, res) => await guiaRemision.create(req, res));
+router.get('/id/:idGuiaRemision', async (req, res) => await guiaRemision.id(req, res));
 
 router.put('/update', async (req, res) => await guiaRemision.update(req, res));
 

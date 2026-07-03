@@ -327,6 +327,7 @@ class Catalogo {
             documento,
             razonSocial,
             nombreEmpresa,
+            paginaWeb,
             rutaLogo
         FROM 
             empresa`);
@@ -337,7 +338,6 @@ class Catalogo {
             s.telefono,
             s.celular,
             s.email,
-            s.paginaWeb,
             s.direccion,
 
             ub.departamento,
@@ -428,7 +428,7 @@ class Catalogo {
                 telefono: sucursal[0].telefono,
                 celular: sucursal[0].celular,
                 email: sucursal[0].email,
-                paginaWeb: sucursal[0].paginaWeb,
+                paginaWeb: empresa[0].paginaWeb,
                 direccion: sucursal[0].direccion,
                 ubigeo: {
                     departamento: sucursal[0].departamento,

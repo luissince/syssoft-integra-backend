@@ -13,4 +13,8 @@ router.delete('/cancel', traslado.cancel);
 
 router.get('/pdf/:idTraslado/:size', traslado.pdf);
 
+router.get('/shipping-guide/:idTraslado', traslado.shippingGuide);
+
+router.get('/shipping-guide/:idTraslado/details', traslado.shippingGuideDetails);
+
 module.exports = router;
