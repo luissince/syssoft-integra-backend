@@ -451,6 +451,7 @@ class Catalogo {
             },
             data: {
                 idCatalogo: data.idCatalogo,
+                tenant: process.env.DB_NAME,
                 documento: empresa[0].documento,
                 webhook: `${process.env.APP_URL}/api/catalogo/documents/pdf/webhook`
             }
