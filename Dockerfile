@@ -32,4 +32,4 @@ USER node
 EXPOSE 80
 
 # Establecer el punto de entrada para iniciar la aplicación
-ENTRYPOINT ["npm", "start"]
+# ENTRYPOINT ["npm", "start"]
