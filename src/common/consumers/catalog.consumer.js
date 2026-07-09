@@ -11,7 +11,7 @@ module.exports = async () => {
                 case CATALOG_PDF_COMPLETED_PATTERN:
                     logger.info('Recepción de PDF completado');
 
-                    logger.data(data);
+                    console.log(data);
 
                     if(!data.tenant){
                         logger.error('❌ Tenant no encontrado');

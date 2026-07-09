@@ -98,48 +98,48 @@ class Catalogo {
 
     async id(data) {
         const catalogo = await conec.query(`
-            SELECT 
-                p.idCatalogo,
-                p.nombre,
-                p.fecha,
-                p.hora
-            FROM 
-                catalogo AS p
-            WHERE 
-                p.idCatalogo = ?`, [
+        SELECT 
+            p.idCatalogo,
+            p.nombre,
+            p.fecha,
+            p.hora
+        FROM 
+            catalogo AS p
+        WHERE 
+            p.idCatalogo = ?`, [
             data.idCatalogo
         ]);
 
         const detalles = await conec.query(`
-                SELECT
-                    idCatalogoDetalle AS id,
-                    p.idProducto,
-                    p.imagen,
-                    p.codigo,
-                    p.nombre,
-                    p.costo,
-                    pc.valor AS precio,
-                    c.nombre AS categoria,
-                    tp.nombre as tipoProducto,
-                    p.idTipoTratamientoProducto,
-                    p.idMedida,
-                    me.nombre AS unidad
-                FROM 
-                    catalogoDetalle AS cd
-                INNER JOIN 
-                    producto AS p ON p.idProducto = cd.idProducto
-                INNER JOIN 
-                    medida AS me ON me.idMedida = p.idMedida
-                INNER JOIN 
-                    categoria AS c ON c.idCategoria = p.idCategoria
-                INNER JOIN 
-                    tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
-                INNER JOIN 
-                    precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
-                WHERE 
-                    cd.idCatalogo = ?
-                ORDER BY 
-                    cd.idCatalogoDetalle ASC`, [
+        SELECT
+            idCatalogoDetalle AS id,
+            p.idProducto,
+            p.imagen,
+            p.codigo,
+            p.nombre,
+            p.costo,
+            pc.valor AS precio,
+            c.nombre AS categoria,
+            tp.nombre as tipoProducto,
+            p.idTipoTratamientoProducto,
+            p.idMedida,
+            me.nombre AS unidad
+        FROM 
+            catalogoDetalle AS cd
+        INNER JOIN 
+            producto AS p ON p.idProducto = cd.idProducto
+        INNER JOIN 
+            medida AS me ON me.idMedida = p.idMedida
+        INNER JOIN 
+            categoria AS c ON c.idCategoria = p.idCategoria
+        INNER JOIN 
+            tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
+        INNER JOIN 
+            precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
+        WHERE 
+            cd.idCatalogo = ?
+        ORDER BY 
+            cd.idCatalogoDetalle ASC`, [
             data.idCatalogo
         ]);
 
@@ -161,36 +161,37 @@ class Catalogo {
 
     async detail(data) {
         const catalogo = await conec.query(`
-            SELECT 
-                p.idCatalogo,
-                p.nombre,
-                DATE_FORMAT(p.fecha,'%d/%m/%Y') as fecha,
-                p.hora,   
-                CONCAT(u.nombres,' ',u.apellidos) AS usuario
-            FROM 
-                catalogo AS p
-            INNER JOIN 
-                usuario AS u ON u.idUsuario = p.idUsuario
-            WHERE 
-                p.idCatalogo = ?`, [
+        SELECT 
+            p.idCatalogo,
+            p.nombre,
+            p.pdfEstado,
+            DATE_FORMAT(p.fecha,'%d/%m/%Y') as fecha,
+            p.hora,   
+            CONCAT(u.nombres,' ',u.apellidos) AS usuario
+        FROM 
+            catalogo AS p
+        INNER JOIN 
+            usuario AS u ON u.idUsuario = p.idUsuario
+        WHERE 
+            p.idCatalogo = ?`, [
             data.idCatalogo
         ]);
 
         const detalles = await conec.query(`
-                SELECT
-                    idCatalogoDetalle AS id,
-                    p.idProducto,
-                    p.nombre,
-                    p.codigo,
-                    p.imagen
-                FROM 
-                    catalogoDetalle AS cd
-                INNER JOIN 
-                    producto AS p ON p.idProducto = cd.idProducto
-                WHERE 
-                    cd.idCatalogo = ?
-                ORDER BY 
-                    cd.idCatalogoDetalle ASC`, [
+        SELECT
+            idCatalogoDetalle AS id,
+            p.idProducto,
+            p.nombre,
+            p.codigo,
+            p.imagen
+        FROM 
+            catalogoDetalle AS cd
+        INNER JOIN 
+            producto AS p ON p.idProducto = cd.idProducto
+        WHERE 
+            cd.idCatalogo = ?
+        ORDER BY 
+            cd.idCatalogoDetalle ASC`, [
             data.idCatalogo
         ]);
 
