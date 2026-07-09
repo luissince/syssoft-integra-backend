@@ -11,14 +11,16 @@ module.exports = async () => {
                 case CATALOG_PDF_COMPLETED_PATTERN:
                     logger.info('Recepción de PDF completado');
 
-                    console.log(data);
+                    logger.data(data);
 
                     if(!data.tenant){
                         logger.error('❌ Tenant no encontrado');
                         return;
                     }
 
-                    const conec = new Conexion(data.tenant);
+                    const conec = new Conexion({
+                        database: data.tenant,
+                    });
 
                     let connection = null;
 
