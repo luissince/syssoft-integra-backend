@@ -8,15 +8,25 @@ class Conexion {
   /** @type {Conexion | null} */
   static instance = null;
 
-  constructor() {
+  /**
+   * Crea una nueva instancia de la conexión a la base de datos.
+   * @param {object} config - Configuración de la conexión.
+   * @param {string} [config.host=process.env.DB_HOST] - Host de la base de datos.
+   * @param {string} [config.user=process.env.DB_USER] - Usuario de la base de datos.
+   * @param {number} [config.port=process.env.DB_PORT] - Puerto de la base de datos.
+   * @param {string} [config.password=process.env.DB_PASSWORD] - Contraseña de la base de datos.
+   * @param {string} [config.database=process.env.DB_NAME] - Nombre de la base de datos.
+   * @param {number} [config.connectionLimit=20] - Límite de conexiones.
+   */
+  constructor(config = {}) {
     this.pool = mysql.createPool({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      port: process.env.DB_PORT,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      connectionLimit: 20,
-    });
+    host: config.host ?? process.env.DB_HOST,
+    user: config.user ?? process.env.DB_USER,
+    port: config.port ?? process.env.DB_PORT,
+    password: config.password ?? process.env.DB_PASSWORD,
+    database: config.database ?? process.env.DB_NAME,
+    connectionLimit: config.connectionLimit ?? 20,
+  });
   }
 
   /**
@@ -174,7 +184,7 @@ class Conexion {
 }
 
 module.exports = Conexion.getInstance();
-
+module.exports.Conexion = Conexion;
 
 // const mysql = require('mysql');
 // /**
