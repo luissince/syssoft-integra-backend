@@ -113,7 +113,7 @@ class GuiaRemision {
             INNER JOIN 
                 vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
             INNER JOIN 
-                persona AS cd ON cd.idPersona = gui.idConductor
+                persona AS x ON cd.idPersona = gui.idConductor
             INNER JOIN 
                 ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
             INNER JOIN 
