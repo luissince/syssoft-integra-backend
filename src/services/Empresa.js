@@ -61,6 +61,7 @@ class Empresa {
                 rutaLogo,
                 rutaImage,
                 rutaIcon,
+
                 usuarioSolSunat,
                 claveSolSunat,
                 certificadoSunat,
@@ -69,6 +70,9 @@ class Empresa {
                 IFNULL(DATE_FORMAT(certificadoExpiracion, '%d/%m/%Y'), '') AS certificadoExpiracion,
                 idApiSunat,
                 claveApiSunat,
+                notaSunat,
+                tipoEnvio,
+
                 numeroWhatsapp,
                 tituloWhatsapp,
                 mensajeWhatsapp,
@@ -363,6 +367,8 @@ class Empresa {
                 idApiSunat=?,
                 claveApiSunat=?,
 
+                notaSunat=?,
+
                 numeroWhatsapp=?,
                 tituloWhatsapp=?,
                 mensajeWhatsapp=?,
@@ -405,6 +411,8 @@ class Empresa {
 
                 req.body.idApiSunat,
                 req.body.claveApiSunat,
+
+                req.body.notaSunat,
 
                 req.body.numeroWhatsapp,
                 req.body.tituloWhatsapp,
