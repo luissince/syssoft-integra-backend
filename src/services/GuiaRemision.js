@@ -552,7 +552,7 @@ class GuiaRemision {
             LEFT JOIN 
                 comprobante AS cv on cv.idComprobante = v.idComprobante
             LEFT JOIN 
-                persona AS cl ON cl.idPersona = v.
+                persona AS cl ON cl.idPersona = v.idCliente
                 
             LEFT JOIN
                 traslado AS tr ON tr.idTraslado = gui.idTraslado        
