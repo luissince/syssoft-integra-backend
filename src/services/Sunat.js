@@ -550,8 +550,6 @@ class Sunat {
             LEFT JOIN
                 sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
             LEFT JOIN
-                ubigeo AS ubld ON ubld.idUbigeo = sud.idUbigeo
-            LEFT JOIN
                 empresa AS emp ON emp.idEmpresa = sud.idEmpresa
             LEFT JOIN
                 tipoDocumento AS tpt ON tpt.idTipoDocumento = emp.idTipoDocumento

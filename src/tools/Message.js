@@ -111,11 +111,9 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
     if (process.env.ENVIRONMENT === 'development') {
         logger.error(error);
     }
-    if (!error || !error.message) {
-        registerLog(title, error);
-    } else {
-        registerLog(title, error);
-    }
+
+    registerLog(title, error);
+
     return res.status(500).send(result);
 }
 
@@ -135,11 +133,9 @@ function sendClient(res, result = "Error de cliente", title, error) {
     if (process.env.ENVIRONMENT === 'development') {
         logger.warn(error);
     }
-    if (!error || !error.message) {
-        registerLog(title, error);
-    } else {
-        registerLog(title, error);
-    }
+
+    registerLog(title, error);
+
     return res.status(400).send(result);
 }
 

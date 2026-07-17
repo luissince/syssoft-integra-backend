@@ -72,10 +72,12 @@ class GuiaRemision {
 
             const guiaRemision = await conec.query(`
             SELECT
-                v.idVenta,
+                gui.idVenta,
+                gui.idTraslado,
+                
                 cv.nombre AS nombreComprobante,
-                v.serie,
-                v.numeracion,
+                COALESCE(v.serie, '') AS serie,
+                COALESCE(v.numeracion, '') AS numeracion,
                 cl.documento,
                 cl.informacion,
 
@@ -119,12 +121,19 @@ class GuiaRemision {
             INNER JOIN 
                 ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
 
-            INNER JOIN 
+            LEFT JOIN 
                 venta AS v ON v.idVenta = gui.idVenta
-            INNER JOIN 
+            LEFT JOIN 
                 comprobante AS cv on cv.idComprobante = v.idComprobante
-            INNER JOIN 
+            LEFT JOIN 
                 persona AS cl ON cl.idPersona = v.idCliente
+
+            LEFT JOIN
+                traslado AS tr ON tr.idTraslado = gui.idTraslado        
+            LEFT JOIN
+                sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
+            LEFT JOIN
+                empresa AS emp ON emp.idEmpresa = sud.idEmpresa
 
             WHERE  
                 gui.idGuiaRemision = ?`, [
@@ -490,6 +499,7 @@ class GuiaRemision {
                 cd.informacion AS informacionConductor,
                 cd.licenciaConducir,
                 --
+                gui.codigoAnexoPartida,
                 gui.direccionPartida,
                 --
                 up.departamento AS departamentoPartida,
@@ -497,6 +507,7 @@ class GuiaRemision {
                 up.distrito AS distritoPartida,
                 up.ubigeo AS ubigeoPartida,
                 --
+                gui.codigoAnexoLlegada,
                 gui.direccionLlegada,
                 --
                 ul.departamento AS departamentoLlegada,
@@ -507,12 +518,12 @@ class GuiaRemision {
                 u.apellidos,
                 u.nombres,
                 --
-                v.serie AS serieRef,
-                v.numeracion AS numeracionRef,
-                cv.nombre AS comprobanteRef,
+                COALESCE(v.serie, '-') AS serieRef,
+                COALESCE(v.numeracion, '-') AS numeracionRef,
+                COALESCE(cv.nombre, '-') AS comprobanteRef,
                 --
-                cl.documento AS documentoCliente,
-                cl.informacion AS informacionCliente,
+                COALESCE(cl.documento, emp.documento) AS documentoCliente,
+                COALESCE(cl.informacion, emp.razonSocial) AS informacionCliente,
                 --
                 gui.codigoHash
             FROM
@@ -535,12 +546,21 @@ class GuiaRemision {
                 ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
             INNER JOIN 
                 usuario AS u ON u.idUsuario = gui.idUsuario
-            INNER JOIN 
+
+            LEFT JOIN 
                 venta AS v ON v.idVenta = gui.idVenta
-            INNER JOIN 
+            LEFT JOIN 
                 comprobante AS cv on cv.idComprobante = v.idComprobante
-            INNER JOIN 
-                persona AS cl ON cl.idPersona = v.idCliente
+            LEFT JOIN 
+                persona AS cl ON cl.idPersona = v.
+                
+            LEFT JOIN
+                traslado AS tr ON tr.idTraslado = gui.idTraslado        
+            LEFT JOIN
+                sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
+            LEFT JOIN
+                empresa AS emp ON emp.idEmpresa = sud.idEmpresa
+
             WHERE 
                 gui.idGuiaRemision = ?`, [
                 idGuiaRemision

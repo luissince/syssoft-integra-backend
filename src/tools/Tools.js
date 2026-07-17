@@ -738,13 +738,18 @@ function generateNumericCode(idCode, lista, propiedad) {
 }
 
 function registerLog(nameFunction, error) {
-    if (!error || !error.message) {
-        logger.error(`${nameFunction}: Error de conexión intero.`);
-    } else {
-        logger.error(`${nameFunction}: ${error.message ?? error}`);
+    if (!error) {
+        logger.error(`${nameFunction}: Error interno.`);
+        return;
     }
-}
 
+    if (error instanceof Error) {
+        logger.error(`${nameFunction}: ${error.message}`);
+        return;
+    }
+
+    logger.error(`${nameFunction}: ${error}`);
+}
 function responseSSE(req, res, callback) {
     const encoder = new TextEncoder();
     const body = new ReadableStream({

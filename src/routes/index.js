@@ -54,7 +54,6 @@ module.exports = (app) => {
     app.use('/api/ajuste', require('./Ajuste'));
     app.use('/api/motivoajuste', require('./MotivoAjuste'));
     app.use('/api/compra', require('./Compra'));
-    app.use('/api/guiaremision', require('./GuiaRemision'));
     app.use('/api/cotizacion', require('./Cotizacion'));
     app.use('/api/tipocomprobante', require('./TipoComprobante'));
     app.use('/api/motivotraslado', require('./MotivoTraslado'));
@@ -72,5 +71,6 @@ module.exports = (app) => {
     app.use('/api/sunat', require('./Sunat'));
     app.use('/api/consulta', require('./Consulta'));
 
+    app.use('/api/guiaremision', require('./GuiaRemision'));
     app.use('/api/traslado', require('./traslado.route'));
 };
