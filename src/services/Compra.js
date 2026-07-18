@@ -72,31 +72,35 @@ class Compra {
 
             if (idOrdenCompra) {
                 const comprados = await conec.query(`
-                    SELECT 
-                        p.idProducto,
-                        SUM(vd.cantidad) AS cantidad
-                    FROM 
-                        compraOrdenCompra AS vc
-                    INNER JOIN
-                        compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
-                    INNER JOIN
-                        compraDetalle AS vd ON vd.idCompra = v.idCompra
-                    INNER JOIN
-                        producto AS p ON p.idProducto = vd.idProducto
-                    WHERE 
-                        vc.idOrdenCompra = ?
-                    GROUP BY 
-                        p.idProducto`, [idOrdenCompra]);
+                SELECT 
+                    p.idProducto,
+                    SUM(vd.cantidad) AS cantidad
+                FROM 
+                    compraOrdenCompra AS vc
+                INNER JOIN
+                    compra AS v ON v.idCompra = vc.idCompra AND v.estado <> 3
+                INNER JOIN
+                    compraDetalle AS vd ON vd.idCompra = v.idCompra
+                INNER JOIN
+                    producto AS p ON p.idProducto = vd.idProducto
+                WHERE 
+                    vc.idOrdenCompra = ?
+                GROUP BY 
+                    p.idProducto`, [
+                    idOrdenCompra
+                ]);
 
                 const ordenCompraDetalles = await conec.query(`
-                    SELECT 
-                        cd.idProducto,
-                        cd.costo,
-                        cd.cantidad
-                    FROM
-                        ordenCompraDetalle AS cd
-                    WHERE
-                        cd.idOrdenCompra = ?`, [idOrdenCompra]);
+                SELECT 
+                    cd.idProducto,
+                    cd.costo,
+                    cd.cantidad
+                FROM
+                    ordenCompraDetalle AS cd
+                WHERE
+                    cd.idOrdenCompra = ?`, [
+                    idOrdenCompra
+                ]);
 
                 const newDetallesOrdenCompra = ordenCompraDetalles.map((detalle) => {
                     const item = comprados.find(pro => pro.idProducto === detalle.idProducto);
@@ -117,15 +121,15 @@ class Compra {
                 for (const item of detalles) {
                     if (item.tipo === "PRODUCTO") {
                         const producto = await conec.execute(connection, `
-                            SELECT 
-                                p.costo, 
-                                pc.valor AS precio 
-                            FROM 
-                                producto AS p 
-                            INNER JOIN 
-                                precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                            WHERE 
-                                p.idProducto = ?`, [
+                        SELECT 
+                            p.costo, 
+                            pc.valor AS precio 
+                        FROM 
+                            producto AS p 
+                        INNER JOIN 
+                            precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
+                        WHERE 
+                            p.idProducto = ?`, [
                             item.idProducto,
                         ]);
 
@@ -282,7 +286,17 @@ class Compra {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
-                const cantidad = item.cantidad;
+                // Validar cantidad y costo
+                const cantidad = Number(item.cantidad);
+                const costoCompra = Number(item.costo);
+
+                if (!Number.isFinite(cantidad) || cantidad <= 0) {
+                    throw new Error(`Cantidad inválida producto ${item.idProducto}`);
+                }
+
+                if (!Number.isFinite(costoCompra) || costoCompra < 0) {
+                    throw new Error(`Costo inválido producto ${item.idProducto}`);
+                }
 
                 // Calcular es costo actual en base a la formula de costo promedio ponderado
                 const valorTotalInventarioInicial = await conec.execute(connection, `
@@ -301,12 +315,22 @@ class Compra {
 
                 let costo = 0;
 
-                if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
-                    const valorTotalNuevaCompra = item.costo * cantidad;
-                    const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
-                    const sumaCantidades = cantidad + valorTotalInventarioInicial[0].cantidad;
-                    const costoPromedio = sumaTotales / sumaCantidades;
-                    costo = costoPromedio;
+                if (valorTotalInventarioInicial.length !== 0) {
+                    const cantidadInventario = Number(valorTotalInventarioInicial[0].cantidad ?? 0);
+                    const totalInventario = Number(valorTotalInventarioInicial[0].total ?? 0);
+
+                    const valorTotalNuevaCompra = costoCompra * cantidad;
+
+                    const sumaTotales = totalInventario + valorTotalNuevaCompra;
+                    const sumaCantidades = cantidad + cantidadInventario;
+
+                    if (sumaCantidades > 0) {
+                        const costoPromedio = sumaTotales / sumaCantidades;
+
+                        if (Number.isFinite(costoPromedio)) {
+                            costo = costoPromedio;
+                        }
+                    }
                 }
 
                 // Obtener inventario
@@ -345,7 +369,7 @@ class Compra {
                     idCompra,
                     'INGRESO POR COMPRA',
                     cantidad,
-                    item.costo,
+                    costoCompra,
                     idAlmacen,
                     inventario[0].idInventario,
                     date,
@@ -366,14 +390,14 @@ class Compra {
                 ]);
 
                 // Actualizar el costo del producto
-                if (costo > 0) {
+                if (costo > 0 && Number.isFinite(costo)) {
                     await conec.execute(connection, `
-                        UPDATE 
-                            producto 
-                        SET 
-                            costo = ?
-                        WHERE 
-                            idProducto = ?`, [
+                    UPDATE 
+                        producto 
+                    SET 
+                        costo = ?
+                    WHERE 
+                        idProducto = ?`, [
                         costo,
                         item.idProducto
                     ]);
@@ -506,14 +530,14 @@ class Compra {
                 const idCompraOrdenCompra = generateNumericCode(1, listaIdCompraOrdenCompra, 'idCompraOrdenCompra');
 
                 await conec.execute(connection, `
-                    INSERT INTO compraOrdenCompra(
-                        idCompraOrdenCompra, 
-                        idCompra, 
-                        idOrdenCompra, 
-                        fecha, 
-                        hora,
-                        idUsuario
-                    ) VALUES (?,?,?,?,?,?)`, [
+                INSERT INTO compraOrdenCompra(
+                    idCompraOrdenCompra, 
+                    idCompra, 
+                    idOrdenCompra, 
+                    fecha, 
+                    hora,
+                    idUsuario
+                ) VALUES (?,?,?,?,?,?)`, [
                     idCompraOrdenCompra,
                     idCompra,
                     idOrdenCompra,
@@ -958,7 +982,7 @@ class Compra {
             ]);
 
             const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map(item => {                
+            const listaDetalles = detalles.map(item => {
                 return {
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
