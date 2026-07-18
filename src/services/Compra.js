@@ -4,6 +4,7 @@ const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
+const logger = require('../tools/Logger');
 
 class Compra {
 
@@ -291,11 +292,15 @@ class Compra {
                 const costoCompra = Number(item.costo);
 
                 if (!Number.isFinite(cantidad) || cantidad <= 0) {
-                    throw new Error(`Cantidad inválida producto ${item.idProducto}`);
+                    throw new Error(
+                        `Cantidad inválida | Producto: ${item.idProducto} | Valor recibido: ${item.cantidad}`
+                    );
                 }
 
                 if (!Number.isFinite(costoCompra) || costoCompra < 0) {
-                    throw new Error(`Costo inválido producto ${item.idProducto}`);
+                    throw new Error(
+                        `Costo inválido | Producto: ${item.idProducto} | Valor recibido: ${item.costo}`
+                    );
                 }
 
                 // Calcular es costo actual en base a la formula de costo promedio ponderado
@@ -327,9 +332,23 @@ class Compra {
                     if (sumaCantidades > 0) {
                         const costoPromedio = sumaTotales / sumaCantidades;
 
-                        if (Number.isFinite(costoPromedio)) {
-                            costo = costoPromedio;
+                        if (!Number.isFinite(costoPromedio)) {
+                            logger.error({
+                                producto: item.idProducto,
+                                cantidadCompra: cantidad,
+                                costoCompra,
+                                cantidadInventario,
+                                totalInventario,
+                                sumaTotales,
+                                sumaCantidades
+                            });
+
+                            throw new Error(
+                                `Costo promedio inválido para producto ${item.idProducto}`
+                            );
                         }
+
+                        costo = costoPromedio;
                     }
                 }
 
@@ -376,6 +395,12 @@ class Compra {
                     time,
                     idUsuario
                 ]);
+
+                if (inventario.length === 0) {
+                    throw new Error(
+                        `No existe inventario | Producto: ${item.idProducto} | Almacen: ${idAlmacen}`
+                    );
+                }
 
                 // Actualiza el inventario
                 await conec.execute(connection, `
