@@ -2,12 +2,12 @@ const logger = require('../tools/Logger');
 module.exports = (req, res, next) => {
     logger.info(' Peticion recibida:');
 
-    logger.info('Método: %s', req.method);
-    logger.info('URL: %s', req.url);
-    logger.info('Body: %o', req.body);
-    logger.info('Headers: %o', req.headers);
-    logger.info('Params: %o', req.params);
-    logger.info('Query: %o', req.query);
+    logger.info(`Método: ${req.method}`);
+    logger.info(`URL: ${req.url}`);
+    logger.info(`Body: ${JSON.stringify(req.body)}`);
+    logger.info(`Headers: ${JSON.stringify(req.headers)}`);
+    logger.info(`Params: ${JSON.stringify(req.params)}`);
+    logger.info(`Query: ${JSON.stringify(req.query)}`);
 
     next();
 };
