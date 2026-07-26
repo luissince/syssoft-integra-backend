@@ -1,0 +1,757 @@
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, renderTemplate, formatDecimal, generateQr, formatNumberWithZeros } = require('../tools/Tools');
+const conec = require('../database/mysql-connection');
+const { default: axios } = require('axios');
+const firebaseService = require('../common/fire-base');
+const { cssUrl, logoUrl } = require('../common/constants/paths.constants');
+const { ClientError } = require('../tools/Error');
+
+class GuiaRemision {
+
+    async list(req) {
+        const lista = await conec.procedure(`CALL Listar_Guia_Remision(?,?,?,?,?,?,?,?)`, [
+            parseInt(req.query.opcion),
+            req.query.buscar,
+            req.query.idSucursal,
+            req.query.fechaInicio,
+            req.query.fechaFinal,
+            parseInt(req.query.estado),
+
+            parseInt(req.query.posicionPagina),
+            parseInt(req.query.filasPorPagina)
+        ])
+
+        const resultLista = lista.map(function (item, index) {
+            return {
+                ...item,
+                id: (index + 1) + parseInt(req.query.posicionPagina)
+            }
+        });
+
+        const total = await conec.procedure(`CALL Listar_Guia_Remision_Count(?,?,?,?,?,?)`, [
+            parseInt(req.query.opcion),
+            req.query.buscar,
+            req.query.idSucursal,
+            req.query.fechaInicio,
+            req.query.fechaFinal,
+            parseInt(req.query.estado),
+        ]);
+
+        return { "result": resultLista, "total": total[0].Total };
+    }
+
+    async detail(req) {
+        const guiaRemision = await conec.procedure(`CALL Guia_Remision_Por_Id(?)`, [
+            req.query.idGuiaRemision,
+        ]);
+
+        const detalles = await conec.procedure(`CALL Guia_Remision_Detalle_Por_Id(?)`, [
+            req.query.idGuiaRemision,
+        ]);
+
+        const bucket = firebaseService.getBucket();
+        const listaDetalles = detalles.map(item => {
+            return {
+                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                ...item,
+            }
+        });
+
+        return { cabecera: guiaRemision[0], detalles: listaDetalles };
+    }
+
+    async id(req) {
+        const { idGuiaRemision } = req.params;
+
+        const guiaRemision = await conec.query(`
+            SELECT
+                gui.idVenta,
+                gui.idTraslado,
+                
+                cv.nombre AS nombreComprobante,
+                COALESCE(v.serie, '') AS serie,
+                COALESCE(v.numeracion, '') AS numeracion,
+                cl.documento,
+                cl.informacion,
+
+                gui.idModalidadTraslado,
+                gui.idMotivoTraslado,
+                DATE_FORMAT(gui.fechaTraslado,'%Y-%m-%d') AS fechaTraslado,
+                gui.idTipoPeso,
+                gui.peso,
+                gui.idVehiculo,
+                vh.marca,
+                vh.numeroPlaca,
+                gui.idConductor,
+                cd.documento AS documentoCoductor,
+                cd.informacion AS informacionConductor,
+
+                gui.codigoAnexoPartida,
+                gui.direccionPartida,
+
+                gui.codigoAnexoLlegada,
+                gui.direccionLlegada,        
+
+                up.idUbigeo AS idUbigeopPartida,
+                up.departamento AS departamentoPartida,
+                up.provincia AS provinciaPartida,
+                up.distrito AS distritoPartida,
+                up.ubigeo AS ubigeoPartida,
+                
+                ul.idUbigeo AS idUbigeoLlegada,
+                ul.departamento AS departamentoLlegada,
+                ul.provincia AS provinciaLlegada,
+                ul.distrito AS distritoLlegada,
+                ul.ubigeo AS ubigeoLlegada
+            FROM
+                guiaRemision AS gui
+            INNER JOIN 
+                vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+            INNER JOIN 
+                persona AS cd ON cd.idPersona = gui.idConductor
+            INNER JOIN 
+                ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+            INNER JOIN 
+                ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+
+            LEFT JOIN 
+                venta AS v ON v.idVenta = gui.idVenta
+            LEFT JOIN 
+                comprobante AS cv on cv.idComprobante = v.idComprobante
+            LEFT JOIN 
+                persona AS cl ON cl.idPersona = v.idCliente
+
+            LEFT JOIN
+                traslado AS tr ON tr.idTraslado = gui.idTraslado        
+            LEFT JOIN
+                sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
+            LEFT JOIN
+                empresa AS emp ON emp.idEmpresa = sud.idEmpresa
+
+            WHERE  
+                gui.idGuiaRemision = ?`, [
+            idGuiaRemision,
+        ]);
+
+        return { cabecera: guiaRemision[0] };
+    }
+
+    async create(req) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
+
+            const {
+                idVenta,
+                idTraslado,
+                idSucursal,
+                idComprobante,
+                idModalidadTraslado,
+                idMotivoTraslado,
+                fechaTraslado,
+                idTipoPeso,
+                peso,
+                idVehiculo,
+                idConductor,
+
+                codigoAnexoPartida,
+                direccionPartida,
+                idUbigeoPartida,
+
+                codigoAnexoLlegada,
+                direccionLlegada,
+                idUbigeoLlegada,
+                estado,
+                idUsuario,
+                detalles
+            } = req.body;
+
+            const result = await conec.execute(connection, 'SELECT idGuiaRemision FROM guiaRemision');
+            const idGuiaRemision = generateAlphanumericCode("GR0001", result, 'idGuiaRemision');
+
+            const comprobante = await conec.execute(connection, `
+            SELECT 
+                serie,
+                numeracion 
+            FROM 
+                comprobante 
+            WHERE 
+                idComprobante  = ?`, [
+                idComprobante
+            ]);
+
+            const guiaRemisions = await conec.execute(connection, `
+            SELECT 
+                numeracion  
+            FROM 
+                guiaRemision 
+            WHERE 
+                idComprobante = ?`, [
+                idComprobante
+            ]);
+
+            const numeracion = generateNumericCode(comprobante[0].numeracion, guiaRemisions, "numeracion");
+
+            await conec.execute(connection, `INSERT INTO guiaRemision(
+                idGuiaRemision,
+                idSucursal,
+                idVenta,          
+                idTraslado,
+                idComprobante,
+                serie,
+                numeracion,
+                idModalidadTraslado,
+                idMotivoTraslado,
+                fechaTraslado,
+                idTipoPeso,
+                peso,
+                idVehiculo,
+                idConductor,
+
+                codigoAnexoPartida,
+                direccionPartida,
+                idUbigeoPartida,
+
+                codigoAnexoLlegada,
+                direccionLlegada,
+                idUbigeoLlegada,
+                fecha,
+                hora,
+                estado,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                idGuiaRemision,
+                idSucursal,
+                idVenta,
+                idTraslado,
+                idComprobante,
+                comprobante[0].serie,
+                numeracion,
+                idModalidadTraslado,
+                idMotivoTraslado,
+                fechaTraslado,
+                idTipoPeso,
+                peso,
+                idVehiculo,
+                idConductor,
+
+                codigoAnexoPartida,
+                direccionPartida,
+                idUbigeoPartida,
+
+                codigoAnexoLlegada,
+                direccionLlegada,
+                idUbigeoLlegada,
+                date,
+                time,
+                estado,
+                idUsuario
+            ]);
+
+            const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
+            let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
+
+            for (const producto of detalles) {
+                await conec.execute(connection, `
+                INSERT INTO guiaRemisionDetalle(
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    idProducto,
+                    cantidad
+                ) VALUES (?,?,?,?)`, [
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    producto.idProducto,
+                    producto.cantidad
+                ]);
+
+                idGuiaRemisionDetalle++;
+            }
+
+            await conec.commit(connection);
+            return {
+                message: "Se registró correctamente la guían de remisión.",
+                idGuiaRemision: idGuiaRemision
+            };
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+
+            throw error;
+        }
+    }
+
+    async update(req) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const guiaRemision = await conec.execute(connection, `
+            SELECT 
+                idGuiaRemision,
+                estado
+            FROM 
+                guiaRemision 
+            WHERE 
+                idGuiaRemision = ?`, [
+                req.body.idGuiaRemision
+            ]);
+
+            if (guiaRemision.length === 0) {
+                throw new ClientError("La guía de remisión no existe.");
+
+            }
+
+            if (guiaRemision[0].estado === 3) {
+                throw new ClientError("Por el momento la guía de remisión ya se encuentra en estado anulado.");
+
+            }
+
+            await conec.execute(connection, `
+                UPDATE 
+                    guiaRemision 
+                SET
+                    idVenta = ?,
+                    idModalidadTraslado = ?,
+                    idMotivoTraslado = ?,
+                    fechaTraslado = ?,
+                    idTipoPeso = ?,
+                    peso = ?,
+                    idVehiculo = ?,
+                    idConductor = ?,
+
+                    codigoAnexoPartida = ?,
+                    direccionPartida = ?,
+                    idUbigeoPartida = ?,
+
+                    codigoAnexoLlegada = ?,
+                    direccionLlegada = ?,
+                    idUbigeoLlegada = ?,
+                    numeroTicketSunat = '',
+                    idUsuario = ?
+                WHERE
+                    idGuiaRemision = ?`, [
+                req.body.idVenta,
+                req.body.idModalidadTraslado,
+                req.body.idMotivoTraslado,
+                req.body.fechaTraslado,
+                req.body.idTipoPeso,
+                req.body.peso,
+                req.body.idVehiculo,
+                req.body.idConductor,
+
+                req.body.codigoAnexoPartida,
+                req.body.direccionPartida,
+                req.body.idUbigeoPartida,
+
+                req.body.codigoAnexoLlegada,
+                req.body.direccionLlegada,
+                req.body.idUbigeoLlegada,
+                // currentDate(),
+                // currentTime(),
+                req.body.idUsuario,
+                req.body.idGuiaRemision
+            ]);
+
+            await conec.execute(connection, `
+            DELETE FROM 
+                guiaRemisionDetalle 
+            WHERE 
+                idGuiaRemision = ?`, [
+                req.body.idGuiaRemision
+            ]);
+
+            const listaGuiaRemision = await conec.execute(connection, 'SELECT idGuiaRemisionDetalle FROM guiaRemisionDetalle');
+            let idGuiaRemisionDetalle = generateNumericCode(1, listaGuiaRemision, 'idGuiaRemisionDetalle');
+
+            for (const producto of req.body.detalles) {
+                await conec.execute(connection, `
+                INSERT INTO guiaRemisionDetalle(
+                    idGuiaRemisionDetalle,
+                    idGuiaRemision,
+                    idProducto,
+                    cantidad
+                ) VALUES (?,?,?,?)`, [
+                    idGuiaRemisionDetalle,
+                    req.body.idGuiaRemision,
+                    producto.idProducto,
+                    producto.cantidad
+                ]);
+
+                idGuiaRemisionDetalle++;
+            }
+
+            await conec.commit(connection);
+            return {
+                message: "Se actualizón correctamente la guían de remisión.",
+                idGuiaRemision: req.body.idGuiaRemision
+            };
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+
+            throw error;
+        }
+    }
+
+    async cancel(req) {
+        let connection = null;
+        try {
+            connection = await conec.beginTransaction();
+
+            const guiaRemision = await conec.execute(connection, `
+            SELECT 
+                idGuiaRemision,
+                estado
+            FROM 
+                guiaRemision 
+            WHERE 
+                idGuiaRemision = ?`, [
+                req.query.idGuiaRemision
+            ]);
+
+            if (guiaRemision.length === 0) {
+                await conec.rollback(connection);
+                throw new ClientError("La guía de remisión no existe.")
+            }
+
+            if (guiaRemision[0].estado === 3) {
+                throw new ClientError("La guía de remisión ya se encuentra en estado anulado.")
+            }
+
+            await conec.execute(connection, `
+            UPDATE 
+                guiaRemision 
+            SET 
+                estado = 3,
+                numeroTicketSunat = null
+            WHERE 
+                idGuiaRemision = ?`, [
+                req.query.idGuiaRemision
+            ]);
+
+            await conec.commit(connection);
+            return "La guía de remisión se anuló correctamente. Si ya fue informada a SUNAT, deberá anularla manualmente ingresando al portal de SUNAT.";
+        } catch (error) {
+            if (connection != null) {
+                await conec.rollback(connection);
+            }
+
+            throw error;
+        }
+    }
+
+    async pdf(req) {
+        const { idGuiaRemision, size } = req.params;
+
+        const empresa = await conec.query(`
+        SELECT
+            documento,
+            razonSocial,
+            nombreEmpresa,
+            paginaWeb,
+            rutaLogo
+        FROM 
+            empresa`);
+
+        if (empresa.length === 0) {
+            throw new ClientError("No se pudo obtener datos de empresa, vuelve a recargar la vista.");
+        }
+
+        const sucursal = await conec.query(`
+        SELECT 
+            s.nombre,
+            s.telefono,
+            s.celular,
+            s.email,
+            s.direccion,
+
+            ub.departamento,
+            ub.provincia,
+            ub.distrito
+        FROM 
+            sucursal AS s
+        INNER JOIN
+            ubigeo AS ub ON ub.idUbigeo = s.idUbigeo
+        WHERE 
+            s.principal = 1`);
+
+        if (sucursal.length === 0) {
+            throw new ClientError("No se pudo obtener datos del sucursal, vuelve a recargar la vista.")
+        }
+
+        const guiaRemision = await conec.query(`
+        SELECT
+            DATE_FORMAT(gui.fecha,'%d/%m/%Y') AS fecha,
+            gui.hora,
+            gui.idSucursal,
+            --
+            cgui.nombre AS comprobante,
+            gui.serie,
+            gui.numeracion,
+            cgui.facturado,
+            --
+            mdt.nombre AS modalidadTraslado,
+            --
+            mvt.nombre AS motivoTraslado,
+            --
+            DATE_FORMAT(gui.fechaTraslado,'%d/%m/%Y') AS fechaTraslado,
+            --
+            tp.nombre AS tipoPeso,
+            --
+            gui.peso,
+            --
+            vh.marca,
+            vh.numeroPlaca,
+            --
+            cd.documento AS documentoConductor,
+            cd.informacion AS informacionConductor,
+            cd.licenciaConducir,
+            --
+            gui.codigoAnexoPartida,
+            gui.direccionPartida,
+            --
+            up.departamento AS departamentoPartida,
+            up.provincia AS provinciaPartida,
+            up.distrito AS distritoPartida,
+            up.ubigeo AS ubigeoPartida,
+            --
+            gui.codigoAnexoLlegada,
+            gui.direccionLlegada,
+            --
+            ul.departamento AS departamentoLlegada,
+            ul.provincia AS provinciaLlegada,
+            ul.distrito AS distritoLlegada,
+            ul.ubigeo AS ubigeoLlegada,
+            --
+            u.apellidos,
+            u.nombres,
+            --
+            COALESCE(v.serie, '-') AS serieRef,
+            COALESCE(v.numeracion, '-') AS numeracionRef,
+            COALESCE(cv.nombre, '-') AS comprobanteRef,
+            --
+            COALESCE(cl.documento, emp.documento) AS documentoCliente,
+            COALESCE(cl.informacion, emp.razonSocial) AS informacionCliente,
+            --
+            gui.codigoHash
+        FROM
+            guiaRemision AS gui
+        INNER JOIN 
+            comprobante AS cgui on cgui.idComprobante = gui.idComprobante
+        INNER JOIN 
+            modalidadTraslado AS mdt ON mdt.idModalidadTraslado = gui.idModalidadTraslado
+        INNER JOIN 
+            motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
+        INNER JOIN 
+            tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
+        INNER JOIN 
+            vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+        INNER JOIN 
+            persona AS cd ON cd.idPersona = gui.idConductor
+        INNER JOIN 
+            ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+        INNER JOIN 
+            ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+        INNER JOIN 
+            usuario AS u ON u.idUsuario = gui.idUsuario
+
+        LEFT JOIN 
+            venta AS v ON v.idVenta = gui.idVenta
+        LEFT JOIN 
+            comprobante AS cv on cv.idComprobante = v.idComprobante
+        LEFT JOIN 
+            persona AS cl ON cl.idPersona = v.idCliente
+                
+        LEFT JOIN
+            traslado AS tr ON tr.idTraslado = gui.idTraslado        
+        LEFT JOIN
+            sucursal AS sud ON sud.idSucursal = tr.idSucursalDestino
+        LEFT JOIN
+            empresa AS emp ON emp.idEmpresa = sud.idEmpresa
+
+        WHERE 
+            gui.idGuiaRemision = ?`, [
+            idGuiaRemision
+        ]);
+
+        if (guiaRemision.length === 0) {
+            throw new ClientError("No se pudo obtener datos de la guía de remisión, vuelve a recargar la vista.");
+        }
+
+        const detalles = await conec.query(` 
+        SELECT 
+            ROW_NUMBER() OVER (ORDER BY gd.idGuiaRemisionDetalle ASC) AS id,
+            p.codigo,
+            p.nombre AS producto,
+            gd.cantidad,
+            m.nombre AS medida 
+        FROM 
+            guiaRemisionDetalle AS gd
+        INNER JOIN 
+            producto AS p ON gd.idProducto = p.idProducto
+        INNER JOIN 
+            medida AS m ON m.idMedida = p.idMedida
+        WHERE 
+            gd.idGuiaRemision = ?
+        ORDER BY 
+            gd.idGuiaRemisionDetalle ASC`, [
+            idGuiaRemision
+        ]);
+
+        if (detalles.length === 0) {
+            throw new ClientError("No se pudo obtener datos del detalle de la guía de remisión, vuelve a recargar la vista.");
+        }
+
+        const bucket = firebaseService.getBucket();
+
+        const numeracion = formatNumberWithZeros(
+            guiaRemision[0].numeracion,
+        );
+
+        const title = `GUIA DE REMISION ${guiaRemision[0].serie}-${numeracion} - ${guiaRemision[0].informacionCliente}`;
+
+        const template = size === 'A4' ? 'guia-remision/a4' : 'guia-remision/ticket';
+
+        const buffer = await generateQr(
+            guiaRemision[0].codigoHash ?? 'https://www.syssoftintegra.com/',
+        );
+        const base64QR = buffer.toString('base64');
+
+        const html = await renderTemplate(template, {
+            style: cssUrl,
+            icon: logoUrl,
+            title: title,
+            empresa: {
+                ...empresa[0],
+                rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+            },
+            sucursal: {
+                ...sucursal[0],
+                ubigeo: {
+                    departamento: sucursal[0].departamento,
+                    provincia: sucursal[0].provincia,
+                    distrito: sucursal[0].distrito
+                }
+            },
+            formatDecimal,
+            base64QR,
+            guiaRemision: {
+                "fecha": guiaRemision[0].fecha,
+                "hora": guiaRemision[0].hora,
+                "comprobante": {
+                    "nombre": guiaRemision[0].comprobante,
+                    "serie": guiaRemision[0].serie,
+                    "numeracion": numeracion,
+                    "facturado": guiaRemision[0].facturado
+                },
+                "modalidadTraslado": {
+                    "nombre": guiaRemision[0].modalidadTraslado
+                },
+                "motivoTraslado": {
+                    "nombre": guiaRemision[0].motivoTraslado
+                },
+                "fechaTraslado": guiaRemision[0].fechaTraslado,
+                "tipoPeso": {
+                    "nombre": guiaRemision[0].tipoPeso,
+                },
+                "peso": guiaRemision[0].peso,
+                "vehiculo": {
+                    "marca": guiaRemision[0].marca,
+                    "numeroPlaca": guiaRemision[0].numeroPlaca,
+                },
+                "conductor": {
+                    "documento": guiaRemision[0].documentoConductor,
+                    "informacion": guiaRemision[0].informacionConductor,
+                    "licenciaConducir": guiaRemision[0].licenciaConducir
+                },
+                "direccionPartida": guiaRemision[0].direccionPartida,
+                "ubigeoPartida": {
+                    "departamento": guiaRemision[0].departamentoPartida,
+                    "provincia": guiaRemision[0].provinciaPartida,
+                    "distrito": guiaRemision[0].distritoPartida,
+                    "ubigeo": guiaRemision[0].ubigeoPartida,
+                },
+                "direccionLlegada": guiaRemision[0].direccionLlegada,
+                "ubigeoLlegada": {
+                    "departamento": guiaRemision[0].departamentoLlegada,
+                    "provincia": guiaRemision[0].provinciaLlegada,
+                    "distrito": guiaRemision[0].distritoLlegada,
+                    "ubigeo": guiaRemision[0].ubigeoLlegada,
+                },
+                "usuario": {
+                    "apellidos": guiaRemision[0].apellidos,
+                    "nombres": guiaRemision[0].nombres
+                },
+                "venta": {
+                    "comprobante": {
+                        "nombre": guiaRemision[0].comprobanteRef,
+                        "serie": guiaRemision[0].serieRef,
+                        "numeracion": guiaRemision[0].numeracionRef,
+                    },
+                    "cliente": {
+                        "documento": guiaRemision[0].documentoCliente,
+                        "informacion": guiaRemision[0].informacionCliente,
+                    }
+                },
+                "codigoHash": guiaRemision[0].codigoHash,
+            },
+            detalles: detalles.map(item => {
+                return {
+                    "id": item.id,
+                    "cantidad": item.cantidad,
+                    "producto": {
+                        "codigo": item.codigo,
+                        "nombre": item.producto,
+                        "medida": {
+                            "nombre": item.medida,
+                        },
+                    },
+                }
+            }),
+        });
+
+        const options = {
+            method: 'POST',
+            url: `${process.env.APP_PDF}/html-to-pdf`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            data: {
+                title: title,
+                htmlContent: html,
+                paper: {
+                    paperType: size,
+                    width: 0,
+                    height: 0,
+                },
+                outputType: 'pdf'
+            },
+            timeout: 60000,
+            responseType: 'arraybuffer'
+        };
+
+        const response = await axios.request(options);
+        return response;
+    }
+
+    async documentsPdfExcel(req, res) {
+        const options = {
+            method: 'POST',
+            url: `${process.env.APP_PDF}/dispatch-guide/excel`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            responseType: 'arraybuffer'
+        };
+
+        const response = await axios.request(options);
+        return response;
+    }
+}
+
+module.exports = new GuiaRemision();

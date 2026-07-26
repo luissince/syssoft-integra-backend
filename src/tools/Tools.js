@@ -2,9 +2,9 @@ const { promisify } = require('util');
 const fs = require("fs");
 const path = require("path");
 const ejs = require('ejs');
+const QRCode = require('qrcode')
 const lstatAsync = promisify(fs.lstat);
 const unlinkFileAsync = promisify(fs.unlink);
-const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
@@ -862,6 +862,27 @@ async function renderTemplate(template, data) {
     return ejs.renderFile(file, data);
 }
 
+async function generateQr(data, width) {
+    const qrCodeBuff = await QRCode.toBuffer(data, { width: width });
+    return qrCodeBuff;
+};
+
+function toNullString(valor) {
+    if (valor == null || valor.trim() === "") {
+        return null;
+    }
+
+    return valor;
+}
+
+function toNullNumber(valor) {
+    if (valor == null || valor === "") {
+        return null;
+    }
+
+    return Number(valor);
+}
+
 module.exports = {
     formatNumberWithZeros,
     isNumber,
@@ -891,5 +912,8 @@ module.exports = {
     responseSSE,
     sleep,
     formatDecimal,
-    renderTemplate
+    renderTemplate,
+    generateQr,
+    toNullString,
+    toNullNumber
 };

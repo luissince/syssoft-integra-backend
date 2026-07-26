@@ -71,6 +71,6 @@ module.exports = (app) => {
     app.use('/api/sunat', require('./Sunat'));
     app.use('/api/consulta', require('./Consulta'));
 
-    app.use('/api/guiaremision', require('./GuiaRemision'));
+    app.use('/api/guiaremision', require('./guia-remision.route'));
     app.use('/api/traslado', require('./traslado.route'));
 };

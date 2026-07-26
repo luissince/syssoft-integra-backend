@@ -3,23 +3,30 @@ const {
     currentDate,
     currentTime,
     generateAlphanumericCode,
-    generateNumericCode,
     generateFileData,
+    toNullString,
+    toNullNumber,
+    processFirebaseFile,
 } = require('../tools/Tools');
-const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require("../tools/Message");
+const { sendSuccess, sendError, sendSave, sendFile } = require("../tools/Message");
 const firebaseService = require('../common/fire-base');
 const { default: axios } = require("axios");
-const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
+const { ClientError } = require('../tools/Error');
 
 class Producto {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+            const { opcion, idTipoProducto, estado, preferido, publicar, buscar, posicionPagina, filasPorPagina } = req.query;
+            const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(idTipoProducto),
+                toNullNumber(estado),
+                toNullNumber(preferido),
+                toNullNumber(publicar),
+                toNullString(buscar),
+                parseInt(posicionPagina),
+                parseInt(filasPorPagina)
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -27,13 +34,17 @@ class Producto {
                 return {
                     ...item,
                     imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                    id: (index + 1) + parseInt(posicionPagina)
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Productos_Count(?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar
+            const total = await conec.procedure(`CALL Listar_Productos_Count(?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(idTipoProducto),
+                toNullNumber(estado),
+                toNullNumber(preferido),
+                toNullNumber(publicar),
+                toNullString(buscar),
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
@@ -85,8 +96,8 @@ class Producto {
             ]);
 
             if (validateCodigo.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede haber 2 producto con la misma clave.");
+                throw new ClientError("No se puede haber 2 producto con la misma clave.");
+
             }
 
             const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND estado <> -1`, [
@@ -94,8 +105,8 @@ class Producto {
             ]);
 
             if (validateNombre.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
+                throw new ClientError("No se puede haber 2 producto con el mismo nombre.");
+
             }
 
             if (sku) {
@@ -104,8 +115,7 @@ class Producto {
                 ]);
 
                 if (validateSku.length !== 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, "No se puede haber 2 producto con el mismo SKU.");
+                    throw new ClientError("No se puede haber 2 producto con el mismo SKU.");
                 }
             }
 
@@ -115,8 +125,7 @@ class Producto {
                 ]);
 
                 if (validateCodigoBarras.length !== 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, "No se puede haber 2 producto con el mismo código de barras.");
+                    throw new ClientError("No se puede haber 2 producto con el mismo código de barras.");
                 }
             }
 
@@ -215,124 +224,20 @@ class Producto {
                 date,
                 time,
                 idUsuario,
-            ])
+            ]);
 
-            if (idTipoProducto === "TP0001") {
-                /**
-                 * Generar id del inventario
-                 */
-                const listaInventarios = await conec.execute(connection, 'SELECT idInventario FROM inventario');
-                let idInventario = generateNumericCode(1, listaInventarios, 'idInventario');
-
-                /**
-                 * Generar id del kardex
-                 */
-                const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
-                let idKardex = 0;
-
-                if (resultKardex.length != 0) {
-                    const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                    idKardex = Math.max(...quitarValor);
-                }
-
-                /**
-                 * Registrar los almacenes
-                 */
+            if (!["TP0002"].includes(idTipoProducto)) {
                 const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
 
                 for (const almacen of almacenes) {
-                    const inventario = inventarios.find(inventario => almacen.idAlmacen === inventario.idAlmacen);
-
-                    if (inventario) {
-                        await conec.execute(connection, `
+                    await conec.execute(connection, `
                         INSERT INTO inventario(
-                            idInventario,
                             idProducto,
-                            idAlmacen,
-                            cantidad,
-                            cantidadMaxima,
-                            cantidadMinima
-                        ) VALUES(?,?,?,?,?,?)`, [
-                            idInventario,
-                            idProducto,
-                            inventario.idAlmacen,
-                            inventario.cantidad,
-                            inventario.cantidadMaxima,
-                            inventario.cantidadMinima,
-                        ]);
-
-                        const resultInventarioInicial = await conec.execute(connection, 'SELECT idInventarioInicial FROM inventarioInicial');
-                        const idInventarioInicial = generateAlphanumericCode("IN0001", resultInventarioInicial, 'idInventarioInicial');
-
-                        await conec.execute(connection, `
-                        INSERT INTO inventarioInicial(
-                            idInventarioInicial,
-                            observacion,
-                            estado,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?)`, [
-                            idInventarioInicial,
-                            `El inventario inicial del producto ${nombre} se ha registrado correctamente con una cantidad de ${inventario.cantidad}.`,
-                            1,
-                            currentDate(),
-                            currentTime(),
-                            idUsuario
-                        ])
-
-                        await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idInventarioInicial,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            fecha,
-                            hora,                            
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
-                            idProducto,
-                            TIPO_KARDEX.INGRESO,
-                            MOTIVO_KARDEX.ENTRADA,
-                            idInventarioInicial,
-                            'INGRESO AL CREAR EL PRODUCTO',
-                            inventario.cantidad,
-                            costo,
-                            inventario.idAlmacen,
-                            idInventario,
-                            currentDate(),
-                            currentTime(),
-                            idUsuario
-                        ]);
-
-                        idInventario++;
-                    } else {
-                        await conec.execute(connection, `
-                        INSERT INTO inventario(
-                            idInventario,
-                            idProducto,
-                            idAlmacen,
-                            cantidad,
-                            cantidadMaxima,
-                            cantidadMinima
-                        ) VALUES(?,?,?,?,?,?)`, [
-                            idInventario,
-                            idProducto,
-                            almacen.idAlmacen,
-                            0,
-                            0,
-                            0,
-                        ]);
-
-                        idInventario++;
-                    }
+                            idAlmacen
+                        ) VALUES(?,?)`, [
+                        idProducto,
+                        almacen.idAlmacen
+                    ]);
                 }
             }
 
@@ -446,8 +351,8 @@ class Producto {
                 ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario,
                 ])
             }
@@ -463,8 +368,8 @@ class Producto {
                 ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario,
                 ])
             }
@@ -480,8 +385,8 @@ class Producto {
                 ) VALUES(?,?,?,?,?)`, [
                     idProducto,
                     color.idAtributo,
-                    currentDate(),
-                    currentTime(),
+                    date,
+                    time,
                     idUsuario,
                 ])
             }
@@ -498,6 +403,7 @@ class Producto {
 
     async id(req, res) {
         try {
+            const { idProducto } = req.params;
             const bucket = firebaseService.getBucket();
 
             const producto = await conec.query(`
@@ -528,21 +434,8 @@ class Producto {
                 precio AS pc ON pc.idProducto = p.idProducto AND pc.preferido = 1
             WHERE 
                 p.idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
-
-            let respuesta = { ...producto[0] };
-            if (bucket) {
-                respuesta = {
-                    ...producto[0],
-                    imagen: !producto[0].imagen
-                        ? null
-                        : {
-                            nombre: producto[0].imagen,
-                            url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
-                        }
-                };
-            }
 
             const precios = await conec.query(`
             SELECT
@@ -553,7 +446,7 @@ class Producto {
                 precio 
             WHERE 
                 idProducto = ? AND preferido <> 1`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const imagenes = await conec.query(`
@@ -567,7 +460,7 @@ class Producto {
                     productoImagen 
                 WHERE 
                     idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const newImagenes = [];
@@ -597,7 +490,7 @@ class Producto {
                     productoDetalle 
                 WHERE 
                     idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const colores = await conec.query(`
@@ -612,7 +505,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const tallas = await conec.query(`
@@ -627,7 +520,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const sabores = await conec.query(`
@@ -642,11 +535,15 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
                 WHERE 
                     pc.idProducto = ?`, [
-                req.params.idProducto
+                idProducto
             ]);
 
             const newProducto = {
-                ...respuesta,
+                ...producto[0],
+                imagen: producto[0].imagen && bucket ? {
+                    nombre: producto[0].imagen,
+                    url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
+                } : null,
                 precios,
                 detalles,
                 colores,
@@ -669,16 +566,14 @@ class Producto {
             const date = currentDate();
             const time = currentTime();
 
-            const bucket = firebaseService.getBucket();
-
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND idProducto <> ? AND estado <> -1`, [
                 req.body.codigo,
                 req.body.idProducto
             ]);
 
             if (validateCodigo.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede haber 2 producto con la misma clave.");
+                throw new Error("No se puede haber 2 producto con la misma clave.");
+
             }
 
             const validateNombre = await conec.execute(connection, `SELECT * FROM producto WHERE nombre = ? AND idProducto <> ? AND estado <> -1`, [
@@ -687,8 +582,7 @@ class Producto {
             ]);
 
             if (validateNombre.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede haber 2 producto con el mismo nombre.");
+                throw new Error("No se puede haber 2 producto con el mismo nombre.");
             }
 
             if (req.body.sku) {
@@ -698,8 +592,7 @@ class Producto {
                 ]);
 
                 if (validateSku.length !== 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, "No se puede haber 2 producto con el mismo SKU.");
+                    throw new Error("No se puede haber 2 producto con el mismo SKU.");
                 }
             }
 
@@ -710,8 +603,7 @@ class Producto {
                 ]);
 
                 if (validateCodigoBarras.length !== 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, "No se puede haber 2 producto con el mismo código de barras.");
+                    throw new Error("No se puede haber 2 producto con el mismo código de barras.");
                 }
             }
 
@@ -744,26 +636,13 @@ class Producto {
                 req.body.idProducto
             ]);
 
-
-            let imagen = null;
-
-            if (req.body.imagen && req.body.imagen.nombre === undefined && req.body.imagen.base64 === undefined) {
-                if (bucket && producto[0].imagen) {
-                    await firebaseService.deleteFile(producto[0].imagen);
-                }
-            } else if (req.body.imagen && req.body.imagen.base64 !== undefined) {
-                await firebaseService.deleteFile(producto[0].imagen);
-
-                const { buffer, filePath } = generateFileData(req.body.imagen.base64, req.body.imagen.extension, empresa.documento, "product");
-
-                const file = await firebaseService.uploadFile(filePath, buffer, 'image/' + req.body.imagen.extension);
-
-                if (file) {
-                    imagen = filePath;
-                }
-            } else {
-                imagen = req.body.imagen.nombre;
-            }
+            const imagen = await processFirebaseFile(
+                firebaseService,
+                req.body.imagen,
+                producto[0].rutaLogo,
+                empresa.documento,
+                "product"
+            );
 
             await conec.execute(connection, `
             UPDATE 
@@ -813,6 +692,32 @@ class Producto {
                 req.body.idUsuario,
                 req.body.idProducto
             ]);
+
+            /**
+             * Actualizar inventario en caso no exista
+             */
+
+            if (!["TP0002"].includes(producto[0].idTipoProducto)) {
+                const inventario = await conec.execute(connection, `SELECT * FROM inventario WHERE idProducto = ?`, [
+                    req.body.idProducto
+                ]);
+
+                if (inventario.length === 0) {
+                    const almacenes = await conec.execute(connection, `SELECT idAlmacen FROM almacen`);
+
+                    for (const almacen of almacenes) {
+                        await conec.execute(connection, `
+                        INSERT INTO inventario(
+                            idProducto,
+                            idAlmacen
+                        ) VALUES(?,?)`, [
+                            req.body.idProducto,
+                            almacen.idAlmacen
+                        ]);
+                    }
+                }
+
+            }
 
             /**
              * Actualizar precio
@@ -1209,10 +1114,9 @@ class Producto {
         try {
             const bucket = firebaseService.getBucket();
 
-            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?,?)", [
+            const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)", [
                 parseInt(req.query.tipo),
                 req.query.filtrar,
-                req.query.idSucursal,
                 req.query.idAlmacen,
                 parseInt(req.query.posicionPagina),
                 parseInt(req.query.filasPorPagina),
@@ -1226,38 +1130,15 @@ class Producto {
                 }
             });
 
-            const total = await conec.procedure(`CALL Filtrar_Productos_Para_Venta_Count(?,?,?,?)`, [
+            const total = await conec.procedure(`CALL Filtrar_Productos_Para_Venta_Count(?,?,?)`, [
                 parseInt(req.query.tipo),
                 req.query.filtrar,
-                req.query.idSucursal,
                 req.query.idAlmacen,
             ]);
 
-            return sendSuccess(res, { "lists": resultLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filtrarParaVenta", error);
-        }
-    }
-
-    async preferidos(req, res) {
-        try {
-            const bucket = firebaseService.getBucket();
-
-            const result = await conec.procedure("CALL Listar_Productos_Preferidos(?,?)", [
-                req.query.idSucursal,
-                req.query.idAlmacen
-            ])
-
-            const resultLista = result.map(function (item) {
-                return {
-                    ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
-                }
-            });
-
-            return sendSuccess(res, resultLista);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/preferidos", error);
         }
     }
 
