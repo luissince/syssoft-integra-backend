@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, toNullString, toNullNumber } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
@@ -9,17 +9,18 @@ class Cotizacion {
 
     async list(req, res) {
         try {
+            const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
             const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                parseInt(req.query.ligado),
-                parseInt(req.query.estado),
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                idSucursal,
+                toNullNumber(ligado),
+                toNullNumber(estado),
 
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+                parseInt(posicionPagina),
+                parseInt(filasPorPagina)
             ])
 
             const resultLista = await Promise.all(lista.map(async function (item, index) {
@@ -38,18 +39,18 @@ class Cotizacion {
                 return {
                     ...item,
                     ligado: ligado.length > 0 ? ligado[0].total : 0,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                    id: (index + 1) + parseInt(posicionPagina)
                 }
             }));
 
             const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                parseInt(req.query.ligado),
-                parseInt(req.query.estado),
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                idSucursal,
+                toNullNumber(ligado),
+                toNullNumber(estado),
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
