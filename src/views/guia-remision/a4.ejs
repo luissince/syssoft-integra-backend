@@ -1,0 +1,177 @@
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="<%= style %>">
+  <title>
+    <%= title %>
+  </title>
+</head>
+
+<body>
+  <main class="pl-20 pr-20">
+
+    <div class="flex justify-content-between pb-10">
+      <div>
+        <img src="<%= empresa.rutaLogo ?? icon %>" width="100" height="100" />
+      </div>
+
+      <div class="w-40p text-center">
+        <h3>
+          <%= empresa.nombreEmpresa %>
+        </h3>
+        <p>
+          <%= sucursal.direccion %>
+        </p>
+        <p>
+          <%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito %>
+        </p>
+        <p>
+          <%= sucursal.telefono %> | <%= sucursal.celular %>
+        </p>
+        <p>
+          <%= empresa.paginaWeb %> | <%= sucursal.email %>
+        </p>
+      </div>
+
+      <div class="text-center border-1 border-solid flex flex-column justify-content-center pl-20 pr-20 pt-10 pb-10">
+        <h3>RUC: <%= empresa.documento %>
+        </h3>
+        <p>
+          <%= guiaRemision.comprobante.nombre %>
+        </p>
+        <p>
+          <%= guiaRemision.comprobante.serie %>-<%= guiaRemision.comprobante.numeracion %>
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-content-between pt-10 pb-10">
+      <div class="w-50p">
+        <p class="mb-1"><span class="font-weight-bold">Fecha de Traslado: </span>
+          <%= guiaRemision.fecha %>
+            <%= guiaRemision.hora %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Doc. Relacionado:</span>
+          <%= guiaRemision.venta.comprobante.nombre %>
+            <%= guiaRemision.venta.comprobante.serie %>-<%= guiaRemision.venta.comprobante.numeracion %>
+        </p>
+        <p><span class="font-weight-bold">Destinatario</span></p>
+        <p><span>RUC / DNI: </span>
+          <%= guiaRemision.venta.cliente.documento %>
+        </p>
+        <p class="mb-1"><span>informacion:</span>
+          <%= guiaRemision.venta.cliente.informacion %>
+        </p>
+
+        <p class="mb-1"><span class="font-weight-bold">Dirección de Partida:</span>
+          <%= guiaRemision.direccionPartida %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Dirección de Llegada:</span>
+          <%= guiaRemision.direccionLlegada %>
+        </p>
+
+        <p class="mb-1"><span class="font-weight-bold">Motivo Traslado:</span>
+          <%= guiaRemision.motivoTraslado.nombre %>
+        </p>
+      </div>
+
+      <div class="w-50p pl-5">
+        <p class="mb-1"><span class="font-weight-bold">Transportista</span></p>
+        <p><span>Apellidos y Nombres:</span>
+          <%= guiaRemision.conductor.informacion %>
+        </p>
+        <p class="mb-1"><span>RUC / DNI:</span>
+          <%= guiaRemision.conductor.documento %>
+        </p>
+        <p class="mb-1"><span class="font-weight-bold">Modalidad Traslado:</span>
+          <%= guiaRemision.modalidadTraslado.nombre %>
+        </p>
+
+        <p><span class="font-weight-bold">Unidad de Transporte</span> </p>
+        <p><span>Licencia de Conducir:</span>
+          <%= guiaRemision.conductor.licenciaConducir %>
+        </p>
+        <p class="mb-1"><span>Número de Placa:</span>
+          <%= guiaRemision.vehiculo.numeroPlaca %>
+        </p>
+      </div>
+    </div>
+
+    <div class="pt-10 pb-10">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th width="5%" class="text-center">
+              <p>#</p>
+            </th>
+            <th width="30%" class="text-center">
+              <p>Producto</p>
+            </th>
+            <th width="10%" class="text-center">
+              <p>Uni. Medida</p>
+            </th>
+            <th width="10%" class="text-right">
+              <p>Cantidad</p>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const item of detalles) { %>
+            <tr>
+              <td class="text-center">
+                <p>
+                  <%= item.id %>
+                </p>
+              </td>
+              <td class="text-left">
+                <p>
+                  <%= item.producto.codigo %>
+                    <br />
+                    <%= item.producto.nombre %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= item.producto.medida.nombre %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= formatDecimal(item.cantidad) %>
+                </p>
+              </td>
+            </tr>
+            <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex flex-row justify-content-start align-items-center">
+      <% if (guiaRemision.comprobante.facturado) { %>
+        <img src="data:image/png;base64,<%= base64QR %>" alt="QR Code" width="100" />
+        <% } %>
+
+          <div>
+            <% if (guiaRemision.comprobante.facturado) { %>
+              <p class="font-weight-bold">
+                Representación Impresa de la guía de remisión Electrónica.
+              </p>
+              <a href="https://ww1.sunat.gob.pe/ol-ti-itconsultaunificadalibre/consultaUnificadaLibre/consulta">
+                www.consultas-sunat.com
+              </a>
+              <% } %>
+                <% if (empresa.tipoEnvio===0) { %>
+                  <p class="text-danger font-weight-bold">
+                    Documento no valido
+                  </p>
+                  <% } %>
+                    <p>Vendedor: <%= guiaRemision.usuario.nombres %>, <%= guiaRemision.usuario.apellidos %>
+                    </p>
+          </div>
+    </div>
+  </main>
+</body>
+
+</html>
