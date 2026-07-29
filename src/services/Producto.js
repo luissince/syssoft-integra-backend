@@ -17,13 +17,13 @@ class Producto {
 
     async list(req, res) {
         try {
-            const { opcion, idTipoProducto, estado, preferido, publicar, buscar, posicionPagina, filasPorPagina } = req.query;
+            const { opcion, idTipoProducto, estado, preferido, publicarTienda, buscar, posicionPagina, filasPorPagina } = req.query;
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 toNullString(idTipoProducto),
                 toNullNumber(estado),
                 toNullNumber(preferido),
-                toNullNumber(publicar),
+                toNullNumber(publicarTienda),
                 toNullString(buscar),
                 parseInt(posicionPagina),
                 parseInt(filasPorPagina)
@@ -43,7 +43,7 @@ class Producto {
                 toNullString(idTipoProducto),
                 toNullNumber(estado),
                 toNullNumber(preferido),
-                toNullNumber(publicar),
+                toNullNumber(publicarTienda),
                 toNullString(buscar),
             ]);
 
@@ -628,6 +628,7 @@ class Producto {
 
             const producto = await await conec.execute(connection, `
             SELECT 
+                idTipoProducto,
                 imagen 
             FROM 
                 producto 
@@ -644,10 +645,61 @@ class Producto {
                 "product"
             );
 
+            let idTipoProducto = producto[0].idTipoProducto;
+
+            if (producto[0].idTipoProducto !== req.body.idTipoProducto) {
+                const movimientos = await conec.execute(connection, `
+                SELECT 'compraDetalle' AS origen
+                FROM compraDetalle
+                WHERE idProducto = ?
+
+                UNION ALL
+
+                SELECT 'ventaDetalle'
+                FROM ventaDetalle
+                WHERE idProducto = ?
+
+                UNION ALL
+
+                SELECT 'ajusteDetalle'
+                FROM ajusteDetalle
+                WHERE idProducto = ?
+
+                UNION ALL
+
+                SELECT 'trasladoDetalle'
+                FROM trasladoDetalle
+                WHERE idProducto = ?
+
+                UNION ALL
+
+                SELECT 'kardex'
+                FROM kardex
+                WHERE idProducto = ?
+
+                LIMIT 1
+            `, [
+                    req.body.idProducto,
+                    req.body.idProducto,
+                    req.body.idProducto,
+                    req.body.idProducto,
+                    req.body.idProducto
+                ]);
+
+                if (movimientos.length > 0) {
+                    throw new Error(
+                        `No se puede cambiar el tipo de producto porque tiene movimientos en ${movimientos[0].origen}`
+                    );
+                }
+
+                idTipoProducto = req.body.idTipoProducto;
+            }
+
             await conec.execute(connection, `
             UPDATE 
                 producto 
             SET
+                idTipoProducto = ?,
                 idCategoria = ?,
                 idMedida = ?,     
                 idMarca = ?,
@@ -670,6 +722,7 @@ class Producto {
                 idUsuario = ?
             WHERE 
                 idProducto = ?`, [
+                idTipoProducto,
                 req.body.idCategoria,
                 req.body.idMedida,
                 req.body.idMarca,
@@ -716,7 +769,6 @@ class Producto {
                         ]);
                     }
                 }
-
             }
 
             /**
@@ -1210,71 +1262,48 @@ class Producto {
         try {
             const { buscar, filtros, posicionPagina, filasPorPagina } = req.body;
 
-            const categoriasCSV = filtros?.categories?.map(item => item.id).join(',') || '';
-            const marcasCSV = filtros?.brands?.map(item => item.id).join(',') || '';
-            const coloresCSV = filtros?.colors?.map(item => item.id).join(',') || '';
-            const tallasCSV = filtros?.sizes?.map(item => item.id).join(',') || '';
-            const saboresCSV = filtros?.flavors?.map(item => item.id).join(',') || '';
-            const precioMin = filtros && filtros.priceRange ? Number(filtros.priceRange[0]) : 0;
-            const precioMax = filtros && filtros.priceRange ? Number(filtros.priceRange[1]) : 999999;
+            const categoriasCSV = filtros?.categories?.map(item => item.id).join(',') || null;
+            const marcasCSV = filtros?.brands?.map(item => item.id).join(',') || null;
+            const coloresCSV = filtros?.colors?.map(item => item.id).join(',') || null;
+            const tallasCSV = filtros?.sizes?.map(item => item.id).join(',') || null;
+            const saboresCSV = filtros?.flavors?.map(item => item.id).join(',') || null;
+            const precioMin = filtros?.priceRange ? Number(filtros.priceRange[0]) : null;
+            const precioMax = filtros?.priceRange ? Number(filtros.priceRange[1]) : null;
 
             const bucket = firebaseService.getBucket();
 
-            const [sucursal] = await conec.query(`
-            SELECT 
-                idSucursal
-            FROM 
-                sucursal 
-            WHERE 
-                principal = 1`);
-
             const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?)`, [
-                buscar,
-                categoriasCSV,
-                marcasCSV,
-                coloresCSV,
-                tallasCSV,
-                saboresCSV,
-                precioMin,
-                precioMax,
+                toNullString(buscar),
+                toNullString(categoriasCSV),
+                toNullString(marcasCSV),
+                toNullString(coloresCSV),
+                toNullString(tallasCSV),
+                toNullString(saboresCSV),
+                toNullNumber(precioMin),
+                toNullNumber(precioMax),
                 parseInt(posicionPagina),
                 parseInt(filasPorPagina)
             ]);
 
-            const data = await Promise.all(lista.map(async (item, index) => {
-                const [inventario] = await conec.query(`
-                  SELECT 
-                      inv.cantidad
-                  FROM 
-                      almacen AS alm 
-                  INNER JOIN 
-                      inventario AS inv ON inv.idAlmacen = alm.idAlmacen
-                  WHERE 
-                      alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
-                    sucursal.idSucursal,
-                    item.idProducto
-                ]);
-
+            const data = await lista.map((item, index) => {
                 return {
                     ...item,
                     imagen: bucket && item.imagen
                         ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
                         : null,
                     id: (index + 1) + parseInt(posicionPagina),
-                    cantidad: inventario?.cantidad || 0,
                 };
-            }));
-
+            });
 
             const rows = await conec.procedure(`CALL Listar_Productos_Web_Count(?,?,?,?,?,?,?,?)`, [
-                buscar,
-                categoriasCSV,
-                marcasCSV,
-                coloresCSV,
-                tallasCSV,
-                saboresCSV,
-                precioMin,
-                precioMax,
+                toNullString(buscar),
+                toNullString(categoriasCSV),
+                toNullString(marcasCSV),
+                toNullString(coloresCSV),
+                toNullString(tallasCSV),
+                toNullString(saboresCSV),
+                toNullNumber(precioMin),
+                toNullNumber(precioMax),
             ]);
 
             return sendSuccess(res, { data, count: rows[0].Total });
@@ -1283,72 +1312,10 @@ class Producto {
         }
     }
 
-    async filterWebAll(req, res) {
-        try {
-            const bucket = firebaseService.getBucket();
-
-            const [sucursal] = await conec.query(`
-            SELECT 
-                idSucursal
-            FROM 
-                sucursal 
-            WHERE 
-                principal = 1`);
-
-            const list = await conec.procedure(`CALL Listar_Productos_Web_All()`);
-
-            const data = await Promise.all(list.map(async (item, index) => {
-                const [inventario] = await conec.query(`
-                  SELECT 
-                      inv.cantidad
-                  FROM 
-                      almacen AS alm 
-                  INNER JOIN 
-                      inventario AS inv ON inv.idAlmacen = alm.idAlmacen
-                  WHERE 
-                      alm.predefinido = 1 AND alm.idSucursal = ? AND inv.idProducto = ?`, [
-                    sucursal.idSucursal,
-                    item.idProducto
-                ]);
-
-                return {
-                    ...item,
-                    imagen: bucket && item.imagen
-                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                        : null,
-                    id: (index + 1),
-                    cantidad: inventario?.cantidad || 0,
-                };
-            }));
-
-            return sendSuccess(res, data);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
-        }
-    }
-
-    async filterWebLimit(req, res) {
-        try {
-            const limit = req.params.limit;
-
-            const bucket = firebaseService.getBucket();
-
-            const list = await conec.procedure(`CALL Listar_Productos_Web_Index(?)`, [parseInt(limit)]);
-            const newList = list.map(function (item, index) {
-                return {
-                    ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
-                    id: index + 1,
-                }
-            });
-            return sendSuccess(res, newList);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebIndex", error);
-        }
-    }
-
     async filterWebId(req, res) {
         try {
+            const { idProducto } = req.params;
+
             const bucket = firebaseService.getBucket();
 
             const [sucursal] = await conec.query(`
@@ -1361,6 +1328,7 @@ class Producto {
 
             const producto = await conec.query(`
             SELECT 
+                1 AS id,
                 p.idProducto,
                 p.nombre,
                 p.codigo,
@@ -1399,16 +1367,14 @@ class Producto {
             LEFT JOIN 
                 almacen AS a ON a.idAlmacen = i.idAlmacen
             WHERE 
-                p.estado = 1 AND p.idProducto = ? OR p.codigo = ?
+                p.estado = 1 AND p.idProducto = ?
                 AND
                 (
                     p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
                     OR
                     p.idTipoProducto = 'TP0002'
-                )
-                `, [
-                req.query.codigo,
-                req.query.codigo,
+                )`, [
+                idProducto,
                 sucursal.idSucursal,
             ]);
 
@@ -1421,7 +1387,7 @@ class Producto {
                     productoDetalle 
                 WHERE 
                     idProducto = ?`, [
-                producto[0].idProducto
+                idProducto
             ]);
 
             const imagenes = await conec.query(`
@@ -1434,7 +1400,7 @@ class Producto {
                     productoImagen 
                 WHERE 
                     idProducto = ?`, [
-                producto[0].idProducto
+                idProducto
             ]);
 
             const newImagenes = [];
@@ -1444,7 +1410,7 @@ class Producto {
                     newImagenes.push({
                         "idImagen": image.id,
                         "nombre": image.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                        "url": `ƒ${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
                         "ancho": image.ancho,
                         "alto": image.alto,
                     });
@@ -1463,7 +1429,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
                 WHERE 
                     pc.idProducto = ?`, [
-                producto[0].idProducto
+                idProducto
             ]);
 
             const tallas = await conec.query(`
@@ -1478,7 +1444,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
                 WHERE 
                     pc.idProducto = ?`, [
-                producto[0].idProducto
+                idProducto
             ]);
 
             const sabores = await conec.query(`
@@ -1493,7 +1459,7 @@ class Producto {
                     atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
                 WHERE 
                     pc.idProducto = ?`, [
-                producto[0].idProducto
+                idProducto
             ]);
 
             const respuesta = {
@@ -1526,6 +1492,8 @@ class Producto {
 
     async filterWebRelatedId(req, res) {
         try {
+            const { idProducto, idCategoria } = req.params;
+
             const bucket = firebaseService.getBucket();
 
             const [sucursal] = await conec.query(`
@@ -1588,8 +1556,8 @@ class Producto {
             ORDER BY 
                 p.fecha DESC, p.hora DESC
             LIMIT 4`, [
-                req.query.idProducto,
-                req.query.idCategoria,
+                idProducto,
+                idCategoria,
                 sucursal.idSucursal,
             ]);
 
