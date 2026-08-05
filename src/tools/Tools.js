@@ -868,7 +868,7 @@ async function generateQr(data, width) {
 };
 
 function toNullString(valor) {
-    if (valor == null || valor.trim() === "") {
+    if (valor == null || valor === undefined || valor.trim() === "") {
         return null;
     }
 
@@ -876,7 +876,7 @@ function toNullString(valor) {
 }
 
 function toNullNumber(valor) {
-    if (valor == null || valor === "") {
+    if (valor == null || valor === undefined || valor === "") {
         return null;
     }
 

@@ -157,6 +157,9 @@ class Persona {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
                 SELECT 
                     informacion 
@@ -175,7 +178,8 @@ class Persona {
             const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
             const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-            await conec.execute(connection, `INSERT INTO persona(
+            await conec.execute(connection, `
+            INSERT INTO persona(
                 idPersona, 
                 idTipoDocumento,
                 documento,
@@ -226,10 +230,10 @@ class Persona {
                 false,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ]);
 
@@ -295,6 +299,9 @@ class Persona {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
                 req.body.idPersona,
                 req.body.documento,
@@ -352,8 +359,8 @@ class Persona {
                 req.body.estadoCivil,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idPersona
             ]);
