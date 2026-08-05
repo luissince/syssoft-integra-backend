@@ -73,4 +73,5 @@ module.exports = (app) => {
 
     app.use('/api/guiaremision', require('./guia-remision.route'));
     app.use('/api/traslado', require('./traslado.route'));
+    app.use('/api/web', require('./web.route'));
 };

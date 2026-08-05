@@ -418,7 +418,7 @@ class Pedido {
             ]);
 
             // Devuelve un objeto con la información del pedido y los detalles 
-            return sendSuccess(res, { cabecera: pedido[0], envio ,detalles: listaDetalles, ventas, vendidos });
+            return sendSuccess(res, { cabecera: pedido[0], envio, detalles: listaDetalles, ventas, vendidos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -598,191 +598,19 @@ class Pedido {
             const date = currentDate();
             const time = currentTime();
 
-            // Genera un nuevo ID para el pedido
-            const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
-            const idPedido = generateAlphanumericCode("PD0001", result, 'idPedido');
+            console.log(req.clientInfo);
 
-            // Consulta datos del comprobante para generar la numeración
-            const comprobante = await conec.execute(connection, `
-            SELECT 
-                serie,
-                numeracion 
-            FROM 
-                comprobante 
-            WHERE 
-                idComprobante  = ?`, [
-                req.body.idComprobante
-            ]);
-
-            // Consulta numeraciones de los pedidos  asociadas al mismo comprobante
-            const pedidos = await conec.execute(connection, `
-            SELECT 
-                numeracion  
-            FROM 
-                pedido 
-            WHERE 
-                idComprobante = ?`, [
-                req.body.idComprobante
-            ]);
-
-            // Genera una nueva numeración para el pedido
-            const numeracion = generateNumericCode(comprobante[0].numeracion, pedidos, "numeracion");
-
-            await conec.execute(connection, `INSERT INTO pedido(
-                idPedido,
-                idCliente,
-                idUsuario,
-                idComprobante,
+            const {
                 idSucursal,
+                idUsuario,
                 idMoneda,
-                serie,
-                numeracion,
-                idTipoEntrega,
-                fechaEntrega,
-                horaEntrega,
+                idComprobante,
                 observacion,
                 nota,
-                instruccion,
-                fecha,
-                hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                idPedido,
-                req.body.idCliente,
-                req.body.idUsuario,
-                req.body.idComprobante,
-                req.body.idSucursal,
-                req.body.idMoneda,
-                comprobante[0].serie,
-                numeracion,
-                req.body.idTipoEntrega,
-                req.body.fechaEntrega || date,
-                req.body.horaEntrega || time,
-                req.body.observacion,
-                req.body.nota,
-                req.body.instruccion,
-                date,
-                time,
-            ]);
+                instruccion
+            } = req.body;
 
-            // Genera un nuevo ID para los detalles del pedido
-            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
-            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
-
-            // Inserta los detalles de compra en la base de datos
-            for (const item of req.body.detalles) {
-                await await conec.execute(connection, `INSERT INTO pedidoDetalle(
-                    idPedidoDetalle,
-                    idPedido,
-                    idProducto,
-                    idMedida,
-                    precio,
-                    cantidad,
-                    idImpuesto
-                ) VALUES(?,?,?,?,?,?,?)`, [
-                    idPedidoDetalle,
-                    idPedido,
-                    item.idProducto,
-                    item.idMedida,
-                    item.precio,
-                    item.cantidad,
-                    item.idImpuesto
-                ]);
-
-                idPedidoDetalle++;
-            }
-
-            await conec.commit(connection);
-            return sendSave(res, {
-                idPedido: idPedido,
-                message: "Se registró correctamente el pedido."
-            });
-        } catch (error) {
-            if (connection != null) {
-                await conec.rollback(connection);
-            }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/create", error)
-        }
-    }
-
-    async createWeb(req, res) {
-        let connection = null;
-        try {
-            connection = await conec.beginTransaction();
-
-            const date = currentDate();
-            const time = currentTime();
-
-            const persona = await conec.execute(connection, 'SELECT * FROM persona WHERE documento = ?', [
-                req.body.cliente.documento
-            ]);
-
-            let idCliente = "";
-
-            if (persona.length === 0) {
-                const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
-                const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
-
-                await conec.execute(connection, `
-                INSERT INTO persona(
-                    idPersona, 
-                    idTipoDocumento,
-                    documento,
-                    informacion,
-
-                    cliente,
-                    proveedor,
-                    conductor,
-                    licenciaConducir,
-
-                    celular,
-                    telefono,
-                    fechaNacimiento,
-                    email, 
-                    clave,
-                    genero, 
-                    direccion,
-                    idUbigeo, 
-                    estadoCivil,
-                    predeterminado,
-                    observacion,
-                    fecha,
-                    hora,
-                    fupdate,
-                    hupdate,
-                    idUsuario
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    idPersona,
-                    req.body.cliente.idTipoDocumento,
-                    req.body.cliente.documento,
-                    req.body.cliente.informacion,
-
-                    true,
-                    false,
-                    false,
-                    "",
-
-                    req.body.cliente.celular,
-                    req.body.cliente.telefono,
-                    null,
-                    req.body.cliente.email,
-                    req.body.cliente.clave,
-                    null,
-                    req.body.cliente.direccion,
-                    null,
-                    null,
-                    false,
-                    "",
-                    date,
-                    time,
-                    date,
-                    time,
-                    req.body.idUsuario,
-                ]);
-
-                idCliente = idPersona;
-            } else {
-                idCliente = persona[0].idPersona;
-            }
+            console.log(req.body);
 
             // Genera un nuevo ID para el pedido
             const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
@@ -797,7 +625,7 @@ class Pedido {
                 comprobante 
             WHERE 
                 idComprobante  = ?`, [
-                req.body.idComprobante
+                idComprobante
             ]);
 
             // Consulta numeraciones de los pedidos  asociadas al mismo comprobante
@@ -808,7 +636,7 @@ class Pedido {
                 pedido 
             WHERE 
                 idComprobante = ?`, [
-                req.body.idComprobante
+                idComprobante
             ]);
 
             // Genera una nueva numeración para el pedido
@@ -823,99 +651,31 @@ class Pedido {
                 idSucursal,
                 idMoneda,
                 serie,
-                numeracion,
-                idTipoEntrega,
-                fechaEntrega,
-                horaEntrega,
+                numeracion,        
                 observacion,
                 nota,
                 instruccion,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPedido,
                 idCliente,
-                req.body.idUsuario,
-                req.body.idComprobante,
-                req.body.idSucursal,
-                req.body.idMoneda,
+                idUsuario,
+                idComprobante,
+                idSucursal,
+                idMoneda,
                 comprobante[0].serie,
                 numeracion,
-                req.body.idTipoEntrega,
-                req.body.fechaEntrega || date,
-                req.body.horaEntrega || time,
-                req.body.observacion,
-                req.body.nota,
-                req.body.instruccion,
+                observacion,
+                nota,
+                instruccion,
                 date,
                 time,
             ]);
 
-            if (req.body.idTipoEntrega === "TE0001") {
-                await conec.execute(connection, `
-                    INSERT INTO pedidoEnvio(
-                        idPedido,
-                        email,
-                        telefono,
-                        celular,
-                        direccion,
-                        referencia
-                    ) VALUES(?,?,?,?,?,?)`, [
-                    idPedido,
-                    req.body.entrega.email,
-                    req.body.entrega.telefono,
-                    req.body.entrega.celular,
-                    req.body.entrega.direccion,
-                    req.body.entrega.referencia,
-                ]);
-            }
-
-            // Genera un nuevo ID para los detalles del pedido
-            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
-            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
-
-            // Inserta los detalles de compra en la base de datos
-            for (const item of req.body.detalles) {
-                await await conec.execute(connection, `
-                INSERT INTO pedidoDetalle(
-                    idPedidoDetalle,
-                    idPedido,
-                    idProducto,
-                    idMedida,
-                    precio,
-                    cantidad,
-                    idImpuesto
-                ) VALUES(?,?,?,?,?,?,?)`, [
-                    idPedidoDetalle,
-                    idPedido,
-                    item.idProducto,
-                    item.idMedida,
-                    item.precio,
-                    item.cantidad,
-                    item.idImpuesto
-                ]);
-
-                idPedidoDetalle++;
-            }
-
-            await conec.execute(connection, `    
-                INSERT INTO auditoria(
-                    idReferencia,
-                    idUsuario,
-                    tipo,
-                    descripción
-                ) VALUES(?,?,?,?)`, [
-                idPedido,
-                req.body.idUsuario,
-                'INSERTAR',
-                'CREAR UN NUEVO PEDIDO DESDE LA WEB',
-                date,
-                time,
-            ]);
-
-            await conec.commit(connection);
+            await conec.rollback(connection);
             return sendSave(res, {
-                idPedido: idPedido,
+                // idPedido: idPedido,
                 message: "Se registró correctamente el pedido."
             });
         } catch (error) {

@@ -31,6 +31,15 @@ app.use(express.urlencoded({
     extended: false
 }));
 
+app.use((req, res, next) => {
+    req.clientInfo = {
+        app: req.get('X-App') || 'unknown',
+        version: req.get('X-Version') || 'unknown',
+    };
+
+    next();
+});
+
 app.use(requestLogger);
 
 routes(app);

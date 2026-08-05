@@ -1272,7 +1272,17 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
 
-            const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?)`, [
+            const web = await conec.query(`
+            SELECT
+                w.idWeb,
+                w.idSucursal,
+                w.idAlmacen
+            FROM 
+                web AS w
+            LIMIT 1`);
+
+            const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?,?)`, [
+                toNullString(web[0]?.idAlmacen),
                 toNullString(buscar),
                 toNullString(categoriasCSV),
                 toNullString(marcasCSV),
@@ -1295,7 +1305,8 @@ class Producto {
                 };
             });
 
-            const rows = await conec.procedure(`CALL Listar_Productos_Web_Count(?,?,?,?,?,?,?,?)`, [
+            const rows = await conec.procedure(`CALL Listar_Productos_Web_Count(?,?,?,?,?,?,?,?,?)`, [
+                toNullString(web[0]?.idAlmacen),
                 toNullString(buscar),
                 toNullString(categoriasCSV),
                 toNullString(marcasCSV),
@@ -1318,13 +1329,14 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
 
-            const [sucursal] = await conec.query(`
-                SELECT 
-                    idSucursal
-                FROM 
-                    sucursal 
-                WHERE 
-                    principal = 1`);
+            const web = await conec.query(`
+            SELECT
+                w.idWeb,
+                w.idSucursal,
+                w.idAlmacen
+            FROM 
+                web AS w
+            LIMIT 1`);
 
             const producto = await conec.query(`
             SELECT 
@@ -1334,15 +1346,11 @@ class Producto {
                 p.codigo,
                 p.sku,
                 p.codigoBarras,
+                 p.idTipoProducto,
                 p.descripcionCorta,
                 p.descripcionLarga,
                 pc.valor AS precio,
                 p.imagen,
-                CASE 
-                    WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
-                    ELSE 0
-                END AS cantidad,
-                p.idTipoProducto,
 
                 c.idCategoria,
                 c.nombre AS categoriaNombre,
@@ -1351,7 +1359,9 @@ class Producto {
                 m.nombre AS marcaNombre,
 
                 me.idMedida,
-                me.nombre AS nombreMedida
+                me.nombre AS nombreMedida,
+
+                IFNULL(i.cantidad, 0) AS cantidad
             FROM 
                 producto AS p
             INNER JOIN 
@@ -1363,43 +1373,37 @@ class Producto {
             LEFT JOIN 
                 marca AS m ON m.idMarca = p.idMarca
             LEFT JOIN 
-                inventario AS i ON i.idProducto = p.idProducto 
-            LEFT JOIN 
-                almacen AS a ON a.idAlmacen = i.idAlmacen
+                inventario AS i ON i.idProducto = p.idProducto AND i.idAlmacen = ?
             WHERE 
-                p.estado = 1 AND p.idProducto = ?
-                AND
-                (
-                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
-                    OR
-                    p.idTipoProducto = 'TP0002'
-                )`, [
+                p.estado = 1 
+                AND 
+                p.idProducto = ?`, [
+                web[0].idAlmacen,
                 idProducto,
-                sucursal.idSucursal,
             ]);
 
             const detalles = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    nombre,
-                    valor
-                FROM 
-                    productoDetalle 
-                WHERE 
-                    idProducto = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                nombre,
+                valor
+            FROM 
+                productoDetalle 
+            WHERE 
+                idProducto = ?`, [
                 idProducto
             ]);
 
             const imagenes = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    nombre,
-                    ancho,
-                    alto
-                FROM 
-                    productoImagen 
-                WHERE 
-                    idProducto = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                nombre,
+                ancho,
+                alto
+            FROM 
+                productoImagen 
+            WHERE 
+                idProducto = ?`, [
                 idProducto
             ]);
 
@@ -1418,47 +1422,47 @@ class Producto {
             }
 
             const colores = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.hexadecimal
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
-                WHERE 
-                    pc.idProducto = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                pc.idAtributo,
+                c.nombre,
+                c.hexadecimal
+            FROM 
+                productoAtributo AS pc
+            INNER JOIN 
+                atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
+            WHERE 
+                pc.idProducto = ?`, [
                 idProducto
             ]);
 
             const tallas = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.valor
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
-                WHERE 
-                    pc.idProducto = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                pc.idAtributo,
+                c.nombre,
+                c.valor
+            FROM 
+                productoAtributo AS pc
+            INNER JOIN 
+                atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
+            WHERE 
+                pc.idProducto = ?`, [
                 idProducto
             ]);
 
             const sabores = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.valor
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
-                WHERE 
-                    pc.idProducto = ?`, [
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                pc.idAtributo,
+                c.nombre,
+                c.valor
+            FROM 
+                productoAtributo AS pc
+            INNER JOIN 
+                atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
+            WHERE 
+                pc.idProducto = ?`, [
                 idProducto
             ]);
 
@@ -1496,13 +1500,14 @@ class Producto {
 
             const bucket = firebaseService.getBucket();
 
-            const [sucursal] = await conec.query(`
-                SELECT 
-                    idSucursal
-                FROM 
-                    sucursal 
-                WHERE 
-                    principal = 1`);
+            const web = await conec.query(`
+            SELECT
+                w.idWeb,
+                w.idSucursal,
+                w.idAlmacen
+            FROM 
+                web AS w
+            LIMIT 1`);
 
             const list = await conec.query(`
             SELECT 
@@ -1511,18 +1516,11 @@ class Producto {
                 p.codigo,
                 p.sku,
                 p.codigoBarras,
+                p.idTipoProducto,
                 p.descripcionCorta,
                 p.descripcionLarga,
                 pc.valor AS precio,
                 p.imagen,
-                CASE 
-                    WHEN p.idTipoProducto = 'TP0001' THEN i.cantidad
-                    ELSE 0
-                END AS cantidad,
-                 CASE 
-                    WHEN p.idTipoProducto = 'TP0001' THEN 0
-                    ELSE 1
-                END AS servicio,
 
                 c.idCategoria,
                 c.nombre AS categoriaNombre,
@@ -1531,7 +1529,9 @@ class Producto {
                 m.nombre AS marcaNombre,
 
                 me.idMedida,
-                me.nombre AS nombreMedida
+                me.nombre AS nombreMedida,
+
+                IFNULL(i.cantidad, 0) AS cantidad
             FROM 
                 producto AS p
             INNER JOIN 
@@ -1540,30 +1540,30 @@ class Producto {
                 categoria AS c ON c.idCategoria = p.idCategoria
             INNER JOIN  
                 medida AS me ON p.idMedida = me.idMedida
+
             LEFT JOIN 
                 marca AS m ON m.idMarca = p.idMarca
+                
             LEFT JOIN 
-                inventario AS i ON i.idProducto = p.idProducto 
-            LEFT JOIN 
-                almacen AS a ON a.idAlmacen = i.idAlmacen
+                inventario AS i ON i.idProducto = p.idProducto AND i.idAlmacen = ?
             WHERE
-                p.estado = 1 AND p.publicar = 1 AND p.idProducto <> ? AND p.idCategoria = ? AND
-                (
-                    p.idTipoProducto = 'TP0001' AND a.idSucursal = ? AND a.predefinido = 1
-                    OR
-                    p.idTipoProducto = 'TP0002'
-                )
+                p.estado = 1 
+                AND p.publicar = 1 
+                AND p.idProducto <> ? 
+                AND p.idCategoria = ? 
             ORDER BY 
                 p.fecha DESC, p.hora DESC
             LIMIT 4`, [
+                web[0].idAlmacen,
                 idProducto,
                 idCategoria,
-                sucursal.idSucursal,
+                web[0].idSucursal
             ]);
 
-            const resultLista = list.map(function (item) {
+            const resultLista = list.map(function (item, index) {
                 return {
                     ...item,
+                    id: (index + 1),
                     imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
                     categoria: {
                         idCategoria: item.idCategoria,
