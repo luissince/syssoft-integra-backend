@@ -613,7 +613,8 @@ class Persona {
             res.cookie("token", token, {
                 httpOnly: true,
                 secure: process.env.ENVIRONMENT === "production",
-                sameSite: "none",
+                sameSite: "lax",
+                domain: process.env.ENVIRONMENT === "production" ? "syssoftintegra.com" : "localhost",
                 path: "/",
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
