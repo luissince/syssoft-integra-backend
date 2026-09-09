@@ -24,6 +24,7 @@ const allowedOrigins = [
     "https://www.syssoftintegra.com",
     "https://app.syssoftintegra.com",
     "https://api.syssoftintegra.com",
+    "https://shop.syssoftintegra.com",
 
     "https://www.importmuneli.com",
     "https://app.importmuneli.com"
