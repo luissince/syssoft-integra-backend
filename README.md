@@ -134,7 +134,7 @@ APP_APIS_PERU="https://api.com"
 APP_EMAIL="http://localhost:8100"
 
 # TOKEN DE ACCESO
-TOKEN_ACCESS="replace_me"
+JWT_SECRET="replace_me"
 
 # DATABASE
 DB_HOST=localhost

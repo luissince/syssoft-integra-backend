@@ -883,6 +883,15 @@ function toNullNumber(valor) {
     return Number(valor);
 }
 
+function calculateTaxBruto(tax, amount) {
+    return amount / ((tax + 100) * 0.01);
+}
+
+function calculateTax(porcent, amount) {
+    const tax = porcent / 100.0;
+    return amount * tax;
+}
+
 module.exports = {
     formatNumberWithZeros,
     isNumber,
@@ -915,5 +924,7 @@ module.exports = {
     renderTemplate,
     generateQr,
     toNullString,
-    toNullNumber
+    toNullNumber,
+    calculateTaxBruto,
+    calculateTax
 };

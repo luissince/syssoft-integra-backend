@@ -28,8 +28,6 @@ router.put('/establecer/preferido', async (req, res) => await producto.preferido
 
 router.get('/lista/precios', async (req, res) => await producto.obtenerListPrecio(req, res));
 
-router.get('/filter/web/rangeprice', async (req, res) => await producto.rangePriceWeb(req, res));
-
 router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res));
 
 router.get('/filter/web/:idProducto', async (req, res) => await producto.filterWebId(req, res));
