@@ -15,13 +15,18 @@ app.set('port', process.env.PORT || 5000);
 app.use(morgan('dev'));
 
 const allowedOrigins = [
-    "https://mitienda.com",
-    "https://www.mitienda.com",
     "http://localhost:3666",
     "http://localhost:3000",
-    "https://*.leatsac.com",
-    "https://*.syssoftintegra.com",
-    "https://*.importmuneli.com"
+
+    "https://www.leatsac.com",
+    "https://app.leatsac.com",
+
+    "https://www.syssoftintegra.com",
+    "https://app.syssoftintegra.com",
+    "https://api.syssoftintegra.com",
+
+    "https://www.importmuneli.com",
+    "https://app.importmuneli.com"
 ];
 
 app.use(cookieParser());
