@@ -1,0 +1,121 @@
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+    <link rel="stylesheet" href="<%= style %>">
+    <title><%= title %></title>
+  </head>
+  <body>
+    <main class="pl-10 pr-10 pt-10 pb-10">
+      <div class="text-center pb-10">
+        <img width="100" src="<%= empresa.rutaLogo ?? icon %>" class="mb-5" />
+        <br />
+        <h2 class="font-weight-bold text-uppercase"> <%= empresa.nombreEmpresa %> </h2>
+        <p>RUC: <%= empresa.documento %></p>
+        <p><%= sucursal.direccion %></p>
+        <p><%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito %></p>
+        <p>Telf.: <%= sucursal.telefono %></p>
+        <p>Cel.: <%= sucursal.celular %></p>
+        <p><%= sucursal.email %></p>
+        <p><%= sucursal.paginaWeb %></p>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="text-center pt-5 pb-5">
+        <p class="font-weight-bold text-uppercase font-size-13"><%= pedido.comprobante.nombre %></p>
+        <p class="font-weight-bold font-size-13"><%= pedido.comprobante.serie %>-<%= pedido.comprobante.numeracion %></p>
+      </div>
+  
+      <div class="pt-5 pb-5">
+        <p><span class="font-weight-bold">Fecha de Emisión: </span> <%= pedido.fecha %> <%= pedido.hora %></p>
+        <p><span class="font-weight-bold">RUC / DNI:</span> <%= pedido.cliente.documento %></p>
+        <p><span class="font-weight-bold">Cliente:</span> <%= pedido.cliente.informacion %></p>
+        <p><span class="font-weight-bold">Tipo Pedido:</span> <%= pedido.tipoPedido.nombre %></p>
+        <p><span class="font-weight-bold">Dirección:</span> <%= pedido.cliente.direccion %></p>
+        <% if (pedido.nota) { %>
+          <p><span class="font-weight-bold">Nota: </span> * <%= pedido.nota %></p>
+        <% } %>      
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div>
+        <table class="table">
+          <thead>
+              <tr>
+                  <th width="5%" class="text-center"><p>Cant.</p></th>
+                  <th width="30%" class="text-center"><p>Producto</p></th>
+                  <th width="10%" class="text-center"><p>Precio</p></th>
+                  <th width="10%" class="text-right"><p>Importe</p></th>
+              </tr>
+          </thead>
+          <tbody>
+            <% for (const item of detalles) { %>
+              <tr>
+                  <td class="text-center"><p><%= formatDecimal(item.cantidad) %></p></td>
+                  <td class="text-left"><p><%= item.producto.nombre %></p></td>
+                  <td class="text-center"><p><%= formatDecimal(item.precio) %></p></td>
+                  <td class="text-right"><p><%= formatDecimal(item.precio * item.cantidad) %></p></td>
+              </tr>
+              <% } %>
+          </tbody>
+        </table>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="flex justify-content-end">
+        <table class="table">
+          <tbody>
+            <tr>
+              <td><p>SUB TOTAL:</p></td>
+              <td class="text-right"><p><p><%= pedido.moneda.simbolo %> <%= formatDecimal(subTotal) %></p></td>
+            </tr>
+            <tr>
+              <% for (const item of impuestos) { %>
+                <tr>
+                  <td><p><%= item.nombre %>:</p></td>
+                  <td class="text-right"><p><%= pedido.moneda.simbolo %> <%= formatDecimal(item.monto) %></p></td>
+                </tr>
+              <% } %>
+            </tr>
+            <tr>
+              <th class="text-left"><p>TOTAL:</p></th>
+              <th class="text-right"><p><%= pedido.moneda.simbolo %> <%= formatDecimal(total) %></p></th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="pt-5 pb-5">
+        <p>MONTO EN LETRAS: <%= importLetras %></p>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <footer class="pt-5">    
+        <div class="text-center mb-5">
+          <p>Vendedor: <%= pedido.usuario.nombres %>, <%= pedido.usuario.apellidos %></p>
+        </div>
+  
+        <div class="text-center mt-2">
+            <img src="<%= icon %>" width="50px" class="m-0">
+            <br />
+            <a href="https://www.syssoftintegra.com/" class="font-family-pacifico">
+              Emitido por: <span class="font-weight-bold">www.syssosftintegra.com</span>
+            </a>
+        </div>
+  
+        <% if (empresa.tipoEnvio === 0) { %>
+          <p class="text-danger font-weight-bold text-center">           
+              Documento no valido
+          </p>
+        <% } %>
+      </footer>
+    </main>
+  </body>
+</html>

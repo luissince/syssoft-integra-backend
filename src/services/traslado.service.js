@@ -93,7 +93,7 @@ class Traslado {
             p.nombre as producto,
             p.imagen,
             aj.cantidad,
-            m.nombre as unidad,
+            m.nombre as medida,
             c.nombre as categoria
         FROM 
             trasladoDetalle as aj

@@ -2,9 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 const routes = require('./routes');
 const requestLogger = require('./middlewares/request-logger.middleware');
+const { CLIENT_INFO_REQUEST_HEADER, CLIENT_INFO_REQUEST_VERSION } = require('./common/constants/names.constants');
 
 const app = express();
 
@@ -12,7 +14,21 @@ app.set('port', process.env.PORT || 5000);
 
 app.use(morgan('dev'));
 
+const allowedOrigins = [
+    "https://mitienda.com",
+    "https://www.mitienda.com",
+    "http://localhost:3666",
+    "http://localhost:3000",
+    "https://*.leatsac.com",
+    "https://*.syssoftintegra.com",
+    "https://*.importmuneli.com"
+];
+
+app.use(cookieParser());
+
 app.use(cors({
+    origin: allowedOrigins,
+    credentials: true,
     exposedHeaders: ['Content-Disposition']
 }));
 
@@ -33,8 +49,8 @@ app.use(express.urlencoded({
 
 app.use((req, res, next) => {
     req.clientInfo = {
-        app: req.get('X-App') || 'unknown',
-        version: req.get('X-Version') || 'unknown',
+        app: req.get(CLIENT_INFO_REQUEST_HEADER) || 'unknown',
+        version: req.get(CLIENT_INFO_REQUEST_VERSION) || 'unknown',
     };
 
     next();

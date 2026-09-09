@@ -35,7 +35,7 @@ jobs:
           APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
           APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
           APP_EMAIL="${{secrets.APP_EMAIL}}"
-          TOKEN_ACCESS="${{secrets.TOKEN_ACCESS}}"
+          JWT_SECRET="${{secrets.JWT_SECRET}}"
 
           DB_HOST="${{secrets.DB_HOST}}"
           DB_USER="${{secrets.DB_USER}}"

@@ -1,30 +1,38 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, toNullNumber, toNullString, formatDecimal, calculateTaxBruto, calculateTax, formatNumberWithZeros, renderTemplate, rounded } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
 const firebaseService = require('../common/fire-base');
-const { noImageUrl } = require('../common/constants/paths.constants');
+const { noImageUrl, cssUrl, logoUrl } = require('../common/constants/paths.constants');
+const { CLIENT_INFO_REQUEST_NAMES } = require('../common/constants/names.constants');
+const NumberLleters = require('../tools/NumberLleters');
+const { ClientError } = require('../tools/Error');
 
 class Pedido {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                req.query.estado,
+            const bucket = firebaseService.getBucket();
 
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+            const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
+
+            const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                toNullString(idSucursal),
+                toNullNumber(ligado),
+                toNullString(estado),
+
+                parseInt(posicionPagina),
+                parseInt(filasPorPagina)
             ]);
 
-            const resultLista = await Promise.all(lista.map(async function (item, index) {
+            const newLista = await Promise.all(lista.map(async function (item, index) {
                 const ligado = await conec.query(`
                     SELECT 
-                        COUNT(*) 
+                        COUNT(*) AS total
                     FROM 
                         ventaPedido AS vc 
                     INNER JOIN 
@@ -34,156 +42,74 @@ class Pedido {
                     item.idPedido
                 ]);
 
+
+                if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
+                    const details = await conec.query(`
+                    SELECT 
+                        ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                        p.idProducto,
+                        p.imagen,
+                        p.codigo,
+                        p.nombre AS producto,
+
+                        md.nombre AS medida, 
+                        m.nombre AS categoria, 
+
+                        cd.precio,
+                        cd.cantidad,
+
+                        cd.idImpuesto,
+                        imp.nombre AS impuesto,
+                        imp.porcentaje
+                    FROM 
+                        pedidoDetalle AS cd 
+                    INNER JOIN 
+                        producto AS p ON cd.idProducto = p.idProducto 
+                    INNER JOIN 
+                        medida AS md ON md.idMedida = cd.idMedida 
+                    INNER JOIN 
+                        categoria AS m ON p.idCategoria = m.idCategoria 
+                    INNER JOIN 
+                        impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
+                    WHERE
+                        cd.idPedido = ?
+                    ORDER BY 
+                        cd.idPedidoDetalle ASC`, [
+                        item.idPedido
+                    ]);
+
+                    item.detalles = details.map(item => {
+                        return {
+                            ...item,
+                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                        }
+                    }) || [];
+                }
+
                 return {
                     ...item,
-                    ligado: ligado.length > 0 ? ligado[0].total : 0,
+                    ligado: ligado.length > 0 ? ligado[0].total : "LIBRE",
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             }));
 
-            const total = await conec.procedure(`CALL Listar_Pedidos_Count(?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                req.query.estado,
+            const total = await conec.procedure(`CALL Listar_Pedidos_Count(?,?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                toNullString(idSucursal),
+                toNullNumber(ligado),
+                toNullString(estado),
             ]);
 
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+            if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
+                return sendSuccess(res, this._mapListResponse(newLista, total[0].Total));
+            }
+
+            return sendSuccess(res, { "result": newLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
-        }
-    }
-
-    async listWeb(req, res) {
-        try {
-            const bucket = firebaseService.getBucket();
-
-            // Consulta datos del pedido
-            const list = await conec.query(`
-            SELECT 
-                c.idPedido,
-                DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
-                c.hora,
-                co.nombre AS comprobante,
-                c.serie,
-                c.numeracion,
-
-                c.idTipoEntrega,
-                te.nombre AS tipoEntrega,
-
-                DATE_FORMAT(c.fechaEntrega, '%d/%m/%Y') AS fechaEntrega,
-                c.horaEntrega,
-
-                td.nombre AS tipoDocumento,
-                cn.documento,
-                cn.informacion,
-                cn.celular,
-                cn.telefono,
-                cn.email,
-                cn.direccion,
-
-                c.estado,
-                mo.codiso,
-
-                c.nota,
-                c.instruccion
-            FROM 
-                pedido AS c
-            INNER JOIN
-                tipoEntrega AS te ON te.idTipoEntrega = c.idTipoEntrega
-            INNER JOIN 
-                comprobante AS co ON co.idComprobante = c.idComprobante
-            INNER JOIN 
-                persona AS cn ON cn.idPersona = c.idCliente
-            INNER JOIN
-                tipoDocumento AS td ON td.idTipoDocumento = cn.idTipoDocumento
-            INNER JOIN 
-                moneda AS mo ON mo.idMoneda = c.idMoneda
-            GROUP BY 
-                c.idPedido
-            ORDER BY 
-                c.fecha DESC, c.hora DESC`);
-
-            // Consulta los detalles del pedido
-            const newList = await Promise.all(list.map(async function (item, index) {
-                // Consultar envio de pedido
-                const delivery = await conec.query(`
-                SELECT 
-                    e.email,
-                    e.telefono,
-                    e.celular,
-                    e.direccion,
-                    e.referencia
-                FROM 
-                    pedidoEnvio AS e
-                WHERE 
-                    e.idPedido = ?`, [
-                    item.idPedido
-                ]);
-
-                // Consultar detalles del pedido
-                const details = await conec.query(`
-                SELECT 
-                    ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
-                    p.idProducto,
-                    p.nombre,
-                    p.codigo,
-                    p.sku,
-                    p.codigoBarras,
-                    p.imagen,
-
-                    tp.idTipoProducto,
-                    tp.nombre AS tipoProducto,
-
-                    m.idMedida,
-                    m.nombre AS medida,
-
-                    c.idCategoria,
-                    c.nombre AS categoria,
-
-                    i.idImpuesto,
-                    i.nombre AS impuesto,
-                    i.porcentaje,
-
-                    cd.cantidad,
-                    cd.precio
-                FROM 
-                    pedidoDetalle AS cd
-                INNER JOIN 
-                    producto AS p ON cd.idProducto = p.idProducto
-                INNER JOIN 
-                    tipoProducto AS tp ON tp.idTipoProducto = p.idTipoProducto
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                INNER JOIN
-                    categoria AS c ON c.idCategoria = p.idCategoria
-                INNER JOIN 
-                    impuesto AS i ON cd.idImpuesto = i.idImpuesto
-                WHERE
-                    cd.idPedido = ?
-                ORDER BY 
-                    cd.idPedidoDetalle ASC`, [
-                    item.idPedido
-                ]);
-
-                return {
-                    ...item,
-                    envio: delivery[0],
-                    detalles: details.map(detail => {
-                        return {
-                            ...detail,
-                            imagen: bucket && detail.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${detail.imagen}` : null,
-                        }
-                    }),
-                    id: (index + 1)
-                };
-            }));
-
-            return sendSuccess(res, newList);
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/listWeb", error)
         }
     }
 
@@ -193,26 +119,45 @@ class Pedido {
 
             const cabecera = await conec.query(`
             SELECT 
+                c.idTipoPedido,
+
                 p.idPersona,
                 p.documento,
                 p.informacion,
                 p.celular,
                 p.email,
                 p.direccion,
+
                 c.idComprobante,
                 c.idMoneda,
                 c.observacion,
-                c.nota,
-                c.instruccion,
-                c.idTipoEntrega,
-                c.fechaEntrega,
-                c.horaEntrega
+                c.nota
             FROM 
                 pedido AS c
             INNER JOIN 
                 persona AS p ON p.idPersona = c.idCliente
             WHERE 
                 c.idPedido = ?`, [
+                idPedido
+            ]);
+
+            const envio = await conec.query(`
+            SELECT 
+                e.direccion,
+                e.referencia,
+
+                e.idSucursal,
+                
+                DATE_FORMAT(e.fechaPedido, '%Y-%m-%d') AS fechaPedido,
+                e.horaPedido,      
+                
+                e.idAgencia,
+                e.destino,
+                e.receptor
+            FROM 
+                pedidoEnvio AS e
+            WHERE 
+                e.idPedido = ?`, [
                 idPedido
             ]);
 
@@ -260,7 +205,7 @@ class Pedido {
             const idImpuesto = detalles[0]?.idImpuesto ?? '';
             cabecera[0].idImpuesto = idImpuesto;
 
-            return sendSuccess(res, { cabecera: cabecera[0], detalles: listaDetalles });
+            return sendSuccess(res, { cabecera: cabecera[0], envio: envio[0], detalles: listaDetalles });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/id", error)
         }
@@ -273,38 +218,49 @@ class Pedido {
             // Consulta la información principal del pedido
             const pedido = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY p.idPedido ASC) AS id,
+                p.idPedido,
+                DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
+                p.hora,
+
+                tp.idTipoPedido,
+                tp.nombre AS tipoPedido,
+
+                s.idSucursal,
+                s.nombre AS sucursal,
+
                 co.nombre AS comprobante,
                 p.serie,
                 p.numeracion,
+
                 cn.documento,
                 cn.informacion,
                 cn.telefono,
                 cn.celular,
                 cn.email,
-                cn.direccion,                
+                cn.direccion,      
+
                 p.estado,
                 p.observacion,
                 p.nota,
-                p.instruccion,
-                p.idTipoEntrega,
-                te.nombre AS tipoEntrega,
                 
-                DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
-                p.hora,
                 mo.codiso,
+
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 pedido AS p
             INNER JOIN 
                 comprobante AS co ON co.idComprobante = p.idComprobante
+            INNER JOIN
+                tipoPedido AS tp ON tp.idTipoPedido = p.idTipoPedido
             INNER JOIN 
                 moneda AS mo ON mo.idMoneda = p.idMoneda
             INNER JOIN 
                 persona AS cn ON cn.idPersona = p.idCliente
+            INNER JOIN
+                sucursal s ON s.idSucursal = p.idSucursal
             INNER JOIN 
                 usuario AS us ON us.idUsuario = p.idUsuario 
-            LEFT JOIN 
-                tipoEntrega AS te ON te.idTipoEntrega = p.idTipoEntrega
             WHERE 
                 p.idPedido = ?`, [
                 idPedido
@@ -313,11 +269,17 @@ class Pedido {
             // Consultar envio de pedido
             const envio = await conec.query(`
             SELECT 
-                e.email,
-                e.telefono,
-                e.celular,
                 e.direccion,
-                e.referencia
+                e.referencia,
+
+                e.idSucursal,
+                
+                DATE_FORMAT(e.fechaPedido, '%Y-%m-%d') AS fechaPedido,
+                e.horaPedido,      
+                
+                e.idAgencia,
+                e.destino,
+                e.receptor
             FROM 
                 pedidoEnvio AS e
             WHERE 
@@ -329,13 +291,17 @@ class Pedido {
             const detalles = await conec.query(`
             SELECT 
                 ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                p.idProducto,
                 p.imagen,
                 p.codigo,
                 p.nombre AS producto,
+
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
+
                 cd.precio,
                 cd.cantidad,
+
                 cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
@@ -360,65 +326,72 @@ class Pedido {
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: bucket && item.imagen
+                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
+                        : null,
                 }
             });
 
             // Consulta los ventas asociadas
-            const ventas = await conec.query(`
-                SELECT 
-                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
-                    v.idVenta,
-                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
-                    v.hora,
-                    co.nombre AS comprobante,
-                    v.serie,
-                    v.numeracion,
-                    v.estado,
-                    m.codiso,
-                    SUM(vd.precio * vd.cantidad) AS total
-                FROM 
-                    ventaPedido AS vc 
-                INNER JOIN 
-                    pedido AS c ON c.idPedido = vc.idPedido
-                INNER JOIN 
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-                INNER JOIN 
-                    moneda AS m ON v.idMoneda = m.idMoneda
-                INNER JOIN 
-                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
-                INNER JOIN 
-                    comprobante AS co ON co.idComprobante = v.idComprobante
-                WHERE 
-                    vc.idPedido = ? 
-                GROUP BY 
-                    v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
-                ORDER BY 
-                    v.fecha DESC, v.hora DESC`, [
-                idPedido
-            ]);
+            // const ventas = await conec.query(`
+            //     SELECT 
+            //         ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
+            //         v.idVenta,
+            //         DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
+            //         v.hora,
+            //         co.nombre AS comprobante,
+            //         v.serie,
+            //         v.numeracion,
+            //         v.estado,
+            //         m.codiso,
+            //         SUM(vd.precio * vd.cantidad) AS total
+            //     FROM 
+            //         ventaPedido AS vc 
+            //     INNER JOIN 
+            //         pedido AS c ON c.idPedido = vc.idPedido
+            //     INNER JOIN 
+            //         venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+            //     INNER JOIN 
+            //         moneda AS m ON v.idMoneda = m.idMoneda
+            //     INNER JOIN 
+            //         ventaDetalle AS vd ON vd.idVenta = v.idVenta
+            //     INNER JOIN 
+            //         comprobante AS co ON co.idComprobante = v.idComprobante
+            //     WHERE 
+            //         vc.idPedido = ? 
+            //     GROUP BY 
+            //         v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
+            //     ORDER BY 
+            //         v.fecha DESC, v.hora DESC`, [
+            //     idPedido
+            // ]);
 
-            const vendidos = await conec.query(`
-                SELECT 
-                    p.idProducto,
-                    SUM(vd.cantidad) AS cantidad
-                FROM 
-                    ventaPedido AS vc
-                INNER JOIN
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-                INNER JOIN
-                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
-                INNER JOIN
-                    producto AS p ON p.idProducto = vd.idProducto
-                WHERE 
-                    vc.idPedido = ?
-                GROUP BY 
-                    p.idProducto`, [
-                idPedido
-            ]);
+            // const vendidos = await conec.query(`
+            //     SELECT 
+            //         p.idProducto,
+            //         SUM(vd.cantidad) AS cantidad
+            //     FROM 
+            //         ventaPedido AS vc
+            //     INNER JOIN
+            //         venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+            //     INNER JOIN
+            //         ventaDetalle AS vd ON vd.idVenta = v.idVenta
+            //     INNER JOIN
+            //         producto AS p ON p.idProducto = vd.idProducto
+            //     WHERE 
+            //         vc.idPedido = ?
+            //     GROUP BY 
+            //         p.idProducto`, [
+            //     idPedido
+            // ]);
 
-            // Devuelve un objeto con la información del pedido y los detalles 
-            return sendSuccess(res, { cabecera: pedido[0], envio, detalles: listaDetalles, ventas, vendidos });
+            // Si el cliente es el CATALOG_NEXT, devuelve el pedido en formato CATALOG_NEXT
+            if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
+                return sendSuccess(res, this._mapDetailResponse(pedido[0], envio[0], listaDetalles));
+            }
+
+            // Si el cliente es el ADMIN_REACT, devuelve el pedido en formato ADMIN_REACT
+            return sendSuccess(res, { cabecera: pedido[0], envio: envio[0], detalles: listaDetalles });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -517,16 +490,30 @@ class Pedido {
                 SELECT 
                     p.idProducto, 
                     p.codigo,
+                    p.sku,
+                    p.codigoBarras,
                     p.nombre AS nombreProducto, 
+                    pc.valor AS precio,
                     p.preferido,
                     p.negativo,
                     c.nombre AS categoria, 
                     m.nombre AS medida,
                     p.idTipoTratamientoProducto,
                     p.imagen,
-                    a.nombre AS almacen,
-                    i.idInventario,
-                    'PRODUCTO' AS tipo
+
+                    CASE 
+                        WHEN 
+                            p.idTipoProducto = 'TP0002' THEN 'SIN ALMACEN'
+                        ELSE 
+                            a.nombre
+                    END AS almacen,
+               
+                    ROUND(CASE 
+                        WHEN p.idTipoProducto = 'TP0002' THEN 0
+                        ELSE IFNULL(i.cantidad, 0)
+                    END, 2) AS cantidad,
+                    
+                    p.idTipoProducto
                 FROM 
                     producto AS p
                 INNER JOIN 
@@ -535,39 +522,19 @@ class Pedido {
                     categoria AS c ON p.idCategoria = c.idCategoria
                 INNER JOIN 
                     medida AS m ON m.idMedida = p.idMedida
-                INNER JOIN 
+                
+                LEFT JOIN 
                     inventario AS i ON i.idProducto = p.idProducto 
-                INNER JOIN 
+                LEFT JOIN 
                     almacen AS a ON a.idAlmacen = i.idAlmacen
+
                 WHERE 
-                    p.idProducto = ? AND a.idAlmacen = ?
-                UNION
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    'SIN ALMACEN' AS almacen,
-                    0 AS idInventario,
-                    'SERVICIO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                WHERE 
-                    p.idProducto = ?`, [
+                    p.idProducto = ?
+                    AND 
+                    (? IS NULL OR i.idAlmacen = ?)`, [
                     item.idProducto,
                     req.query.idAlmacen,
-                    item.idProducto
+                    req.query.idAlmacen
                 ]);
 
                 const bucket = firebaseService.getBucket();
@@ -595,22 +562,22 @@ class Pedido {
         try {
             connection = await conec.beginTransaction();
 
-            const date = currentDate();
-            const time = currentTime();
-
-            console.log(req.clientInfo);
-
             const {
+                idTipoPedido,
+                pedidoEnvio,
+
                 idSucursal,
                 idUsuario,
                 idMoneda,
                 idComprobante,
+                idCliente,
                 observacion,
                 nota,
-                instruccion
+                detalles
             } = req.body;
 
-            console.log(req.body);
+            const date = currentDate();
+            const time = currentTime();
 
             // Genera un nuevo ID para el pedido
             const result = await conec.execute(connection, 'SELECT idPedido FROM pedido');
@@ -645,6 +612,7 @@ class Pedido {
             await conec.execute(connection, `
             INSERT INTO pedido(
                 idPedido,
+                idTipoPedido,
                 idCliente,
                 idUsuario,
                 idComprobante,
@@ -654,11 +622,11 @@ class Pedido {
                 numeracion,        
                 observacion,
                 nota,
-                instruccion,
                 fecha,
                 hora
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idPedido,
+                idTipoPedido,
                 idCliente,
                 idUsuario,
                 idComprobante,
@@ -668,14 +636,64 @@ class Pedido {
                 numeracion,
                 observacion,
                 nota,
-                instruccion,
                 date,
                 time,
             ]);
 
-            await conec.rollback(connection);
+            await conec.execute(connection, `
+            INSERT INTO pedidoEnvio(
+                idPedido,
+                direccion,
+                referencia,
+                idSucursal,
+                fechaPedido,
+                horaPedido,
+                idAgencia,
+                destino,
+                receptor
+            ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+                idPedido,
+                pedidoEnvio.direccion,
+                pedidoEnvio.referencia,
+                pedidoEnvio.idSucursal,
+                pedidoEnvio.fechaPedido,
+                pedidoEnvio.horaPedido,
+                pedidoEnvio.idAgencia,
+                pedidoEnvio.destino,
+                pedidoEnvio.receptor
+            ]);
+
+            // Genera un nuevo ID para los detalles del pedido
+            const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
+            let idPedidoDetalle = generateNumericCode(1, listaPedidoDetalle, 'idPedidoDetalle');
+
+            // Inserta los detalles de compra en la base de datos
+            for (const detalle of detalles) {
+                await conec.execute(connection, `
+                INSERT INTO pedidoDetalle(
+                    idPedidoDetalle,
+                    idPedido,
+                    idProducto,
+                    idMedida,
+                    precio,
+                    cantidad,
+                    idImpuesto
+                ) VALUES(?,?,?,?,?,?,?)`, [
+                    idPedidoDetalle,
+                    idPedido,
+                    detalle.idProducto,
+                    detalle.idMedida,
+                    detalle.precio,
+                    detalle.cantidad,
+                    detalle.idImpuesto
+                ]);
+
+                idPedidoDetalle++;
+            }
+
+            await conec.commit(connection);
             return sendSave(res, {
-                // idPedido: idPedido,
+                idPedido: idPedido,
                 message: "Se registró correctamente el pedido."
             });
         } catch (error) {
@@ -691,6 +709,19 @@ class Pedido {
         try {
             connection = await conec.beginTransaction();
 
+            const {
+                idPedido,
+                idTipoPedido,
+                
+                idSucursal,
+                idUsuario,
+                idMoneda,
+                idCliente,
+                observacion,
+                nota,
+                estado            } = req.body;
+
+
             const date = currentDate();
             const time = currentTime();
 
@@ -703,7 +734,7 @@ class Pedido {
                 venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
             WHERE 
                 vc.idPedido = ?`, [
-                req.body.idPedido,
+                idPedido,
             ]);
 
             if (validate.length !== 0) {
@@ -715,35 +746,29 @@ class Pedido {
             UPDATE 
                 pedido 
             SET
+                idTipoPedido = ?,
                 idCliente = ?,
                 idUsuario = ?,
                 idSucursal = ?,
                 idMoneda = ?,
                 observacion = ?,
                 nota = ?,
-                instruccion = ?,
-                idTipoEntrega = ?,
-                fechaEntrega = ?,
-                horaEntrega = ?,
                 estado = ?,
                 fecha = ?,
                 hora = ?
             WHERE 
                 idPedido = ?`, [
-                req.body.idCliente,
-                req.body.idUsuario,
-                req.body.idSucursal,
-                req.body.idMoneda,
-                req.body.observacion,
-                req.body.nota,
-                req.body.instruccion,
-                req.body.idTipoEntrega,
-                req.body.fechaEntrega,
-                req.body.horaEntrega,
-                req.body.estado,
+                idTipoPedido,
+                idCliente,
+                idUsuario,
+                idSucursal,
+                idMoneda,
+                observacion,
+                nota,
+                estado,
                 date,
                 time,
-                req.body.idPedido,
+                idPedido,
             ]);
 
             await conec.execute(connection, `
@@ -751,7 +776,7 @@ class Pedido {
                 pedidoDetalle
             WHERE 
                 idPedido = ?`, [
-                req.body.idPedido,
+                idPedido,
             ]);
 
             const listaPedidoDetalle = await conec.execute(connection, 'SELECT idPedidoDetalle FROM pedidoDetalle');
@@ -770,7 +795,7 @@ class Pedido {
                     idImpuesto
                 ) VALUES(?,?,?,?,?,?,?)`, [
                     idPedidoDetalle,
-                    req.body.idPedido,
+                    idPedido,
                     item.idProducto,
                     item.idMedida,
                     item.precio,
@@ -856,11 +881,9 @@ class Pedido {
         }
     }
 
-    async documentsPdfInvoicesOrList(req, res) {
+    async pdfDocumentOrPreview(req, res) {
         try {
-            const { idPedido, size } = req.params;
-
-            const bucket = firebaseService.getBucket();
+            const { idPedido, type, size } = req.params;
 
             const empresa = await conec.query(`
             SELECT
@@ -873,41 +896,57 @@ class Pedido {
             FROM 
                 empresa`);
 
+            if (empresa.length === 0) {
+                throw new ClientError("No se pudo obtener datos de empresa, vuelve a recargar la vista.");
+            }
+
             const pedido = await conec.query(`
             SELECT 
                 DATE_FORMAT(p.fecha, '%d/%m/%Y') AS fecha, 
                 p.hora,
-                p.idSucursal,
-                p.nota,
 
-                c.nombre AS comprobante,
+                tp.idTipoPedido,
+                tp.nombre AS tipoPedido,
+
+                s.idSucursal,
+                s.nombre AS sucursal,
+
+                co.nombre AS comprobante,
                 p.serie,
                 p.numeracion,
 
-                cp.documento,
-                cp.informacion,
-                cp.direccion,
+                cn.documento,
+                cn.informacion,
+                cn.direccion,
 
-                m.nombre AS moneda,
-                m.simbolo,
-                m.codiso,
+                p.estado,
+                p.observacion,
+                p.nota,
 
-                u.apellidos,
-                u.nombres
+                mo.codiso,
+                mo.simbolo,
+                mo.nombre AS moneda
             FROM 
                 pedido AS p
+            INNER JOIN 
+                comprobante AS co ON co.idComprobante = p.idComprobante
             INNER JOIN
-                comprobante AS c ON c.idComprobante = p.idComprobante
+                tipoPedido AS tp ON tp.idTipoPedido = p.idTipoPedido
+            INNER JOIN 
+                moneda AS mo ON mo.idMoneda = p.idMoneda
+            INNER JOIN 
+                persona AS cn ON cn.idPersona = p.idCliente
             INNER JOIN
-                persona AS cp ON cp.idPersona = p.idCliente
-            INNER JOIN
-                moneda AS m ON m.idMoneda = p.idMoneda
-            INNER JOIN
-                usuario AS u ON u.idUsuario = p.idUsuario
+                sucursal s ON s.idSucursal = p.idSucursal
             WHERE 
                 p.idPedido = ?`, [
                 idPedido
             ]);
+
+            if (pedido.length === 0) {
+                throw new ClientError("No se pudo obtener datos del pedido, vuelve a recargar la vista.");
+            }
+
 
             const sucursal = await conec.query(`
             SELECT 
@@ -929,127 +968,234 @@ class Pedido {
                 pedido[0].idSucursal
             ]);
 
+            if (sucursal.length === 0) {
+                throw new ClientError("No se pudo obtener datos del sucursal, vuelve a recargar la vista.")
+            }
+
             const detalles = await conec.query(` 
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY gd.idPedidoDetalle ASC) AS id,
-                p.codigo,
-                p.nombre,
+                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                p.idProducto,
                 p.imagen,
-                gd.cantidad,
-                gd.precio,
-                m.nombre AS medida,
-                i.idImpuesto,
-                i.nombre AS impuesto,
-                i.porcentaje
+                p.codigo,
+                p.nombre AS producto,
+
+                md.nombre AS medida, 
+                m.nombre AS categoria, 
+
+                cd.precio,
+                cd.cantidad,
+
+                cd.idImpuesto,
+                imp.nombre AS impuesto,
+                imp.porcentaje
             FROM 
-                pedidoDetalle AS gd
+                pedidoDetalle AS cd 
             INNER JOIN 
-                producto AS p ON gd.idProducto = p.idProducto
+                producto AS p ON cd.idProducto = p.idProducto 
             INNER JOIN 
-                medida AS m ON m.idMedida = p.idMedida
-            INNER JOIN
-                impuesto AS i ON i.idImpuesto = gd.idImpuesto
-            WHERE 
-                gd.idPedido = ?
+                medida AS md ON md.idMedida = cd.idMedida 
+            INNER JOIN 
+                categoria AS m ON p.idCategoria = m.idCategoria 
+            INNER JOIN 
+                impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
+            WHERE
+                cd.idPedido = ?
             ORDER BY 
-                gd.idPedidoDetalle ASC`, [
+                cd.idPedidoDetalle ASC`, [
                 idPedido
             ]);
 
             const bancos = await conec.query(`
-                SELECT 
-                    nombre,
-                    numCuenta,
-                    cci
-                FROM
-                    banco
-                WHERE 
-                    reporte = 1 AND estado <> -1 AND idSucursal = ?`, [
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1 AND estado = 1 AND idSucursal = ?`, [
                 pedido[0].idSucursal
             ]);
 
-            return {
-                "size": size,
-                "company": {
+            const bucket = firebaseService.getBucket();
+
+            const subTotal = detalles.reduce((accumulator, item) => {
+                const total = item.precio * item.cantidad;
+                return accumulator + calculateTaxBruto(item.porcentaje, total);
+            }, 0);
+
+            const impuestos = detalles.reduce((
+                accumulator,
+                item,
+            ) => {
+                const total = item.cantidad * item.precio;
+                const subTotal = calculateTaxBruto(item.porcentaje, total);
+                const monto = calculateTax(item.porcentaje, subTotal);
+
+                const existingImpuesto = accumulator.find(
+                    (imp) => imp.idImpuesto === item.idImpuesto,
+                );
+
+                if (existingImpuesto) {
+                    existingImpuesto.monto += monto;
+                } else {
+                    const tax = {
+                        idImpuesto: item.idImpuesto,
+                        nombre: item.impuesto,
+                        monto: monto,
+                    };
+                    accumulator.push(tax);
+                }
+
+                return accumulator;
+            },
+                [],
+            );
+
+            const total = detalles.reduce(
+                (accumulator, item) => accumulator + item.precio * item.cantidad,
+                0,
+            );
+
+            const numeracion = formatNumberWithZeros(
+                pedido[0].numeracion,
+            );
+
+            const title = `PEDIDO ${pedido[0].serie}-${numeracion} - ${pedido[0].informacion}`;
+
+
+            const template =
+                type === 'document'
+                    ? size === 'A4' ? 'pedido/document/a4' : 'pedido/document/ticket'
+                    : 'pedido/preview/a4';
+
+            const html = await renderTemplate(template, {
+                formatDecimal,
+                style: cssUrl,
+                icon: logoUrl,
+                title: title,
+                empresa: {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
                 },
-                "branch": {
-                    "nombre": sucursal[0].nombre,
-                    "telefono": sucursal[0].telefono,
-                    "celular": sucursal[0].celular,
-                    "email": sucursal[0].email,
-                    "paginaWeb": empresa[0].paginaWeb,
-                    "direccion": sucursal[0].direccion,
-                    "ubigeo": {
-                        "departamento": sucursal[0].departamento,
-                        "provincia": sucursal[0].provincia,
-                        "distrito": sucursal[0].distrito
+                sucursal: {
+                    ...sucursal[0],
+                    ubigeo: {
+                        departamento: sucursal[0].departamento,
+                        provincia: sucursal[0].provincia,
+                        distrito: sucursal[0].distrito
                     }
                 },
-                "order": {
-                    "fecha": pedido[0].fecha,
-                    "hora": pedido[0].hora,
-                    "nota": pedido[0].nota,
-                    "comprobante": {
-                        "nombre": pedido[0].comprobante,
-                        "serie": pedido[0].serie,
-                        "numeracion": pedido[0].numeracion
+                pedido: {
+                    fecha: pedido[0].fecha,
+                    hora: pedido[0].hora,
+                    nota: pedido[0].nota,
+                    comprobante: {
+                        nombre: pedido[0].comprobante,
+                        serie: pedido[0].serie,
+                        numeracion: numeracion
                     },
-                    "cliente": {
-                        "documento": pedido[0].documento,
-                        "informacion": pedido[0].informacion,
-                        "direccion": pedido[0].direccion
+                    tipoPedido: {
+                        idTipoPedido: pedido[0].idTipoPedido,
+                        nombre: pedido[0].tipoPedido,
                     },
-                    "moneda": {
-                        "nombre": pedido[0].moneda,
-                        "simbolo": pedido[0].simbolo,
-                        "codiso": pedido[0].codiso
+                    cliente: {
+                        documento: pedido[0].documento,
+                        informacion: pedido[0].informacion,
+                        direccion: pedido[0].direccion
                     },
-                    "usuario": {
-                        "apellidos": pedido[0].apellidos,
-                        "nombres": pedido[0].nombres
+                    moneda: {
+                        nombre: pedido[0].moneda,
+                        simbolo: pedido[0].simbolo,
+                        codiso: pedido[0].codiso
                     },
-                    "pedidoDetalles": detalles.map(item => {
-                        return {
-                            "id": item.id,
-                            "cantidad": item.cantidad,
-                            "precio": item.precio,
-                            "producto": {
-                                "codigo": item.codigo,
-                                "nombre": item.nombre,
-                                "imagen": item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
-                            },
-                            "medida": {
-                                "nombre": item.medida,
-                            },
-                            "impuesto": {
-                                "idImpuesto": item.idImpuesto,
-                                "nombre": item.impuesto,
-                                "porcentaje": item.porcentaje,
-                            },
-
-                        }
-                    }),
+                    usuario: {
+                        apellidos: pedido[0].apellidos,
+                        nombres: pedido[0].nombres
+                    },
                 },
-                "banks": bancos
-            };
-        } catch (error) {
-            throw new Error(error.message);
-        }
-    }
+                detalles: detalles.map(item => {
+                    return {
+                        id: item.id,
+                        cantidad: item.cantidad,
+                        precio: item.precio,
+                        producto: {
+                            codigo: item.codigo,
+                            nombre: item.producto,
+                            imagen: item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
+                        },
+                        medida: {
+                            nombre: item.medida,
+                        },
+                        impuesto: {
+                            idImpuesto: item.idImpuesto,
+                            nombre: item.impuesto,
+                            porcentaje: item.porcentaje,
+                        },
 
-    async documentsPdfReports(req, res) {
-        try {
+                    }
+                }),
+                subTotal,
+                impuestos,
+                total,
+                importLetras: new NumberLleters().getResult(
+                    String(rounded(total)),
+                    pedido[0].moneda,
+                ),
+                bancos: bancos
+            });
+
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/order/pdf/reports`,
+                url: `${process.env.APP_PDF}/html-to-pdf`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 data: {
-
+                    title: title,
+                    htmlContent: html,
+                    paper: {
+                        paperType: size,
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: 'pdf'
                 },
+                timeout: 60000,
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Pedido/cancel", error);
+            }
+
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/cancel", error)
+        }
+    }
+
+    async pdfList(res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/html-to-pdf`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    title: title,
+                    htmlContent: `<html><body><h1>REPORTE</h1></body></html>`,
+                    paper: {
+                        paperType: "A4",
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: 'pdf'
+                },
+                timeout: 60000,
                 responseType: 'arraybuffer'
             };
 
@@ -1060,7 +1206,7 @@ class Pedido {
         }
     }
 
-    async documentsPdfExcel(req, res) {
+    async documentsPdfExcel(res) {
         try {
             const options = {
                 method: 'POST',
@@ -1075,6 +1221,157 @@ class Pedido {
             return sendFile(res, response);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfExcel", error);
+        }
+    }
+
+    _mapListResponse(list, count) {
+        const orders = list.map((item) => {
+            return {
+                id: item.id,
+                idOrder: item.idPedido,
+                date: item.fecha,
+                time: item.hora,
+
+                typeOrder: {
+                    idTypeOrder: item.idTipoPedido,
+                    name: item.tipoPedido
+                },
+
+                receipt: {
+                    name: item.comprobante,
+                    series: item.serie,
+                    number: item.numeracion,
+                },
+
+                person: {
+                    document: item.documento,
+                    information: item.informacion,
+                    typeDocument: {
+                        name: item.tipoDocumento
+                    }
+                },
+
+                notes: item.nota,
+                status: item.estado,
+
+                currency: {
+                    code: item.codiso,
+                },
+
+                total: item.total,
+
+                orderDetails: item.detalles.map(item => {
+                    return {
+                        id: item.id,
+                        idProduct: item.idProducto,
+                        product: {
+                            code: item.codigo,
+                            name: item.producto,
+                            image: item.imagen,
+                        },
+
+                        quantity: item.cantidad,
+                        price: item.precio,
+
+                        measure: {
+                            name: item.medida,
+                        },
+
+                        category: {
+                            name: item.categoria,
+                        },
+
+                        tax: {
+                            id: item.idImpuesto,
+                            name: item.impuesto,
+                            rate: item.porcentaje,
+                        },
+                    }
+                }),
+            }
+        });
+
+        return {
+            orders: orders,
+            count: count,
+        }
+    }
+
+    _mapDetailResponse(pedido, envio, detalles) {
+        return {
+            id: pedido.id,
+            idOrder: pedido.idPedido,
+            date: pedido.fecha,
+            time: pedido.hora,
+            typeOrder: {
+                idTypeOrder: pedido.idTipoPedido,
+                name: pedido.tipoPedido,
+            },
+            branch: {
+                idBranch: pedido.idSucursal,
+                name: pedido.sucursal,
+            },
+            receipt: {
+                name: pedido.comprobante,
+                series: pedido.serie,
+                number: pedido.numeracion
+            },
+            person: {
+                document: pedido.documento,
+                information: pedido.informacion,
+                phonerNumber: pedido.telefono,
+                mobileNumber: pedido.celular,
+                email: pedido.email,
+                address: pedido.direccion
+            },
+            status: pedido.estado,
+            observations: pedido.observacion,
+            notes: pedido.nota,
+
+            currency: {
+                code: pedido.codiso
+            },
+            orderShipping: {
+                address: envio.direccion,
+                reference: envio.referencia,
+                branch: {
+                    idBranch: envio.idSucursal,
+                    name: envio.sucursal,
+                    address: envio.direccionSucursal
+                },
+                date: envio.fechaPedido,
+                time: envio.horaPedido,
+                agency: {
+                    idAgency: envio.idAgencia,
+                    name: envio.agencia,
+                },
+                destination: envio.destino,
+                receiver: envio.receptor,
+            },
+            orderDetails: detalles.map(item => {
+                return {
+                    id: item.id,
+                    idProduct: item.idProducto,
+                    product: {
+                        code: item.codigo,
+                        name: item.producto,
+                        image: item.imagen,
+                    },
+                    quantity: item.cantidad,
+                    price: item.precio,
+                    measure: {
+                        name: item.medida,
+                    },
+                    category: {
+                        name: item.categoria,
+                    },
+                    tax: {
+                        id: item.idImpuesto,
+                        name: item.impuesto,
+                        rate: item.porcentaje,
+                    },
+                }
+            })
         }
     }
 }

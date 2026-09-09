@@ -82,7 +82,6 @@ class Producto {
                 estado,
                 idUsuario,
 
-                inventarios,
                 precios,
                 detalles,
                 imagenes,
@@ -1239,25 +1238,6 @@ class Producto {
         }
     }
 
-    async rangePriceWeb(req, res) {
-        try {
-            const data = await conec.query(`
-            SELECT 
-                IFNULL(MIN(valor), 0) AS minimo,
-                IFNULL(MAX(valor), 0) AS maximo
-            FROM 
-                precio`, [
-                req.query.idProducto
-            ]);
-            return sendSuccess(res, {
-                "minimo": data[0].minimo,
-                "maximo": data[0].maximo,
-            });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/rangePriceWeb", error);
-        }
-    }
-
     async filterWeb(req, res) {
         try {
             const { buscar, filtros, posicionPagina, filasPorPagina } = req.body;
@@ -1295,7 +1275,7 @@ class Producto {
                 parseInt(filasPorPagina)
             ]);
 
-            const data = await lista.map((item, index) => {
+            const newLista = await lista.map((item, index) => {
                 return {
                     ...item,
                     imagen: bucket && item.imagen
@@ -1317,7 +1297,7 @@ class Producto {
                 toNullNumber(precioMax),
             ]);
 
-            return sendSuccess(res, { data, count: rows[0].Total });
+            return sendSuccess(res, this._mapFilerWebResponse(newLista, rows[0].Total));
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
         }
@@ -1745,6 +1725,37 @@ class Producto {
             });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/dashboard", error);
+        }
+    }
+
+    _mapFilerWebResponse(productos, count) {
+        const products = productos.map((item) => {
+            return {
+                id: item.id,
+                idProduct: item.idProducto,
+                code: item.codigo,
+                sku: item.sku,
+                codeBar: item.codigoBarras,
+                name: item.nombre,
+                description: item.descripcionCorta,
+                price: item.precio,
+                idCategory: item.idCategoria,
+                category: { id: item.idCategoria, name: item.nombreCategoria },
+                idMeasure: item.idMedida,
+                measure: { id: item.idMedida, name: item.nombreMedida },
+                image: item.imagen,
+                stock: item.cantidad,
+                typeProduct: {
+                    id: item.idTipoProducto,
+                    code: item.codigoTipoProducto,
+                    name: item.nombreTipoProducto,
+                },
+            }
+        });
+
+        return {
+            "data": products,
+            "count": count
         }
     }
 

@@ -1,0 +1,13 @@
+const CLIENT_INFO_REQUEST_HEADER = 'X-App';
+const CLIENT_INFO_REQUEST_VERSION = 'X-Version';
+
+const CLIENT_INFO_REQUEST_NAMES = {
+    ADMIN_REACT: 'admin-react',
+    CATALOG_NEXT: 'catalog-next',
+};
+
+module.exports = {
+    CLIENT_INFO_REQUEST_HEADER,
+    CLIENT_INFO_REQUEST_VERSION,
+    CLIENT_INFO_REQUEST_NAMES,
+};

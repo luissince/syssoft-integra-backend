@@ -1,0 +1,120 @@
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+    <link rel="stylesheet" href="<%= data.style %>">
+    <title><%= data.title %></title>
+  </head>
+  <body>
+    <main class="pl-10 pr-10 pt-10 pb-10">
+      <div class="text-center pb-10">
+        <img width="100" src="<%= data.company.rutaLogo ?? data.icon %>" class="mb-5" />
+        <br />
+        <h2 class="font-weight-bold text-uppercase"> <%= data.company.nombreEmpresa %> </h2>
+        <p>RUC: <%= data.company.documento %></p>
+        <p><%= data.branch.direccion %></p>
+        <p><%= data.branch.ubigeo.departamento %> - <%= data.branch.ubigeo.provincia %> - <%= data.branch.ubigeo.distrito %></p>
+        <p>Telf.: <%= data.branch.telefono %></p>
+        <p>Cel.: <%= data.branch.celular %></p>
+        <p><%= data.branch.email %></p>
+        <p><%= data.branch.paginaWeb %></p>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="text-center pt-5 pb-5">
+        <p class="font-weight-bold text-uppercase font-size-13"><%= data.quotation.comprobante.nombre %></p>
+        <p class="font-weight-bold font-size-13"><%= data.quotation.comprobante.serie %>-<%= data.quotation.comprobante.numeracion %></p>
+      </div>
+  
+      <div class="pt-5 pb-5">
+        <p><span class="font-weight-bold">Fecha de Emisión: </span> <%= data.quotation.fecha %> <%= data.quotation.hora %></p>
+        <p><span class="font-weight-bold">Cliente:</span> <%= data.quotation.cliente.informacion %></p>
+        <p><span class="font-weight-bold">RUC / DNI:</span> <%= data.quotation.cliente.documento %></p>
+        <p><span class="font-weight-bold">Dirección:</span> <%= data.quotation.cliente.direccion %></p>
+        <% if (data.quotation.nota) { %>
+          <p><span class="font-weight-bold">Nota: </span> * <%= data.quotation.nota %></p>
+        <% } %>      
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div>
+        <table class="table">
+          <thead>
+              <tr>
+                  <th width="5%" class="text-center"><p>Cant.</p></th>
+                  <th width="30%" class="text-center"><p>Producto</p></th>
+                  <th width="10%" class="text-center"><p>Precio</p></th>
+                  <th width="10%" class="text-right"><p>Importe</p></th>
+              </tr>
+          </thead>
+          <tbody>
+            <% for (const item of data.quotation.cotizacionDetalles) { %>
+              <tr>
+                  <td class="text-center"><p><%= formatDecimal(item.cantidad) %></p></td>
+                  <td class="text-left"><p><%= item.producto.nombre %></p></td>
+                  <td class="text-center"><p><%= formatDecimal(item.precio) %></p></td>
+                  <td class="text-right"><p><%= formatDecimal(item.precio * item.cantidad) %></p></td>
+              </tr>
+              <% } %>
+          </tbody>
+        </table>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="flex justify-content-end">
+        <table class="table">
+          <tbody>
+            <tr>
+              <td><p>SUB TOTAL:</p></td>
+              <td class="text-right"><p><p><%= data.quotation.moneda.simbolo %> <%= formatDecimal(data.subTotal) %></p></td>
+            </tr>
+            <tr>
+              <% for (const item of data.impuestos) { %>
+                <tr>
+                  <td><p><%= item.nombre %>:</p></td>
+                  <td class="text-right"><p><%= data.quotation.moneda.simbolo %> <%= formatDecimal(item.monto) %></p></td>
+                </tr>
+              <% } %>
+            </tr>
+            <tr>
+              <th class="text-left"><p>TOTAL:</p></th>
+              <th class="text-right"><p><%= data.quotation.moneda.simbolo %> <%= formatDecimal(data.total) %></p></th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <div class="pt-5 pb-5">
+        <p>MONTO EN LETRAS: <%= data.importLetras %></p>
+      </div>
+  
+      <div class="border-1 border-dashed"></div>
+  
+      <footer class="pt-5">    
+        <div class="text-center mb-5">
+          <p>Vendedor: <%= data.quotation.usuario.nombres %>, <%= data.quotation.usuario.apellidos %></p>
+        </div>
+  
+        <div class="text-center mt-2">
+            <img src="<%= data.icon %>" width="50px" class="m-0">
+            <br />
+            <a href="https://www.syssoftintegra.com/" class="font-family-pacifico">
+              Emitido por: <span class="font-weight-bold">www.syssosftintegra.com</span>
+            </a>
+        </div>
+  
+        <% if (data.company.tipoEnvio === 0) { %>
+          <p class="text-danger font-weight-bold text-center">           
+              Documento no valido
+          </p>
+        <% } %>
+      </footer>
+    </main>
+  </body>
+</html>
