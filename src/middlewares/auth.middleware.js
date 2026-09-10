@@ -14,7 +14,7 @@ function authenticate(req, res, next) {
 
     if (!key) {
         return sendForbidden(res, {
-            message: 'Acceso denegado'
+            message: 'Access denied',
         });
     }
 
@@ -23,7 +23,6 @@ function authenticate(req, res, next) {
 
     // 2. Opcionalmente mantener compatibilidad con Bearer Token
     if (!token) {
-
         const bearerToken = req.headers['authorization'];
 
         if (bearerToken?.startsWith('Bearer ')) {
@@ -34,7 +33,7 @@ function authenticate(req, res, next) {
     // 3. No existe token
     if (!token) {
         return sendNoAutorizado(res, {
-            message: 'No autorizado'
+            message: 'unauthorized',
         });
     }
 
@@ -51,11 +50,11 @@ function authenticate(req, res, next) {
 
         if (error.name === 'TokenExpiredError') {
             return sendNoAutorizado(res, {
-                message: 'El token ha expirado. Por favor, inicia sesión de nuevo.',
+                message: 'The token has expired. Please, log in again.',
             });
         }
 
-        return sendForbidden(res, { message: 'Acceso denegado' });
+        return sendForbidden(res, { message: 'Access denied' });
     }
 }
 

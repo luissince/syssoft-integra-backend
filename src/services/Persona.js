@@ -610,16 +610,16 @@ class Persona {
                 '7d'
             );
 
-            res.cookie("token", token, {
-                httpOnly: true,
-                secure: process.env.ENVIRONMENT === "production",
-                sameSite: "lax",
-                domain: process.env.ENVIRONMENT === "production" ? "syssoftintegra.com" : "localhost",
-                path: "/",
-                maxAge: 7 * 24 * 60 * 60 * 1000
-            });
+            // res.cookie("token", token, {
+            //     httpOnly: true,
+            //     secure: process.env.ENVIRONMENT === "production",
+            //     sameSite: "lax",
+            //     domain: process.env.ENVIRONMENT === "production" ? "syssoftintegra.com" : "localhost",
+            //     path: "/",
+            //     maxAge: 7 * 24 * 60 * 60 * 1000
+            // });
 
-            return sendSuccess(res, this._mapLoginResponse(result[0]));
+            return sendSuccess(res, this._mapLoginResponse(result[0], token));
         } catch (error) {
             if (error instanceof ClientError) {
                 return sendClient(res, error.message, "Persona/predeterminado", error);
@@ -654,7 +654,7 @@ class Persona {
                 });
             }
 
-            return sendSuccess(res, this._mapLoginResponse(result[0]));
+            return sendSuccess(res, this._mapValidateResponse(result[0]));
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/validate", error);
         }
@@ -662,11 +662,11 @@ class Persona {
 
     async logout(req, res) {
         try {
-            res.clearCookie("token", {
-                httpOnly: true,
-                secure: process.env.ENVIRONMENT === "production",
-                sameSite: "lax",
-            });
+            // res.clearCookie("token", {
+            //     httpOnly: true,
+            //     secure: process.env.ENVIRONMENT === "production",
+            //     sameSite: "lax",
+            // });
 
             return sendSuccess(res, "Sesión cerrada correctamente");
         } catch (error) {
@@ -811,7 +811,23 @@ class Persona {
         }
     }
 
-    _mapLoginResponse(persona) {
+    _mapLoginResponse(persona, token) {
+        return {
+            person: {
+                idPerson: persona.idPersona,
+                idTypeDocument: persona.idTipoDocumento,
+                document: persona.documento,
+                information: persona.informacion,
+                phonerNumber: persona.telefono,
+                mobileNumber: persona.celular,
+                email: persona.email,
+                address: persona.direccion,
+            },
+            token
+        }
+    }
+
+    _mapValidateResponse(persona) {
         return {
             idPerson: persona.idPersona,
             idTypeDocument: persona.idTipoDocumento,
