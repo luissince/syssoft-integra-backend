@@ -87,7 +87,8 @@ class Producto {
                 imagenes,
                 colores,
                 tallas,
-                sabores
+                sabores,
+                atributos,
             } = req.body;
 
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND estado <> -1`, [
@@ -336,10 +337,10 @@ class Producto {
             }
 
             /**
-             * Actualizar colores, tallas, sabores
+             * Actualizar atributos
              */
 
-            for (const color of colores) {
+            for (const atributo of req.body.atributos) {
                 await conec.execute(connection, `
                 INSERT INTO productoAtributo(
                     idProducto,
@@ -349,45 +350,11 @@ class Producto {
                     idUsuario
                 ) VALUES(?,?,?,?,?)`, [
                     idProducto,
-                    color.idAtributo,
+                    atributo.idAtributo,
                     date,
                     time,
                     idUsuario,
-                ])
-            }
-
-            for (const color of tallas) {
-                await conec.execute(connection, `
-                INSERT INTO productoAtributo(
-                    idProducto,
-                    idAtributo,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?)`, [
-                    idProducto,
-                    color.idAtributo,
-                    date,
-                    time,
-                    idUsuario,
-                ])
-            }
-
-            for (const color of sabores) {
-                await conec.execute(connection, `
-                INSERT INTO productoAtributo(
-                    idProducto,
-                    idAtributo,
-                    fecha,
-                    hora,
-                    idUsuario
-                ) VALUES(?,?,?,?,?)`, [
-                    idProducto,
-                    color.idAtributo,
-                    date,
-                    time,
-                    idUsuario,
-                ])
+                ]);
             }
 
             await conec.commit(connection);
@@ -435,6 +402,11 @@ class Producto {
                 p.idProducto = ?`, [
                 idProducto
             ]);
+
+            if (producto[0].length === 0) {
+                throw new Error("El producto no existe, verifique el código o actualiza la lista.");
+            }
+
 
             const precios = await conec.query(`
             SELECT
@@ -492,48 +464,22 @@ class Producto {
                 idProducto
             ]);
 
-            const colores = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.hexadecimal
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0001'
-                WHERE 
-                    pc.idProducto = ?`, [
-                idProducto
-            ]);
-
-            const tallas = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.valor
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0002'
-                WHERE 
-                    pc.idProducto = ?`, [
-                idProducto
-            ]);
-
-            const sabores = await conec.query(`
-                SELECT
-                    ROW_NUMBER() OVER () AS id,
-                    pc.idAtributo,
-                    c.nombre,
-                    c.valor
-                FROM 
-                    productoAtributo AS pc
-                INNER JOIN 
-                    atributo AS c ON c.idAtributo = pc.idAtributo AND c.idTipoAtributo = 'TA0003'
-                WHERE 
-                    pc.idProducto = ?`, [
+            const atributos = await conec.query(`
+            SELECT
+                a.idAtributo,
+                a.idTipoAtributo,
+                a.nombre,
+                a.hexadecimal,
+                a.valor
+            FROM 
+                atributo AS a
+            INNER JOIN 
+                productoAtributo AS pa ON pa.idAtributo = a.idAtributo
+            WHERE
+                pa.idProducto = ?
+            ORDER BY
+                a.idTipoAtributo,
+                a.nombre`, [
                 idProducto
             ]);
 
@@ -545,9 +491,7 @@ class Producto {
                 } : null,
                 precios,
                 detalles,
-                colores,
-                tallas,
-                sabores,
+                atributos: atributos,
                 imagenes: newImagenes
             }
 
@@ -915,62 +859,28 @@ class Producto {
             }
 
             /**
-             * Actualizar colores, tallas, sabores
+             * Actualizar atributos
              */
 
             await conec.execute(connection, `DELETE FROM productoAtributo WHERE idProducto = ?`, [
                 req.body.idProducto
             ]);
 
-            for (const color of req.body.colores) {
+            for (const atributo of req.body.atributos) {
                 await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO productoAtributo(
+                    idProducto,
+                    idAtributo,
+                    fecha,
+                    hora,
+                    idUsuario
+                ) VALUES(?,?,?,?,?)`, [
                     req.body.idProducto,
-                    color.idAtributo,
+                    atributo.idAtributo,
                     date,
                     time,
                     req.body.idUsuario,
-                ])
-            }
-
-            for (const talla of req.body.tallas) {
-                await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
-                    req.body.idProducto,
-                    talla.idAtributo,
-                    date,
-                    time,
-                    req.body.idUsuario,
-                ])
-            }
-
-            for (const sabor of req.body.sabores) {
-                await conec.execute(connection, `
-                    INSERT INTO productoAtributo(
-                        idProducto,
-                        idAtributo,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?)`, [
-                    req.body.idProducto,
-                    sabor.idAtributo,
-                    date,
-                    time,
-                    req.body.idUsuario,
-                ])
+                ]);
             }
 
             await conec.commit(connection);

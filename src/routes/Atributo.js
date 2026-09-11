@@ -16,4 +16,6 @@ router.delete('/', async (req, res) => await atributo.delete(req, res));
 
 router.get('/combo', async (req, res) => await atributo.combo(req, res));
 
+router.get('/combo/tipos', async (req, res) => await atributo.comboTipos(req, res));
+
 module.exports = router;
