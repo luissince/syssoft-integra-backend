@@ -1,0 +1,35 @@
+# deploy/config.yml
+
+# branchs:
+  # test
+  # production
+  # preview
+  # worker
+
+repositories: syssoftintegra/back-end
+
+clients:
+
+  sysintegra:
+    service: sysintegra-services
+    deploy: test
+
+  leatsac:
+    service: leatsac-services
+    deploy: production
+
+  ferreteria:
+    service: ferreteria-services
+    deploy: production
+
+  dracoly:
+    service: dracoly-services
+    deploy: production
+
+  importmuneli:
+    service: importmuneli-services
+    deploy: preview
+
+  worker:
+    service: worker-services
+    deploy: worker

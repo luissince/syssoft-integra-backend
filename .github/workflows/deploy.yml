@@ -1,0 +1,551 @@
+name: SysSoftIntegra BackEnd Deploy
+
+on:
+  push:
+    branches:
+      - test
+      - master
+      - preview
+
+  workflow_dispatch:
+
+jobs:
+
+  # ============================================================
+  # PREPARE
+  # ============================================================
+
+  prepare:
+    name: Prepare deployment
+    runs-on: ubuntu-latest
+
+    outputs:
+      environment: ${{ steps.config.outputs.environment }}
+      repository: ${{ steps.config.outputs.repository }}
+      clients: ${{ steps.config.outputs.clients }}
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+
+      # --------------------------------------------------------
+      # READ CONFIGURATION
+      # --------------------------------------------------------
+
+      - name: Read deployment configuration
+        shell: bash
+        run: |
+
+          echo "🔎 Reading deployment configuration..."
+
+          CONFIG="deploy/config.yml"
+
+          if [ ! -f "$CONFIG" ]; then
+            echo "❌ Configuration file not found: $CONFIG"
+            exit 1
+          fi
+
+
+      # --------------------------------------------------------
+      # DETERMINE ENVIRONMENT FROM BRANCH
+      # --------------------------------------------------------
+
+      - name: Determine environment
+        id: environment
+        shell: bash
+        run: |
+
+          BRANCH="${GITHUB_REF_NAME}"
+
+          echo "Branch: $BRANCH"
+
+
+          case "$BRANCH" in
+
+            test)
+              ENVIRONMENT="test"
+              ;;
+
+            preview)
+              ENVIRONMENT="preview"
+              ;;
+
+            master)
+              ENVIRONMENT="production"
+              ;;
+
+            worker)
+              ENVIRONMENT="worker"
+              ;;
+
+            *)
+              echo "❌ Unsupported branch: $BRANCH"
+              exit 1
+              ;;
+
+          esac
+
+
+          echo "Environment: $ENVIRONMENT"
+
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+
+
+      # --------------------------------------------------------
+      # INSTALL YQ
+      # --------------------------------------------------------
+
+      - name: Install yq
+        shell: bash
+        run: |
+
+          sudo wget -q \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+            -O /usr/local/bin/yq
+
+          sudo chmod +x /usr/local/bin/yq
+
+
+      # --------------------------------------------------------
+      # LOAD CONFIGURATION
+      # --------------------------------------------------------
+
+      - name: Load deployment configuration
+        id: config
+        shell: bash
+        run: |
+
+          ENVIRONMENT="${{ steps.environment.outputs.environment }}"
+          CONFIG="deploy/config.yml"
+
+          echo "Environment: $ENVIRONMENT"
+
+
+          # ----------------------------------------------------
+          # GET ECR REPOSITORY
+          # ----------------------------------------------------
+
+          # REPOSITORY=$(yq -r ".repositories.${ENVIRONMENT}" "$CONFIG")
+          REPOSITORY=$(yq -r ".repositories" "$CONFIG")
+
+
+          if [ "$REPOSITORY" = "null" ] || [ -z "$REPOSITORY" ]; then
+            echo "❌ Repository not configured for $ENVIRONMENT"
+            exit 1
+          fi
+
+
+          # ----------------------------------------------------
+          # GET CLIENTS
+          # ----------------------------------------------------
+
+          CLIENTS=$(yq -r \
+            ".clients | to_entries | map(select(.value.deploy == \"${ENVIRONMENT}\")) | map(.key) | @json" \
+            "$CONFIG")
+
+
+          if [ "$CLIENTS" = "[]" ]; then
+            echo "❌ No clients configured for $ENVIRONMENT"
+            exit 1
+          fi
+
+
+          echo "Repository: $REPOSITORY"
+          echo "Clients: $CLIENTS"
+
+
+          echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+          echo "repository=$REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "clients=$CLIENTS" >> "$GITHUB_OUTPUT"
+
+  # ============================================================
+  # BUILD AND PUSH
+  # ============================================================
+
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+
+    needs: prepare
+
+    strategy:
+      matrix:
+        client: ${{ fromJSON(needs.prepare.outputs.clients) }}
+
+    environment: ${{ matrix.client }}
+
+    env:
+      REPOSITORY: ${{ needs.prepare.outputs.repository }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      CLIENT: ${{ matrix.client }}
+
+      IMAGE_TAG: "${{ needs.prepare.outputs.environment }}-${{ matrix.client }}-latest"
+      ECR_IMAGE_URI: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ needs.prepare.outputs.repository }}:${{ needs.prepare.outputs.environment }}-${{ matrix.client }}-latest"
+
+    steps:
+
+      # --------------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------------
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+
+      # --------------------------------------------------------
+      # INSTALL YQ
+      # --------------------------------------------------------
+
+      - name: Install yq
+        shell: bash
+        run: |
+
+          sudo wget -q \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+            -O /usr/local/bin/yq
+
+          sudo chmod +x /usr/local/bin/yq
+
+
+      # --------------------------------------------------------
+      # GET SERVICE
+      # --------------------------------------------------------
+
+      - name: Get Docker service
+        id: service
+        shell: bash
+        run: |
+
+          SERVICE=$(yq -r \
+            ".clients.${{ matrix.client }}.service" \
+            deploy/config.yml)
+
+
+          if [ "$SERVICE" = "null" ] || [ -z "$SERVICE" ]; then
+            echo "❌ Docker service not configured"
+            exit 1
+          fi
+
+
+          echo "Client: ${{ matrix.client }}"
+          echo "Service: $SERVICE"
+
+
+          echo "service=$SERVICE" >> "$GITHUB_OUTPUT"
+
+
+      # --------------------------------------------------------
+      # CREATE ENV
+      # --------------------------------------------------------
+
+      - name: Create .env file
+        run: |
+
+          cat > .env <<EOL
+          PORT="${{secrets.PORT}}"
+
+          APP_URL="${{secrets.APP_URL}}"
+          APP_PDF="${{secrets.APP_PDF}}"
+          APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
+          APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
+          APP_EMAIL="${{secrets.APP_EMAIL}}"
+          JWT_SECRET="${{secrets.JWT_SECRET}}"
+
+          DB_HOST="${{secrets.DB_HOST}}"
+          DB_USER="${{secrets.DB_USER}}"
+          DB_PASSWORD="${{secrets.DB_PASSWORD}}"
+          DB_NAME="${{secrets.DB_NAME}}"
+          DB_PORT="${{secrets.DB_PORT}}"
+
+          FIREBASE_SERVICE_ACCOUNT="${{secrets.FIREBASE_SERVICE_ACCOUNT}}"
+          FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
+          FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
+          FIREBASE_FILE_ACCOUNT_NAME="${{secrets.FIREBASE_FILE_ACCOUNT_NAME}}"
+
+          TZ="${{secrets.TZ}}"
+          ENVIRONMENT=${{vars.ENVIRONMENT}}
+
+          AWS_REGION_S3=${{ secrets.AWS_REGION_S3 }}
+          AWS_ACCESS_KEY_ID_S3=${{ secrets.AWS_ACCESS_KEY_ID_S3 }}
+          AWS_SECRET_ACCESS_KEY_S3=${{ secrets.AWS_SECRET_ACCESS_KEY_S3 }}
+          PDF_BUCKET=${{ secrets.PDF_BUCKET }}
+
+          AMQP_PROTOCOL=${{ secrets.AMQP_PROTOCOL }}
+          AMQP_HOSTNAME=${{ secrets.AMQP_HOSTNAME }}
+          AMQP_PORT=${{ secrets.AMQP_PORT }}
+          AMQP_USERNAME=${{ secrets.AMQP_USERNAME }}
+          AMQP_PASSWORD=${{ secrets.AMQP_PASSWORD }}
+          AMQP_VHOST=${{ secrets.AMQP_VHOST }}
+
+          EOL
+
+
+      # --------------------------------------------------------
+      # BUILD
+      # --------------------------------------------------------
+
+      - name: Build Docker image
+        run: |
+
+          docker compose \
+            -f docker-compose.build.yml \
+            build ${{ steps.service.outputs.service }}
+
+
+      # --------------------------------------------------------
+      # AWS
+      # --------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          aws-region: ${{ secrets.AWS_REGION }}
+
+
+      # --------------------------------------------------------
+      # ECR LOGIN
+      # --------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+
+      # --------------------------------------------------------
+      # TAG
+      # --------------------------------------------------------
+
+      - name: Tag back-end image
+        run: |
+
+          docker tag \
+            ${{ matrix.client }}-backend \
+            $ECR_IMAGE_URI
+
+
+      # --------------------------------------------------------
+      # PUSH
+      # --------------------------------------------------------
+
+      - name: Push back-end image to ECR
+        run: |
+
+          docker push $ECR_IMAGE_URI
+
+
+  # ============================================================
+  # DEPLOY
+  # ============================================================
+
+  deploy-to-runs-on:
+    name: Deploy to Server
+    runs-on: self-hosted
+
+    needs:
+      - prepare
+      - build-and-push
+
+    strategy:
+      matrix:
+        client: ${{ fromJSON(needs.prepare.outputs.clients) }}
+
+    environment: ${{ matrix.client }}
+
+    env:
+      REPOSITORY: ${{ needs.prepare.outputs.repository }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      CLIENT: ${{ matrix.client }}
+
+      IMAGE_NAME: "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ needs.prepare.outputs.repository }}:${{ needs.prepare.outputs.environment }}-${{ matrix.client }}-latest"
+
+      CONTAINER_NAME: ${{ matrix.client }}-backend
+
+    steps:
+
+      # --------------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------------
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+
+      # --------------------------------------------------------
+      # INSTALL YQ
+      # --------------------------------------------------------
+
+      - name: Install yq
+        shell: bash
+        run: |
+
+          wget -q \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+            -O ./yq
+
+          chmod +x ./yq
+
+          echo "$PWD" >> "$GITHUB_PATH"
+
+
+      # --------------------------------------------------------
+      # GET SERVICE
+      # --------------------------------------------------------
+
+      - name: Get Docker service
+        id: service
+        shell: bash
+        run: |
+
+          SERVICE=$(yq -r \
+            ".clients.${{ matrix.client }}.service" \
+            deploy/config.yml)
+
+
+          if [ "$SERVICE" = "null" ] || [ -z "$SERVICE" ]; then
+            echo "❌ Docker service not configured"
+            exit 1
+          fi
+
+
+          echo "Client: ${{ matrix.client }}"
+          echo "Service: $SERVICE"
+
+
+          echo "service=$SERVICE" >> "$GITHUB_OUTPUT"
+
+
+      # --------------------------------------------------------
+      # AWS
+      # --------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          aws-region: ${{ secrets.AWS_REGION }}
+
+
+      # --------------------------------------------------------
+      # ECR LOGIN
+      # --------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+
+      # --------------------------------------------------------
+      # PULL
+      # --------------------------------------------------------
+
+      - name: Download image from Amazon ECR
+        run: |
+
+          docker pull $IMAGE_NAME
+
+
+      # --------------------------------------------------------
+      # RUN CONTAINER
+      # --------------------------------------------------------
+
+      - name: Create and run container
+        run: |
+
+          docker compose \
+            -f docker-compose.prod.yml \
+            up ${{ steps.service.outputs.service }} -d
+
+
+      # --------------------------------------------------------
+      # CLEAN LOCAL IMAGES
+      # --------------------------------------------------------
+
+      - name: Clean up local Docker images
+        run: |
+
+          docker image prune -af || true
+
+
+  # ============================================================
+  # CLEAN ECR
+  # ============================================================
+
+  clean-ecr-images:
+
+    name: Clean old ECR images
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - prepare
+      - deploy-to-runs-on
+
+    steps:
+
+      # --------------------------------------------------------
+      # AWS
+      # --------------------------------------------------------
+
+      - name: Configure AWS credentials
+
+        uses: aws-actions/configure-aws-credentials@v2
+
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+
+      # --------------------------------------------------------
+      # CLEAN UNTAGGED IMAGES
+      # --------------------------------------------------------
+
+      - name: Delete untagged images from ECR
+
+        shell: bash
+
+        run: |
+
+          REPO="${{ needs.prepare.outputs.repository }}"
+
+          echo "Repository: $REPO"
+          echo "Searching for untagged images..."
+
+
+          IMAGE_IDS=$(aws ecr list-images \
+            --repository-name "$REPO" \
+            --filter tagStatus=UNTAGGED \
+            --query 'imageIds[*]' \
+            --output json)
+
+
+          COUNT=$(echo "$IMAGE_IDS" | jq length)
+
+
+          if [ "$COUNT" -eq 0 ]; then
+
+            echo "✅ No untagged images to delete."
+
+            exit 0
+
+          fi
+
+
+          echo "🗑️ Found $COUNT untagged images."
+
+
+          aws ecr batch-delete-image \
+            --repository-name "$REPO" \
+            --image-ids "$IMAGE_IDS"
+
+
+          echo "✅ Untagged images deleted successfully."
