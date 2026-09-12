@@ -3,7 +3,7 @@
 # branchs:
   # test
   # production
-  # preview
+  # canary
   # worker
 
 repositories: syssoftintegra/back-end
@@ -28,7 +28,7 @@ clients:
 
   importmuneli:
     service: importmuneli-services
-    deploy: preview
+    deploy: canary
 
   worker:
     service: worker-services

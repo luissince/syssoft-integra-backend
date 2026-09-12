@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - test
+      - canary
       - master
-      - preview
 
   workflow_dispatch:
 
@@ -68,8 +68,8 @@ jobs:
               ENVIRONMENT="test"
               ;;
 
-            preview)
-              ENVIRONMENT="preview"
+            canary)
+              ENVIRONMENT="canary"
               ;;
 
             master)
