@@ -9,7 +9,7 @@ const asyncHandler = (fn) => {
 
 const makeController = (fn, getData) =>
   asyncHandler(async (req, res) => {
-    const data = await fn(getData(req));
+    const data = await fn(getData(req, res));
     return sendSuccess(res, data);
   });
 

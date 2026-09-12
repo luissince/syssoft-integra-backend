@@ -1,0 +1,87 @@
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="<%= data.style %>">
+  <title><%= data.title %></title>
+</head>
+<body>
+    <main class="pl-20 pr-20">
+      <div class="flex justify-content-between pb-10">   
+        <div>
+          <img  
+          src="<%= data.company.rutaLogo ?? data.icon %>"
+          width="100" 
+          height="100"
+          />
+        </div>
+        
+        <div class="w-40p text-center">
+          <h3><%= data.company.nombreEmpresa %></h3>
+            <p><%= data.branch.direccion %> </p>
+            <p><%= data.branch.ubigeo.departamento %> - <%= data.branch.ubigeo.provincia %> - <%= data.branch.ubigeo.distrito %></p>
+            <p><%= data.branch.telefono %> | <%= data.branch.celular %></p>
+            <p><%= data.branch.paginaWeb %> | <%= data.branch.email %>m</p>
+        </div>
+  
+        <div class="text-center border-1 border-solid flex flex-column justify-content-center pl-20 pr-20 pt-10 pb-10">
+          <h3>RUC: <%= data.company.documento %></h3>
+          <p><%= data.quotation.comprobante.nombre %></p>
+          <p><%= data.quotation.comprobante.serie %>-<%= data.quotation.comprobante.numeracion %></p>
+        </div>
+      </div>
+  
+      <div class="flex justify-content-between pt-10 pb-10">
+        <div class="w-50p">
+          <p><span class="font-weight-bold">RUC / DNI:</span> <%= data.quotation.cliente.documento %></p>
+          <p><span class="font-weight-bold">CLIENTE:</span> <%= data.quotation.cliente.informacion %></p>
+          <p><span class="font-weight-bold">DIRECCION:</span> <%= data.quotation.cliente.direccion %></p>
+        </div>
+  
+        <div class="w-50p">
+            <p><span class="font-weight-bold">FECHA EMISION:</span> <%= data.quotation.fecha %> <%= data.quotation.hora %></p>
+            <p><span class="font-weight-bold">MONEDA:</span> <%= data.quotation.moneda.nombre %>  - <%= data.quotation.moneda.codiso %></p>
+        </div>
+      </div>
+  
+      <div class="pt-10 pb-10">
+        <table class="table w-full">
+          <thead>
+            <tr>
+              <th width="5%"><p>Ítem</p></th>
+              <th width="20%"><p>Imagen</p></th>
+              <th width="15%"><p>Cantidad</p></th>
+              <th width="15%"><p>Medida</p></th>
+              <th width="45%"><p>Descripción</p></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% for (const item of data.quotation.cotizacionDetalles) { %>
+              <tr>
+                <td class="text-center"><p><%= item.id %></p></td>
+                <td class="text-center"><p><img src="<%= item.producto.imagen %>" width="140" /></p></td>
+                <td class="text-center"><p><%= item.cantidad %></p></td>
+                <td class="text-center"><p><%= item.medida.nombre %></p></td>
+                <td class="text-left">
+                    <p>
+                      <%= item.producto.codigo %>
+                    <br/>
+                      <%= item.producto.nombre %>
+                  </p>
+                </td>
+              </tr>
+          <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if (data.company.tipoEnvio === 0) { %>
+        <p class="text-danger font-weight-bold text-center">           
+            Representación Impresa del pre comprobante. No tiene Validez!
+        </p>
+      <% } %>
+    </main>
+</body>
+</html>

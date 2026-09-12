@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, toNullString, toNullNumber } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
@@ -9,17 +9,18 @@ class Cotizacion {
 
     async list(req, res) {
         try {
+            const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
             const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                parseInt(req.query.ligado),
-                parseInt(req.query.estado),
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                idSucursal,
+                toNullNumber(ligado),
+                toNullNumber(estado),
 
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+                parseInt(posicionPagina),
+                parseInt(filasPorPagina)
             ])
 
             const resultLista = await Promise.all(lista.map(async function (item, index) {
@@ -32,24 +33,24 @@ class Cotizacion {
                         venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3 
                     WHERE 
                         vc.idCotizacion = ?`, [
-                        item.idCotizacion
+                    item.idCotizacion
                 ]);
 
                 return {
                     ...item,
                     ligado: ligado.length > 0 ? ligado[0].total : 0,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                    id: (index + 1) + parseInt(posicionPagina)
                 }
             }));
 
             const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                parseInt(req.query.ligado),
-                parseInt(req.query.estado),
+                parseInt(opcion),
+                toNullString(buscar),
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
+                idSucursal,
+                toNullNumber(ligado),
+                toNullNumber(estado),
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
@@ -133,6 +134,8 @@ class Cotizacion {
 
     async detail(req, res) {
         try {
+            const { idCotizacion } = req.query;
+
             // Consulta la información principal de la compra
             const cotizacion = await conec.query(`
             SELECT 
@@ -141,16 +144,20 @@ class Cotizacion {
                 co.nombre AS comprobante,
                 c.serie,
                 c.numeracion,
+
                 cn.documento,
                 cn.informacion,
                 cn.telefono,
                 cn.celular,
                 cn.email,
-                cn.direccion,                
+                cn.direccion,             
+
                 c.estado,
                 c.observacion,
                 c.nota,
+
                 mo.codiso,
+                
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 cotizacion AS c
@@ -164,7 +171,7 @@ class Cotizacion {
                 usuario AS us ON us.idUsuario = c.idUsuario 
             WHERE 
                 c.idCotizacion = ?`, [
-                req.query.idCotizacion,
+                idCotizacion
             ]);
 
             // Consulta los detalles de la compra
@@ -196,7 +203,7 @@ class Cotizacion {
                 cd.idCotizacion = ?
             ORDER BY 
                 cd.idCotizacionDetalle ASC`, [
-                req.query.idCotizacion,
+                idCotizacion
             ]);
 
             const bucket = firebaseService.getBucket();
@@ -238,7 +245,7 @@ class Cotizacion {
                     v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
                 ORDER BY 
                     v.fecha DESC, v.hora DESC`, [
-                req.query.idCotizacion,
+                idCotizacion
             ]);
 
             const vendidos = await conec.query(`
@@ -257,7 +264,7 @@ class Cotizacion {
                     vc.idCotizacion = ?
                 GROUP BY 
                     p.idProducto`, [
-                req.query.idCotizacion
+                idCotizacion
             ]);
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
@@ -360,16 +367,30 @@ class Cotizacion {
                 SELECT 
                     p.idProducto, 
                     p.codigo,
+                    p.sku,
+                    p.codigoBarras,
                     p.nombre AS nombreProducto, 
+                    pc.valor AS precio,
                     p.preferido,
                     p.negativo,
                     c.nombre AS categoria, 
                     m.nombre AS medida,
                     p.idTipoTratamientoProducto,
                     p.imagen,
-                    a.nombre AS almacen,
-                    i.idInventario,
-                    'PRODUCTO' AS tipo
+
+                    CASE 
+                        WHEN 
+                            p.idTipoProducto = 'TP0002' THEN 'SIN ALMACEN'
+                        ELSE 
+                            a.nombre
+                    END AS almacen,
+               
+                    ROUND(CASE 
+                        WHEN p.idTipoProducto = 'TP0002' THEN 0
+                        ELSE IFNULL(i.cantidad, 0)
+                    END, 2) AS cantidad,
+                    
+                    p.idTipoProducto
                 FROM 
                     producto AS p
                 INNER JOIN 
@@ -378,46 +399,26 @@ class Cotizacion {
                     categoria AS c ON p.idCategoria = c.idCategoria
                 INNER JOIN 
                     medida AS m ON m.idMedida = p.idMedida
-                INNER JOIN 
+                
+                LEFT JOIN 
                     inventario AS i ON i.idProducto = p.idProducto 
-                INNER JOIN 
+                LEFT JOIN 
                     almacen AS a ON a.idAlmacen = i.idAlmacen
+
                 WHERE 
-                    p.idProducto = ? AND a.idAlmacen = ?
-                UNION
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.nombre AS nombreProducto, 
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    'SIN ALMACEN' AS almacen,
-                    0 AS idInventario,
-                    'SERVICIO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                WHERE 
-                    p.idProducto = ?`, [
+                    p.idProducto = ?
+                    AND 
+                    (? IS NULL OR i.idAlmacen = ?)`, [
                     item.idProducto,
                     req.query.idAlmacen,
-                    item.idProducto
+                    req.query.idAlmacen
                 ]);
 
                 const bucket = firebaseService.getBucket();
                 const newProducto = {
                     ...producto[0],
-                    precio: item.precio,
-                    cantidad: item.cantidad,
+                    precio: item.precio ?? producto[0].precio,
+                    cantidad: item.cantidad ?? producto[0].cantidad,
                     imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
                     id: index + 1
                 }
@@ -543,6 +544,9 @@ class Cotizacion {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             const validate = await conec.execute(connection, `
                 SELECT 
                     *
@@ -582,8 +586,8 @@ class Cotizacion {
                 req.body.observacion,
                 req.body.nota,
                 req.body.estado,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idCotizacion,
             ]);
 

@@ -1,13 +1,11 @@
 const { currentDate } = require('../tools/Tools');
 const { sendSuccess, sendError, sendFile, sendClient } = require('../tools/Message');
 const Factura = require('./Factura');
-const GuiaRemision = require('./GuiaRemision');
 const { default: axios } = require('axios');
 const conec = require('../database/mysql-connection');
 const ErrorResponse = require('../tools/ErrorAxios');
 
 const factura = new Factura();
-const guiaRemision = new GuiaRemision();
 
 class Sunat {
 
@@ -781,26 +779,26 @@ class Sunat {
 
                 responseInvoices = await axios.request(optionsInvoices);
             } else {
-                const params = {
-                    idGuiaRemision: req.params.idComprobante,
-                    size: "A4"
-                }
+                // const params = {
+                //     idGuiaRemision: req.params.idComprobante,
+                //     size: "A4"
+                // }
 
-                const data = await guiaRemision.documentsPdfInvoices({
-                    params: params
-                });
+                // const data = await guiaRemision.documentsPdfInvoices({
+                //     params: params
+                // });
 
-                const optionsInvoices = {
-                    method: 'POST',
-                    url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    data: data,
-                    responseType: 'arraybuffer'
-                };
+                // const optionsInvoices = {
+                //     method: 'POST',
+                //     url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //     },
+                //     data: data,
+                //     responseType: 'arraybuffer'
+                // };
 
-                responseInvoices = await axios.request(optionsInvoices);
+                // responseInvoices = await axios.request(optionsInvoices);
             }
 
             const empresa = await conec.query(`

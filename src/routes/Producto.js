@@ -18,29 +18,21 @@ router.get('/detalle', async (req, res) => await producto.detalle(req, res));
 
 router.get('/combo', async (req, res) => await producto.combo(req, res));
 
-router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta(req, res));
-
 router.get('/filter', async (req, res) => await producto.filter(req, res));
 
-router.get('/filter/almacen', async (req, res) => await producto.filterAlmacen(req, res));
+router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta(req, res));
 
-router.get('/preferidos', async (req, res) => await producto.preferidos(req, res));
+router.get('/filter/almacen', async (req, res) => await producto.filterAlmacen(req, res));
 
 router.put('/establecer/preferido', async (req, res) => await producto.preferidoEstablecer(req, res));
 
 router.get('/lista/precios', async (req, res) => await producto.obtenerListPrecio(req, res));
 
-router.get('/filter/web/rangeprice', async (req, res) => await producto.rangePriceWeb(req, res));
-
 router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res));
 
-router.get('/filter/web/limit/:limit', async (req, res) => await producto.filterWebLimit(req, res));
+router.get('/filter/web/:idProducto', async (req, res) => await producto.filterWebId(req, res));
 
-router.get('/filter/web/all', async (req, res) => await producto.filterWebAll(req, res));
-
-router.get('/filter/web/id', async (req, res) => await producto.filterWebId(req, res));
-
-router.get('/filter/web/related/id', async (req, res) => await producto.filterWebRelatedId(req, res));
+router.get('/filter/web/related/:idProducto/:idCategoria', async (req, res) => await producto.filterWebRelatedId(req, res));
 
 router.get("/documents/pdf/reports", async (req, res) => await producto.documentsPdfReports(req, res));
 

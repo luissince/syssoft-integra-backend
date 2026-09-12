@@ -4,10 +4,15 @@ module.exports = (req, res, next) => {
 
     logger.info(`Método: ${req.method}`);
     logger.info(`URL: ${req.url}`);
-    logger.info(`Body: ${JSON.stringify(req.body)}`);
-    logger.info(`Headers: ${JSON.stringify(req.headers)}`);
-    logger.info(`Params: ${JSON.stringify(req.params)}`);
-    logger.info(`Query: ${JSON.stringify(req.query)}`);
+    logger.info(`Body:`);
+    logger.info(JSON.stringify(req.body));
+    logger.info(`Headers:`);
+    logger.info(JSON.stringify(req.headers))
+    logger.info(`Params:`);
+    logger.info(JSON.stringify(req.params));
+    logger.info(`Query:`);
+    logger.info(JSON.stringify(req.query));
+    logger.info(`\n`);
 
     next();
 };

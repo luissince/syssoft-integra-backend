@@ -108,10 +108,6 @@ function sendNoContent(res, result) {
  * @returns {import('express').Response} - La respuesta HTTP 500 con el mensaje de error.
  */
 function sendError(res, result = "Se produjo un error de servidor, intente nuevamente.", title, error) {
-    if (process.env.ENVIRONMENT === 'development') {
-        logger.error(error);
-    }
-
     registerLog(title, error);
 
     return res.status(500).send(result);
@@ -130,10 +126,6 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
 *     res.status(400).send('Sorry, cant find that');
 */
 function sendClient(res, result = "Error de cliente", title, error) {
-    if (process.env.ENVIRONMENT === 'development') {
-        logger.warn(error);
-    }
-
     registerLog(title, error);
 
     return res.status(400).send(result);

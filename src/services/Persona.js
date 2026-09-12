@@ -1,7 +1,9 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
+const { createToken } = require('../tools/Jwt');
 const conec = require('../database/mysql-connection');
-const { sendClient, sendSuccess, sendError, sendFile } = require('../tools/Message');
+const { sendClient, sendSuccess, sendError, sendFile, sendNoAutorizado } = require('../tools/Message');
 const { default: axios } = require('axios');
+const { ClientError } = require('../tools/Error');
 
 class Persona {
 
@@ -157,25 +159,44 @@ class Persona {
         try {
             connection = await conec.beginTransaction();
 
-            const validate = await conec.execute(connection, `
-                SELECT 
-                    informacion 
-                FROM 
-                    persona 
-                WHERE 
-                    documento = ?`, [
+            const date = currentDate();
+            const time = currentTime();
+
+            const validateDocumento = await conec.execute(connection, `
+            SELECT 
+                informacion 
+            FROM 
+                persona 
+            WHERE 
+                documento = ?`, [
                 req.body.documento,
             ]);
 
-            if (validate.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
+            if (validateDocumento.length > 0) {
+                throw new ClientError("El número de documento a ingresar ya se encuentra registrado con los datos de " + validateDocumento[0].informacion);
+            }
+
+            if (req.body.email) {
+                const validateEmail = await conec.execute(connection, `
+                SELECT 
+                    email 
+                FROM 
+                    persona 
+                WHERE 
+                    email = ?`, [
+                    req.body.email,
+                ]);
+
+                if (validateEmail.length > 0) {
+                    throw new ClientError("El número de documento a ingresar ya se encuentra registrado con los datos de " + validateEmail[0].email);
+                }
             }
 
             const result = await conec.execute(connection, 'SELECT idPersona FROM persona');
             const idPersona = generateAlphanumericCode("PN0001", result, 'idPersona');
 
-            await conec.execute(connection, `INSERT INTO persona(
+            await conec.execute(connection, `
+            INSERT INTO persona(
                 idPersona, 
                 idTipoDocumento,
                 documento,
@@ -226,10 +247,10 @@ class Persona {
                 false,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario,
             ]);
 
@@ -239,6 +260,11 @@ class Persona {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Persona/create", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/create", error);
         }
     }
@@ -280,11 +306,7 @@ class Persona {
                 req.query.idPersona,
             ]);
 
-            if (result.length > 0) {
-                return sendSuccess(res, result[0]);
-            } else {
-                return sendSuccess(res, "Datos no encontrados");
-            }
+            return sendSuccess(res, result[0]);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/id", error);
         }
@@ -295,14 +317,43 @@ class Persona {
         try {
             connection = await conec.beginTransaction();
 
-            const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
+            const date = currentDate();
+            const time = currentTime();
+
+            const validateDocumento = await conec.execute(connection, `
+                SELECT 
+                    informacion
+                FROM 
+                    persona 
+                WHERE 
+                    idPersona <> ? 
+                    AND 
+                    documento = ?`, [
                 req.body.idPersona,
                 req.body.documento,
             ]);
 
-            if (validate.length > 0) {
-                await conec.rollback(connection);
-                return sendSuccess(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
+            if (validateDocumento.length > 0) {
+                throw new ClientError("El número de documento a ingresar ya se encuentra registrado con los datos de " + validateDocumento[0].informacion);
+            }
+
+            if (req.body.email) {
+                const validateEmail = await conec.execute(connection, `
+                SELECT 
+                    informacion 
+                FROM 
+                    persona 
+                WHERE 
+                    idPersona <> ? 
+                    AND
+                    email = ?`, [
+                    req.body.idPersona,
+                    req.body.email,
+                ]);
+
+                if (validateEmail.length > 0) {
+                    throw new ClientError("El correo electrónico ya se encuentra registrado con los datos de " + validateEmail[0].informacion);
+                }
             }
 
             await conec.execute(connection, `
@@ -352,8 +403,8 @@ class Persona {
                 req.body.estadoCivil,
                 req.body.estado,
                 req.body.observacion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idPersona
             ]);
@@ -364,6 +415,11 @@ class Persona {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Persona/update", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/update", error);
         }
     }
@@ -420,8 +476,7 @@ class Persona {
             ]);
 
             if (cobro.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a un cobro.");
+                throw new ClientError("No se puede eliminar el cliente ya que esta ligada a un cobro.");
             }
 
             const gasto = await conec.execute(connection, `SELECT * FROM gasto WHERE idPersona = ?`, [
@@ -429,8 +484,7 @@ class Persona {
             ]);
 
             if (gasto.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a un gasto.");
+                throw new ClientError("No se puede eliminar el cliente ya que esta ligada a un gasto.");
             }
 
             const venta = await conec.execute(connection, `SELECT * FROM venta WHERE idCliente = ?`, [
@@ -438,8 +492,7 @@ class Persona {
             ]);
 
             if (venta.length > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se puede eliminar el cliente ya que esta ligada a una venta.");
+                throw new ClientError("No se puede eliminar el cliente ya que esta ligada a una venta.");
             }
 
             await conec.execute(connection, `DELETE FROM persona WHERE idPersona  = ?`, [
@@ -452,6 +505,11 @@ class Persona {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Persona/delete", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/delete", error);
         }
     }
@@ -511,16 +569,14 @@ class Persona {
                 req.query.proveedor,
                 req.query.conductor,
             ]);
-            if (result.length !== 0) {
-                return sendSuccess(res, result[0]);
-            }
-            return sendSuccess(res, "");
+
+            return sendSuccess(res, result[0]);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);
         }
     }
 
-     async login(req, res) {
+    async login(req, res) {
         try {
             const result = await conec.query(`
             SELECT 
@@ -528,10 +584,10 @@ class Persona {
                 idTipoDocumento,
                 documento, 
                 informacion,
-                IFNULL(telefono,'') AS telefono,
-                IFNULL(celular,'') AS celular,
-                IFNULL(email,'') AS email,
-                IFNULL(direccion,'') AS direccion
+                telefono,
+                celular,
+                email,
+                direccion
             FROM 
                 persona
             WHERE 
@@ -539,21 +595,94 @@ class Persona {
                 req.body.email,
                 req.body.password,
             ]);
+
             if (result.length === 0) {
-                return sendClient(res, "Credenciales incorrectas.");
+                throw new ClientError("Credenciales incorrectas.");
             }
-            return sendSuccess(res, result[0]);
+
+            const payload = {
+                idPersona: result[0].idPersona,
+            }
+
+            const token = await createToken(
+                payload,
+                process.env.JWT_SECRET,
+                '7d'
+            );
+
+            // res.cookie("token", token, {
+            //     httpOnly: true,
+            //     secure: process.env.ENVIRONMENT === "production",
+            //     sameSite: "lax",
+            //     domain: process.env.ENVIRONMENT === "production" ? "syssoftintegra.com" : "localhost",
+            //     path: "/",
+            //     maxAge: 7 * 24 * 60 * 60 * 1000
+            // });
+
+            return sendSuccess(res, this._mapLoginResponse(result[0], token));
         } catch (error) {
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Persona/predeterminado", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/predeterminado", error);
         }
     }
 
-     async updateWeb(req, res) {
+    async validate(req, res) {
+        try {
+            const result = await conec.query(`
+            SELECT 
+                idPersona, 
+                idTipoDocumento,
+                documento, 
+                informacion,
+                telefono,
+                celular,
+                email,
+                direccion
+            FROM 
+                persona 
+            WHERE 
+                idPersona = ?`, [
+                req.dataToken.idPersona
+            ]);
+
+            if (result.length === 0) {
+                return sendNoAutorizado(res, {
+                    message: 'Usuario no encontrado'
+                });
+            }
+
+            return sendSuccess(res, this._mapValidateResponse(result[0]));
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/validate", error);
+        }
+    }
+
+    async logout(req, res) {
+        try {
+            // res.clearCookie("token", {
+            //     httpOnly: true,
+            //     secure: process.env.ENVIRONMENT === "production",
+            //     sameSite: "lax",
+            // });
+
+            return sendSuccess(res, "Sesión cerrada correctamente");
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/logout", error);
+        }
+    }
+
+    async updateWeb(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
 
             const { idPersona } = req.params;
+
+            const date = currentDate();
+            const time = currentTime();
 
             const validate = await conec.execute(connection, `SELECT * FROM persona WHERE idPersona <> ? AND documento = ?`, [
                 req.body.idPersona,
@@ -561,8 +690,7 @@ class Persona {
             ]);
 
             if (validate.length > 0) {
-                await conec.rollback(connection);
-                return sendSuccess(res, `El número de documento a ingresar ya se encuentre registrado con los datos de ${validate[0].informacion}`);
+                throw new ClientError("El número de documento a ingresar ya se encuentra registrado con los datos de " + validate[0].informacion);
             }
 
             await conec.execute(connection, `
@@ -587,10 +715,10 @@ class Persona {
                 req.body.celular,
                 req.body.telefono,
                 req.body.email,
-                !req.body.clave ? validate[0].clave : req.body.clave,
+                req.body.clave ? req.body.clave : validate[0].clave,
                 req.body.direccion,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idPersona
             ]);
 
@@ -602,6 +730,11 @@ class Persona {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Persona/update", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Persona/update", error);
         }
     }
@@ -678,6 +811,34 @@ class Persona {
         }
     }
 
+    _mapLoginResponse(persona, token) {
+        return {
+            person: {
+                idPerson: persona.idPersona,
+                idTypeDocument: persona.idTipoDocumento,
+                document: persona.documento,
+                information: persona.informacion,
+                phonerNumber: persona.telefono,
+                mobileNumber: persona.celular,
+                email: persona.email,
+                address: persona.direccion,
+            },
+            token
+        }
+    }
+
+    _mapValidateResponse(persona) {
+        return {
+            idPerson: persona.idPersona,
+            idTypeDocument: persona.idTipoDocumento,
+            document: persona.documento,
+            information: persona.informacion,
+            phonerNumber: persona.telefono,
+            mobileNumber: persona.celular,
+            email: persona.email,
+            address: persona.direccion,
+        }
+    }
 }
 
 module.exports = Persona;

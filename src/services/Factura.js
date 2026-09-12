@@ -30,7 +30,7 @@ class Factura {
                     guiaRemision as gui 
                 WHERE 
                     gui.idVenta = ?`, [
-                item.idVenta
+                    item.idVenta
                 ]);
 
                 return {
@@ -1892,32 +1892,6 @@ class Factura {
         }
     }
 
-    async dashboard(req, res) {
-        try {
-            const result = await conec.procedureAll(`CALL Dashboard_Venta(?,?,?,?,?,?)`, [
-                req.query.fechaInicio,
-                req.query.fechaFinal,
-                req.query.idSucursal,
-                req.query.idUsuario,
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
-            ]);
-
-            return sendSuccess(res, {
-                "contado": result[0][0].total ?? 0,
-                "credito": result[1][0].total ?? 0,
-                "anulado": result[2][0].total ?? 0,
-                "cobrado": result[3][0].total ?? 0,
-                "listaPorMeses": result[4] ?? [],
-                "listaPorComprobante": result[5] ?? [],
-                "lista": result[6] ?? [],
-                "total": result[7][0].total ?? 0,
-            });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/dashboard", error);
-        }
-    }
-
     async documentsPdfInvoices(req, _) {
         try {
             const { idVenta, size, outputType = "pdf" } = req.params;
@@ -2163,6 +2137,32 @@ class Factura {
             return sendFile(res, response);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/documentsPdfExcel", error);
+        }
+    }
+
+    async dashboard(req, res) {
+        try {
+            const result = await conec.procedureAll(`CALL Dashboard_Venta(?,?,?,?,?,?)`, [
+                req.query.fechaInicio,
+                req.query.fechaFinal,
+                req.query.idSucursal,
+                req.query.idUsuario,
+                parseInt(req.query.posicionPagina),
+                parseInt(req.query.filasPorPagina)
+            ]);
+
+            return sendSuccess(res, {
+                "contado": result[0][0].total ?? 0,
+                "credito": result[1][0].total ?? 0,
+                "anulado": result[2][0].total ?? 0,
+                "cobrado": result[3][0].total ?? 0,
+                "listaPorMeses": result[4] ?? [],
+                "listaPorComprobante": result[5] ?? [],
+                "lista": result[6] ?? [],
+                "total": result[7][0].total ?? 0,
+            });
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/dashboard", error);
         }
     }
 

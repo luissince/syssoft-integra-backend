@@ -22,7 +22,7 @@ module.exports = function startHttpServer(app) {
 
     app.listen(
         app.get("port"),
-        '0.0.0.0',
+        '::',
         () => {
             logger.info(
                 `🚀 HTTP iniciado en puerto ${app.get("port")}`

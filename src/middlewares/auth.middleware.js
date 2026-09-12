@@ -9,38 +9,52 @@ const { sendNoAutorizado, sendForbidden } = require('../tools/Message');
  * @param {Function} next - Función para pasar al siguiente middleware.
  */
 function authenticate(req, res, next) {
-    const headers = req.headers;
 
-    // Validar que existan encabezados y el token.
-    if (!req || !headers) {
-        return sendNoAutorizado(res, { message: 'No autorizado' });
+    const key = process.env.JWT_SECRET;
+
+    if (!key) {
+        return sendForbidden(res, {
+            message: 'Access denied',
+        });
     }
 
-    const bearerToken = headers['authorization'];
+    // 1. Primero intentar obtener el token desde la cookie
+    let token = req.cookies?.token;
 
-    if (!bearerToken || !bearerToken.startsWith('Bearer ')) {
-        return sendNoAutorizado(res, { message: 'No autorizado' });
+    // 2. Opcionalmente mantener compatibilidad con Bearer Token
+    if (!token) {
+        const bearerToken = req.headers['authorization'];
+
+        if (bearerToken?.startsWith('Bearer ')) {
+            token = bearerToken.split(' ')[1];
+        }
     }
 
-    const token = bearerToken.split(" ")[1]; // Extraer el token.
-    const key = process.env.TOKEN_ACCESS;
-
-    if (!token || !key) {
-        return sendForbidden(res, { message: 'Acceso denegado' });
+    // 3. No existe token
+    if (!token) {
+        return sendNoAutorizado(res, {
+            message: 'unauthorized',
+        });
     }
 
     try {
-        // Verificar y decodificar el token.
+        // 4. Validar y decodificar JWT
         const decoded = jwt.verify(token, key);
-        req.dataToken = decoded; // Almacenar datos decodificados en `req`.
-        next(); // Continuar al siguiente middleware o controlador.
+
+        // 5. Guardar payload
+        req.dataToken = decoded;
+
+        // 6. Continuar
+        next();
     } catch (error) {
+
         if (error.name === 'TokenExpiredError') {
             return sendNoAutorizado(res, {
-                message: 'El token ha expirado. Por favor, inicia sesión de nuevo.',
+                message: 'The token has expired. Please, log in again.',
             });
         }
-        return sendForbidden(res, { message: 'Acceso denegado' });
+
+        return sendForbidden(res, { message: 'Access denied' });
     }
 }
 

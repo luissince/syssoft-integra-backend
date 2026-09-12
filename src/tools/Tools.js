@@ -2,9 +2,9 @@ const { promisify } = require('util');
 const fs = require("fs");
 const path = require("path");
 const ejs = require('ejs');
+const QRCode = require('qrcode')
 const lstatAsync = promisify(fs.lstat);
 const unlinkFileAsync = promisify(fs.unlink);
-const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const mkdirAsync = promisify(fs.mkdir);
 const chmodAsync = promisify(fs.chmod);
@@ -862,6 +862,36 @@ async function renderTemplate(template, data) {
     return ejs.renderFile(file, data);
 }
 
+async function generateQr(data, width) {
+    const qrCodeBuff = await QRCode.toBuffer(data, { width: width });
+    return qrCodeBuff;
+};
+
+function toNullString(valor) {
+    if (valor == null || valor === undefined || valor.trim() === "") {
+        return null;
+    }
+
+    return valor;
+}
+
+function toNullNumber(valor) {
+    if (valor == null || valor === undefined || valor === "") {
+        return null;
+    }
+
+    return Number(valor);
+}
+
+function calculateTaxBruto(tax, amount) {
+    return amount / ((tax + 100) * 0.01);
+}
+
+function calculateTax(porcent, amount) {
+    const tax = porcent / 100.0;
+    return amount * tax;
+}
+
 module.exports = {
     formatNumberWithZeros,
     isNumber,
@@ -891,5 +921,10 @@ module.exports = {
     responseSSE,
     sleep,
     formatDecimal,
-    renderTemplate
+    renderTemplate,
+    generateQr,
+    toNullString,
+    toNullNumber,
+    calculateTaxBruto,
+    calculateTax
 };

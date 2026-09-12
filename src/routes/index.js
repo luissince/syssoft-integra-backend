@@ -60,8 +60,7 @@ module.exports = (app) => {
     app.use('/api/tipotraslado', require('./TipoTraslado'));
     app.use('/api/modalidadtraslado', require('./ModalidadTraslado'));
     app.use('/api/tipopeso', require('./TipoPeso'));
-    app.use('/api/tipoalmacen', require('./TipoAlmacen'));
-    app.use('/api/tipo/entrega', require('./TipoEntrega'));
+    app.use('/api/tipoalmacen', require('./TipoAlmacen'));   
     app.use('/api/vehiculo', require('./Vehiculo'));
     app.use('/api/ordencompra', require('./OrdenCompra'));
     app.use('/api/pedido', require('./Pedido'));
@@ -71,6 +70,9 @@ module.exports = (app) => {
     app.use('/api/sunat', require('./Sunat'));
     app.use('/api/consulta', require('./Consulta'));
 
-    app.use('/api/guiaremision', require('./GuiaRemision'));
+    app.use('/api/guiaremision', require('./guia-remision.route'));
     app.use('/api/traslado', require('./traslado.route'));
+    app.use('/api/web', require('./web.route'));
+    app.use('/api/tipo/pedido', require('./tipo-pedido.route'));
+    app.use('/api/agencia', require('./agencia.route'));
 };
