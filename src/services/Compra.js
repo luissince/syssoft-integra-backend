@@ -442,6 +442,7 @@ class Compra {
                             vidaUtil,                                
                             valorResidual,
                             idUbicacion,
+                            idMarca,
                             correlativo,
                             fechaDepreciacion,
                             fechaAdquisicion,
@@ -449,13 +450,14 @@ class Compra {
                             hora,
                             idUsuario,
                             costo
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
                             Number(inventarioDetalle.cantidad),
                             inventarioDetalle.vidaUtil,
                             inventarioDetalle.valorResidual,
                             inventarioDetalle.idUbicacion,
+                            inventarioDetalle.idMarca,
                             correlativo,
                             inventarioDetalle.fechaDepreciacion,
                             inventarioDetalle.fechaAdquisicion,

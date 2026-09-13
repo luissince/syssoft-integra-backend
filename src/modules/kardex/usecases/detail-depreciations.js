@@ -87,6 +87,7 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
         idProducto,
         serie,
         periodo,
+        costoFijo,
         valorInicio,
         depreciacion,
         depreciacionAcumulada,

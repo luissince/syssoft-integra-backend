@@ -133,5 +133,5 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         correlativo
     ]);
 
-    return { "result": list, "total": total[0].total };
+    return { "result": list, "total": total[0].Total };
 }

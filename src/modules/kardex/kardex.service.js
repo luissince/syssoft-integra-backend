@@ -8,6 +8,7 @@ const findAllDepreciations = require("./usecases/find-all-depreciations");
 const createDepreciations = require("./usecases/create-depreciations");
 const detailDepreciations = require("./usecases/detail-depreciations");
 const findAllDepreciationsToReturn = require("./usecases/find-all-depreciations-to-return");
+const reportDepreciations = require("./usecases/report-depreciations");
 
 class KardexService {
     constructor(container) {
@@ -18,6 +19,7 @@ class KardexService {
         this.createDepreciations = createDepreciations(container);
         this.detailDepreciations = detailDepreciations(container);
         this.findAllDepreciationsToReturn = findAllDepreciationsToReturn(container);
+        this.reportDepreciations = reportDepreciations(container);
     }
 }
 

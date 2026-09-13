@@ -16,4 +16,6 @@ router.post('/depreciacion/create', kardexController.createDepreciations);
 
 router.post('/depreciacion/devolver', kardexController.findAllDepreciationsToReturn);
 
+router.post('/depreciacion/reporte', kardexController.reportDepreciations);
+
 module.exports = router;
