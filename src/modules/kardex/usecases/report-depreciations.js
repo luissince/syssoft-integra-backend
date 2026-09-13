@@ -45,7 +45,7 @@ module.exports = ({ conec }) => async function reportDepreciacions(data) {
   FROM 
     activoDepreciacion ad
   INNER JOIN 
-    inventarioactivo ia on ia.serie = ad.serie
+    inventarioActivo ia on ia.serie = ad.serie
   WHERE 
     YEAR(ad.periodo) BETWEEN ? AND ?`, [
     fechaInicio,
