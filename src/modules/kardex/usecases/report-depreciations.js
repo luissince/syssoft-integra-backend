@@ -19,6 +19,7 @@ module.exports = ({ conec }) => async function reportDepreciacions(data) {
   SELECT
     ad.idProducto,
     ad.serie,
+    ia.numero,
     ia.correlativo,
     ia.fechaAdquisicion,
     ia.fecha as fechaIngreso,

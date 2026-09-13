@@ -177,10 +177,6 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
     // }
     let connection = null;
 
-    const MS_DIA = 1000 * 60 * 60 * 24;
-
-    const diasEntre = (f1, f2) => Math.ceil((f2 - f1) / MS_DIA);
-
     const esBisiesto = (year) =>
         (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
 
@@ -191,22 +187,19 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
 
         const [activo] = await conec.execute(connection, `
         SELECT 
-            k.idKardex,
             i.idProducto,
             ia.serie,
-            k.costo,
+            ia.costo,
             ia.vidaUtil,
             ia.valorResidual,
             ia.fechaDepreciacion,
             p.idMetodoDepreciacion
         FROM 
-            kardex k
+            inventarioactivo ia
         JOIN 
-            inventario i ON k.idInventario = i.idInventario
+            inventario i on i.idInventario = ia.idInventario
         JOIN 
-            producto p ON p.idProducto = i.idProducto
-        JOIN 
-            inventarioActivo ia ON ia.idInventario = i.idInventario
+            producto p on p.idProducto = i.idProducto
         WHERE 
             i.idProducto = ? AND ia.serie = ? `, [
             idProducto,

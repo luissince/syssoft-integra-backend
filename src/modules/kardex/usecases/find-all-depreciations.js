@@ -11,30 +11,27 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         -- FECHA
         ia.fechaAdquisicion,
         ia.fechaDepreciacion,
-        DATE_FORMAT(k.fecha, '%d/%m/%Y') AS fecha,
-        k.hora,
+        DATE_FORMAT(ia.fecha, '%d/%m/%Y') AS fecha,
+        ia.hora,
         -- ALMACEN
         al.nombre AS almacen,
         -- MOVIMIENTO
         ia.cantidad,
-        k.costo,
+        ia.costo,
         -- SERIE
         ia.idInventarioActivo,
         ia.serie,
+        ia.numero, 
         ia.correlativo,
         ia.vidaUtil,
         ia.valorResidual,
         u.descripcion AS ubicacion
     FROM 
-        kardex k
-    JOIN inventario i
-        ON k.idInventario = i.idInventario
+        inventarioactivo ia
+    JOIN 
+    	inventario i on i.idInventario = ia.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
-    JOIN tipoKardex tk 
-        ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN inventarioActivo ia
-        ON ia.idInventarioActivo = k.idInventarioActivo
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
@@ -52,8 +49,8 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ia.idInventarioActivo,
         ia.serie
     ORDER BY 
-        k.fecha ASC,
-        k.hora  ASC
+        ia.fecha ASC,
+        ia.hora  ASC
     LIMIT
         ?, ?`, [
         opcion,
@@ -88,18 +85,13 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     });
 
     const total = await conec.query(`
-    SELECT 
-       COUNT(*) AS Total
+    SELECT COUNT(*) AS Total
     FROM 
-        kardex k
+        inventarioactivo ia
     JOIN inventario i
-        ON k.idInventario = i.idInventario
+        ON ia.idInventario = i.idInventario
     JOIN producto p 
         ON p.idProducto = i.idProducto
-    JOIN tipoKardex tk 
-        ON tk.IdTipoKardex = k.idTipoKardex
-    JOIN inventarioActivo ia
-        ON ia.idInventarioActivo = k.idInventarioActivo
     LEFT JOIN ubicacion u 
         ON u.idUbicacion = ia.idUbicacion
     JOIN almacen al 
@@ -111,11 +103,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     OR
         (? = 2 AND p.idProducto = ? AND al.idAlmacen = ? AND ia.correlativo = ?)
     OR
-        (? = 3 AND p.idProducto = ? AND ia.correlativo = ?) 
-    GROUP BY
-        p.idProducto,
-        ia.idInventarioActivo,
-        ia.serie`, [
+        (? = 3 AND p.idProducto = ? AND ia.correlativo = ?) `, [
         opcion,
         idAlmacen,
 
@@ -132,6 +120,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         idProducto,
         correlativo
     ]);
+    console.log("total", total);
 
     return { "result": list, "total": total[0].Total };
 }
