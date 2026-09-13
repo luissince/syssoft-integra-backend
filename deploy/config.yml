@@ -18,8 +18,8 @@ clients:
     service: leatsac-services
     deploy: production
 
-  ferreteria:
-    service: ferreteria-services
+  ferreteria-rym:
+    service: ferreteria-rym-services
     deploy: production
 
   dracoly:

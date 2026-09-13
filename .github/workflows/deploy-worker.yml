@@ -1,9 +1,10 @@
 name: Docker Image CI - SySoftIntegra BackEnd Worker
 
 on:
-  push:
-    branches: 
-      - "worker"
+  workflow_dispatch:
+  # push:
+  #   branches: 
+  #     - "worker"
 
 jobs:
   build-and-push:
