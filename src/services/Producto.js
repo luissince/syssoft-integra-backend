@@ -1304,7 +1304,7 @@ class Producto {
                     newImagenes.push({
                         "idImagen": image.id,
                         "nombre": image.nombre,
-                        "url": `ƒ${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
+                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
                         "ancho": image.ancho,
                         "alto": image.alto,
                     });
