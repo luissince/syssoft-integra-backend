@@ -279,6 +279,8 @@ jobs:
           AMQP_PASSWORD=${{ secrets.AMQP_PASSWORD }}
           AMQP_VHOST=${{ secrets.AMQP_VHOST }}
 
+          REDIS_HOST=${{ secrets.REDIS_HOST }}
+          REDIS_PORT=${{ secrets.REDIS_PORT }}
           EOL
 
 
