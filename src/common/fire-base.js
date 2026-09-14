@@ -179,11 +179,17 @@ class FireBase {
     }
 
     getUrl(name) {
-        if (!this.bucket) {
+        const bucket = this.getBucket();
+
+        if (!bucket) {
             return null;
         }
 
-        return `${process.env.FIREBASE_URL_PUBLIC}${this.bucket.name}/${name}`;
+        if (!name) {
+            return null;
+        }
+
+        return `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${name}`;
     }
 
     async searchFiles({
