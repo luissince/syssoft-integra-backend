@@ -32,7 +32,7 @@ router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res
 
 router.get('/filter/web/:idProducto', async (req, res) => await producto.filterWebId(req, res));
 
-router.get('/filter/web/related/:idProducto/:idCategoria', async (req, res) => await producto.filterWebRelatedId(req, res));
+router.get('/filter/web/related/:idProducto/:idCategoria', async (req, res) => await producto.filterWebRelationsId(req, res));
 
 router.get("/documents/pdf/reports", async (req, res) => await producto.documentsPdfReports(req, res));
 

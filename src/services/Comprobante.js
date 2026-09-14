@@ -1,6 +1,7 @@
 const { currentDate, currentTime, generateAlphanumericCode } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
+const { CLIENT_INFO_REQUEST_NAMES } = require('../common/constants/names.constants');
 
 class Comprobante {
 
@@ -22,14 +23,14 @@ class Comprobante {
             });
 
             const total = await conec.procedure(`CALL Listar_Comprobantes_Count(?,?,?)`, [
-                    parseInt(req.query.opcion),
-                    req.query.buscar,
-                    req.query.idSucursal,
+                parseInt(req.query.opcion),
+                req.query.buscar,
+                req.query.idSucursal,
             ]);
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total })
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/list", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/list", error)
         }
     }
 
@@ -112,7 +113,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/add", error);
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/add", error);
         }
     }
 
@@ -124,7 +125,7 @@ class Comprobante {
 
             return sendSuccess(res, result[0])
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/id", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/id", error);
         }
     }
 
@@ -191,7 +192,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/edit", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/edit", error);
         }
     }
 
@@ -219,7 +220,7 @@ class Comprobante {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/delete", error);
+            sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/delete", error);
         }
     }
 
@@ -244,18 +245,33 @@ class Comprobante {
                     (idTipoComprobante = ? AND ? = '')
                     OR
                     (idTipoComprobante = ? AND idSucursal = ?)
-                )`,
-                [
-                    idTipoComprobante,
-                    idSucursal,
+                )`, [
+                idTipoComprobante,
+                idSucursal,
 
-                    idTipoComprobante,
-                    idSucursal,
-                ]);
+                idTipoComprobante,
+                idSucursal,
+            ]);
+
+            if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
+                return sendSuccess(res, this._mapComboResponse(result));
+            }
+
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Comprobante/combo", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Comprobante/combo", error)
         }
+    }
+
+    _mapComboResponse(list) {
+        return list.map((item) => {
+            return {
+                idPaymentReceipt: item.idComprobante,
+                name: item.nombre,
+                series: item.serie,
+                prefered: item.preferida === 1 ? true : false,
+            }
+        });
     }
 
 }
