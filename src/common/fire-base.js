@@ -1,4 +1,4 @@
-// services/FirebaseService.js
+// common/FirebaseService.js
 const admin = require('firebase-admin');
 const { registerLog } = require('../tools/Tools');
 
@@ -176,6 +176,88 @@ class FireBase {
         } catch (_) { }
 
         throw new Error(message);
+    }
+
+    getUrl(name) {
+        const bucket = this.getBucket();
+
+        if (!bucket) {
+            return null;
+        }
+
+        if (!name) {
+            return null;
+        }
+
+        return `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${name}`;
+    }
+
+    async searchFiles({
+        search = '',
+        prefix = '',
+        contentType = 'image'
+    } = {}) {
+        try {
+            const files = await this.listFiles({
+                prefix,
+                contentType
+            });
+
+            const term = search.toLowerCase();
+
+            return files.filter(file =>
+                !term || file.name.toLowerCase().includes(term)
+            );
+
+        } catch (error) {
+            this.handleFirebaseError(
+                error,
+                'No se pudieron buscar los archivos.'
+            );
+        }
+    }
+
+    async listFiles({
+        prefix = '',
+        contentType = 'image'
+    } = {}) {
+        try {
+            const bucket = this.getBucket();
+
+            if (!bucket) {
+                return [];
+            }
+
+            const [files] = await bucket.getFiles({
+                prefix
+            });
+
+            console.log("==============================");
+            console.log("ingresando a filter");
+
+            return files
+                .filter(file => {
+                    return (
+                        !contentType ||
+                        file.metadata.contentType?.startsWith(contentType)
+                    );
+                })
+                .map(file => ({
+                    name: file.name,
+                    size: file.metadata.size,
+                    contentType: file.metadata.contentType,
+                    created: file.metadata.timeCreated,
+                    updated: file.metadata.updated,
+                    url: this.getUrl(file.name),
+                    metadata: file.metadata
+                }));
+
+        } catch (error) {
+            this.handleFirebaseError(
+                error,
+                'No se pudieron obtener los archivos.'
+            );
+        }
     }
 }
 

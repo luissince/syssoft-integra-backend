@@ -10,6 +10,8 @@ const {
 } = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile } = require("../tools/Message");
 const firebaseService = require('../common/fire-base');
+const redisService = require('../common/redis');
+const { PRODUCT_FILTER_WEB, PRODUCT_FILTER_WEB_ID, PRODUCT_FILTER_WEB_RELATED_ID } = require('../common/constants/redis.constants');
 const { default: axios } = require("axios");
 const { ClientError } = require('../tools/Error');
 
@@ -18,6 +20,7 @@ class Producto {
     async list(req, res) {
         try {
             const { opcion, idTipoProducto, estado, preferido, publicarTienda, buscar, posicionPagina, filasPorPagina } = req.query;
+
             const lista = await conec.procedure(`CALL Listar_Productos(?,?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 toNullString(idTipoProducto),
@@ -29,11 +32,10 @@ class Producto {
                 parseInt(filasPorPagina)
             ]);
 
-            const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                     id: (index + 1) + parseInt(posicionPagina)
                 }
             });
@@ -370,7 +372,6 @@ class Producto {
     async id(req, res) {
         try {
             const { idProducto } = req.params;
-            const bucket = firebaseService.getBucket();
 
             const producto = await conec.query(`
             SELECT 
@@ -407,7 +408,6 @@ class Producto {
                 throw new Error("El producto no existe, verifique el código o actualiza la lista.");
             }
 
-
             const precios = await conec.query(`
             SELECT
                 ROW_NUMBER() OVER () AS id,
@@ -437,20 +437,19 @@ class Producto {
             const newImagenes = [];
             let countImage = 0;
 
-            if (bucket) {
-                for (const image of imagenes) {
-                    newImagenes.push({
-                        "index": countImage,
-                        "idImagen": image.idImagen,
-                        "idProducto": image.idProducto,
-                        "nombre": image.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
-                        "remover": false
-                    });
+            for (const image of imagenes) {
+                newImagenes.push({
+                    "index": countImage,
+                    "idImagen": image.idImagen,
+                    "idProducto": image.idProducto,
+                    "nombre": image.nombre,
+                    "url": firebaseService.getUrl(image.nombre),
+                    "remover": false
+                });
 
-                    countImage++;
-                }
+                countImage++;
             }
+
 
             const detalles = await conec.query(`
                 SELECT
@@ -483,11 +482,13 @@ class Producto {
                 idProducto
             ]);
 
+            const imagen = firebaseService.getUrl(producto[0].imagen);
+
             const newProducto = {
                 ...producto[0],
-                imagen: producto[0].imagen && bucket ? {
+                imagen: imagen ? {
                     nombre: producto[0].imagen,
-                    url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`
+                    url: imagen,
                 } : null,
                 precios,
                 detalles,
@@ -620,8 +621,7 @@ class Producto {
                 FROM kardex
                 WHERE idProducto = ?
 
-                LIMIT 1
-            `, [
+                LIMIT 1`, [
                     req.body.idProducto,
                     req.body.idProducto,
                     req.body.idProducto,
@@ -883,6 +883,12 @@ class Producto {
                 ]);
             }
 
+            // Invalidar caché del producto
+            const cacheKey = PRODUCT_FILTER_WEB_ID(req.body.idProducto)
+
+
+            await redisService.delete(cacheKey);
+
             await conec.commit(connection);
             return sendSave(res, "Los datos se actualizarón correctamente.");
         } catch (error) {
@@ -945,10 +951,6 @@ class Producto {
                     idProducto
                 ]);
 
-                await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
-                    idProducto
-                ]);
-
                 await conec.execute(connection, `DELETE FROM producto WHERE idProducto = ?`, [
                     idProducto
                 ]);
@@ -963,11 +965,17 @@ class Producto {
                     idProducto
                 ]);
 
+                await conec.execute(connection, `DELETE FROM productoImagen WHERE idProducto = ?`, [
+                    idProducto
+                ]);
+
                 await firebaseService.deleteFile(producto[0].imagen);
 
                 for (const productoImagen of productoImagenes) {
                     await firebaseService.deleteFile(productoImagen.nombre);
                 }
+
+
             } else {
                 await conec.execute(connection, `
                 UPDATE 
@@ -995,7 +1003,13 @@ class Producto {
                 ]);
             }
 
-            await conec.commit(connection)
+            await conec.commit(connection);
+
+            // Invalidar caché del producto
+            const cacheKey = PRODUCT_FILTER_WEB_ID(req.body.idProducto)
+
+            await redisService.delete(cacheKey);
+
             return sendSave(res, "Se eliminó correctamente el producto.");
         } catch (error) {
             if (connection != null) {
@@ -1036,11 +1050,10 @@ class Producto {
                 req.query.filtrar,
             ]);
 
-            const bucket = firebaseService.getBucket();
             const newData = result.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 };
             });
 
@@ -1057,11 +1070,10 @@ class Producto {
                 req.query.filtrar
             ]);
 
-            const bucket = firebaseService.getBucket();
             const newData = result.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 };
             });
 
@@ -1073,8 +1085,6 @@ class Producto {
 
     async filtrarParaVenta(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
-
             const result = await conec.procedure("CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)", [
                 parseInt(req.query.tipo),
                 req.query.filtrar,
@@ -1086,7 +1096,7 @@ class Producto {
             const resultLista = result.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -1160,8 +1170,6 @@ class Producto {
             const precioMin = filtros?.priceRange ? Number(filtros.priceRange[0]) : null;
             const precioMax = filtros?.priceRange ? Number(filtros.priceRange[1]) : null;
 
-            const bucket = firebaseService.getBucket();
-
             const web = await conec.query(`
             SELECT
                 w.idWeb,
@@ -1171,6 +1179,35 @@ class Producto {
                 web AS w
             LIMIT 1`);
 
+            const filterData = {
+                idAlmacen: web[0]?.idAlmacen,
+                buscar: buscar || '',
+                categorias: categoriasCSV || '',
+                marcas: marcasCSV || '',
+                colores: coloresCSV || '',
+                tallas: tallasCSV || '',
+                sabores: saboresCSV || '',
+                precioMin,
+                precioMax,
+                posicionPagina: parseInt(posicionPagina),
+                filasPorPagina: parseInt(filasPorPagina),
+            };
+
+            const cacheKey = PRODUCT_FILTER_WEB(filterData);
+
+            // 1. Buscar en Redis
+            const cached = await redisService.get(cacheKey);
+
+            if (cached) {
+                console.log('Redis HIT:', cacheKey);
+
+                return sendSuccess(
+                    res,
+                    JSON.parse(cached)
+                );
+            }
+
+            // 2. Si no existe en Redis, consultar DB
             const lista = await conec.procedure(`CALL Listar_Productos_Web(?,?,?,?,?,?,?,?,?,?,?)`, [
                 toNullString(web[0]?.idAlmacen),
                 toNullString(buscar),
@@ -1188,9 +1225,7 @@ class Producto {
             const newLista = await lista.map((item, index) => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen
-                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                        : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                     id: (index + 1) + parseInt(posicionPagina),
                 };
             });
@@ -1207,7 +1242,21 @@ class Producto {
                 toNullNumber(precioMax),
             ]);
 
-            return sendSuccess(res, this._mapFilerWebResponse(newLista, rows[0].Total));
+            // 3. Construir respuesta
+            const response = this._mapFilterWebResponse(
+                newLista,
+                rows[0].Total
+            );
+
+            // 4. Guardar respuesta completa en Redis
+            await redisService.set(
+                cacheKey,
+                JSON.stringify(response),
+                3600 // 1 hora
+            );
+
+            // 5. Responder
+            return sendSuccess(res, response);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWeb", error);
         }
@@ -1217,8 +1266,18 @@ class Producto {
         try {
             const { idProducto } = req.params;
 
-            const bucket = firebaseService.getBucket();
+            const cacheKey = PRODUCT_FILTER_WEB_ID(idProducto);
 
+            // 1. Buscar en Redis
+            const cached = await redisService.get(cacheKey);
+
+            if (cached) {
+                console.log('Redis HIT:', cacheKey);
+
+                return sendSuccess(res, JSON.parse(cached));
+            }
+
+            // 2. Si no existe en Redis, consultar DB
             const web = await conec.query(`
             SELECT
                 w.idWeb,
@@ -1236,7 +1295,9 @@ class Producto {
                 p.codigo,
                 p.sku,
                 p.codigoBarras,
-                 p.idTipoProducto,
+
+                p.idTipoProducto,
+
                 p.descripcionCorta,
                 p.descripcionLarga,
                 pc.valor AS precio,
@@ -1299,16 +1360,14 @@ class Producto {
 
             const newImagenes = [];
 
-            if (bucket) {
-                for (const image of imagenes) {
-                    newImagenes.push({
-                        "idImagen": image.id,
-                        "nombre": image.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${image.nombre}`,
-                        "ancho": image.ancho,
-                        "alto": image.alto,
-                    });
-                }
+            for (const image of imagenes) {
+                newImagenes.push({
+                    "idImagen": image.id,
+                    "nombre": image.nombre,
+                    "url": firebaseService.getUrl(image.nombre),
+                    "ancho": image.ancho,
+                    "alto": image.alto,
+                });
             }
 
             const colores = await conec.query(`
@@ -1356,40 +1415,44 @@ class Producto {
                 idProducto
             ]);
 
-            const respuesta = {
-                ...producto[0],
-                imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
-                categoria: {
-                    idCategoria: producto[0].idCategoria,
-                    nombre: producto[0].categoriaNombre,
-                },
-                marca: {
-                    idMarca: producto[0].idMarca,
-                    nombre: producto[0].marcaNombre,
-                },
-                medida: {
-                    idMedida: producto[0].idMedida,
-                    nombre: producto[0].nombreMedida,
-                },
-                detalles: detalles,
-                imagenes: newImagenes,
+            // 3. Construir respuesta
+            const response = this._mapFilterWebIdResponse(
+                producto[0],
+                detalles,
+                newImagenes,
                 colores,
                 tallas,
                 sabores,
-            };
+            );
 
-            return sendSuccess(res, respuesta);
+            // 4. Guardar respuesta completa en Redis
+            await redisService.set(
+                cacheKey,
+                JSON.stringify(response),
+            );
+
+            // 5. Responder
+            return sendSuccess(res, response);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
         }
     }
 
-    async filterWebRelatedId(req, res) {
+    async filterWebRelationsId(req, res) {
         try {
             const { idProducto, idCategoria } = req.params;
 
-            const bucket = firebaseService.getBucket();
+            const cacheKey = PRODUCT_FILTER_WEB_RELATED_ID(idProducto, idCategoria);
 
+            // 1. Buscar en Redis
+            const cached = await redisService.get(cacheKey);
+
+            if (cached) {
+                console.log('Redis HIT:', cacheKey);
+                return sendSuccess(res, JSON.parse(cached));
+            }
+
+            // 2. Si no existe en Redis, consultar DB
             const web = await conec.query(`
             SELECT
                 w.idWeb,
@@ -1450,71 +1513,22 @@ class Producto {
                 web[0].idSucursal
             ]);
 
-            const resultLista = list.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1),
-                    imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    categoria: {
-                        idCategoria: item.idCategoria,
-                        nombre: item.categoriaNombre,
-                    },
-                    marca: {
-                        idMarca: item.idMarca,
-                        nombre: item.marcaNombre,
-                    },
-                    medida: {
-                        idMedida: item.idMedida,
-                        nombre: item.nombreMedida,
-                    },
-                }
-            });
+            // 3. Construir respuesta
+            const response = this._mapFilterWebRelationsIdResponse(list);
 
-            return sendSuccess(res, resultLista);
+            // 4. Guardar respuesta completa en Redis
+            await redisService.set(
+                cacheKey,
+                JSON.stringify(response),
+                21600
+            );
+
+            // 5. Responder
+            return sendSuccess(res, response);
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
         }
     }
-
-    // async filterWebRelatedProduct(req, res) {
-    //     try {
-    //         const lista = await conec.query(`
-    //         SELECT 
-    //             p.idProducto,
-    //             p.codigo,
-    //             p.nombre,
-    //             pc.valor AS precio,
-    //             p.imagen,
-    //             c.nombre AS categoria
-    //         FROM 
-    //             producto AS p 
-    //         INNER JOIN 
-    //             precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-    //         INNER JOIN 
-    //             categoria AS c ON p.idCategoria = c.idCategoria    
-    //         WHERE
-    //             c.idCategoria = ? 
-    //         ORDER BY 
-    //             p.fecha DESC, p.hora DESC
-    //         LIMIT 
-
-    //             posicionPagina, filasPorPagina`, [
-    //             req.query.idCategoria
-    //         ]);
-
-    //         const resultLista = lista.map(function (item, index) {
-    //             return {
-    //                 ...item,
-    //                 imagen: !item.imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-    //                 id: (index + 1) + parseInt(req.query.posicionPagina)
-    //             }
-    //         });
-
-    //         return sendSuccess(res, resultLista);
-    //     } catch (error) {
-    //         return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/filterWebPages", error);
-    //     }
-    // }
 
     async documentsPdfReports(req, res) {
         try {
@@ -1579,8 +1593,6 @@ class Producto {
                 req.body.idAlmacen
             ]);
 
-            const bucket = firebaseService.getBucket();
-
             return sendSuccess(res, {
                 // Resumen Financiero Diario
                 "1": {
@@ -1592,7 +1604,7 @@ class Producto {
                     data: result[1].length > 0 ? result[1].map((item) => {
                         return {
                             ...item,
-                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                            imagen: firebaseService.getUrl(item.imagen),
                         };
                     }) : [],
                     descripcion: "Productos Vendidos con Detalles de Costo y Ganancia"
@@ -1617,7 +1629,7 @@ class Producto {
                     data: result[5].length > 0 ? result[5].map((item) => {
                         return {
                             ...item,
-                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                            imagen: firebaseService.getUrl(item.imagen),
                         };
                     }) : [],
                     descripcion: "Productos con Bajo Inventario que Requieren Reorden"
@@ -1627,7 +1639,7 @@ class Producto {
                     data: result[6].length > 0 ? result[6].map((item) => {
                         return {
                             ...item,
-                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                            imagen: firebaseService.getUrl(item.imagen),
                         };
                     }) : [],
                     descripcion: "Productos sin Ventas Hoy pero con Inventario Disponible"
@@ -1638,7 +1650,7 @@ class Producto {
         }
     }
 
-    _mapFilerWebResponse(productos, count) {
+    _mapFilterWebResponse(productos, count) {
         const products = productos.map((item) => {
             return {
                 id: item.id,
@@ -1667,6 +1679,106 @@ class Producto {
             "data": products,
             "count": count
         }
+    }
+
+    _mapFilterWebIdResponse(producto, detalles, imagenes, colores, tallas, sabores) {
+        let images = [];
+        const imagen = firebaseService.getUrl(producto.imagen);
+
+        if (producto.imagen) {
+            images.push({
+                id: "principal-1",
+                name: producto.nombre,
+                url: imagen,
+                width: 600,
+                height: 400
+            })
+        }
+
+        if (imagenes.lenght !== 0) {
+            imagenes.forEach((image) => {
+                images.push({
+                    id: image.idImagen,
+                    name: image.nombre,
+                    url: image.url,
+                    width: image.ancho,
+                    height: image.alto
+                })
+            })
+        }
+
+        if (!imagen && (!producto.imagenes || producto.imagenes.length === 0)) {
+            images.push({
+                id: "1",
+                name: "Default",
+                url: "/placeholder.svg",
+                width: 600,
+                height: 400
+            })
+        }
+
+        return {
+            id: producto.id,
+            idProduct: producto.idProducto,
+            code: producto.codigo,
+            sku: producto.sku,
+            codeBar: producto.codigoBarras,
+            name: producto.nombre,
+            description: producto.descripcionCorta,
+            descriptionLong: producto.descripcionLarga,
+            price: producto.precio,
+            idCategory: producto.idCategoria,
+            idBrand: producto.idMarca,
+            image: imagen,
+            isNew: true,
+            stock: producto.cantidad,
+            typeProduct: {
+                id: producto.idTipoProducto,
+            },
+            category: {
+                id: producto.idCategoria,
+                name: producto.categoriaNombre
+            },
+            brand: {
+                id: producto.idMarca,
+                name: producto.marcaNombre
+            },
+            measure: {
+                id: producto.idMedida,
+                name: producto.nombreMedida
+            },
+            details: detalles.map((item) => ({ id: item.id, name: item.nombre, value: item.valor })),
+            images: images,
+            colors: colores.map((item) => ({ id: item.idAtributo, name: item.nombre, hexadecimal: item.hexadecimal })),
+            sizes: tallas.map((item) => ({ id: item.idAtributo, name: item.nombre, value: item.valor })),
+            flavors: sabores.map((item) => ({ id: item.idAtributo, name: item.nombre, value: item.valor })),
+        }
+    }
+
+    _mapFilterWebRelationsIdResponse(productos) {
+        return productos.map((item, index) => {
+            return {
+                id: (index + 1),
+                idProduct: item.idProducto,
+                code: item.codigo,
+                name: item.nombre,
+                description: item.descripcionCorta,
+                descriptionLong: item.descripcionLarga,
+                price: item.precio,
+                idCategory: item.idCategoria,
+                idBrand: item.idMarca,
+                image: firebaseService.getUrl(item.imagen),
+                isNew: true,
+                stock: item.cantidad,
+                isService: item.servicio === 1 ? true : false,
+                category: { id: item.idCategoria, name: item.categoriaNombre },
+                brand: { id: item.idMarca, name: item.marcaNombre },
+                measure: { id: item.idMedida, name: item.nombreMedida },
+                typeProduct: {
+                    id: item.idTipoProducto,
+                },
+            }
+        });
     }
 
 }
