@@ -20,8 +20,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ia.costo,
         -- SERIE
         ia.idInventarioActivo,
-        ia.serie,
-        ia.numero, 
+        ia.serie, 
         ia.correlativo,
         ia.vidaUtil,
         ia.valorResidual,

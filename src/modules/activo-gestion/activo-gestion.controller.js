@@ -19,4 +19,5 @@ module.exports = {
         const data = await gestion.update(req.body);
         return sendSave(res, data);
     }),
+    reportAsignacion: makeController(gestion.reportAsignacion, (req) => req.body),
 };

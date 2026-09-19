@@ -7,6 +7,7 @@ const deleteById = require("./usecases/delete-by-id");
 const findAll = require("./usecases/find-all");
 const findById = require("./usecases/find-by-id");
 const update = require("./usecases/update");
+const reportAsignacion = require("./usecases/report-asignacion");
 
 class ActivoGestionService {
     constructor(container) {
@@ -16,6 +17,7 @@ class ActivoGestionService {
         this.findAll = findAll(container);
         this.findById = findById(container);
         this.update = update(container);
+        this.reportAsignacion = reportAsignacion(container);
     }
 }
 

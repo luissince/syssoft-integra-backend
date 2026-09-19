@@ -188,7 +188,10 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
         const [activo] = await conec.execute(connection, `
         SELECT 
             i.idProducto,
-            ia.serie,
+            ia.idInventarioActivo,
+            c.serie,
+            c.numeracion,
+            c.nota,
             ia.costo,
             ia.vidaUtil,
             ia.valorResidual,
@@ -200,6 +203,10 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
             inventario i on i.idInventario = ia.idInventario
         JOIN 
             producto p on p.idProducto = i.idProducto
+         JOIN 
+         	kardex k on k.idInventarioActivo = ia.idInventarioActivo
+         JOIN 
+         	compra c on c.idCompra = k.idCompra
         WHERE 
             i.idProducto = ? AND ia.serie = ? `, [
             idProducto,
@@ -574,7 +581,9 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
             await conec.execute(connection, `
             INSERT INTO activoDepreciacion(
                 idProducto,
+                idInventarioActivo,
                 serie,
+                numeracion,
                 periodo,
                 dias,
                 costoFijo,
@@ -594,9 +603,11 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
                 depreciacion,
                 depreciacionAcumulada,
                 valorLibros
-            ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? ) `, [
+            ) VALUES ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? ) `, [
                 idProducto,
-                serie,
+                activo.idInventarioActivo,
+                activo.serie,
+                activo.numeracion,
 
                 item.periodo,
                 item.dias,

@@ -1,7 +1,7 @@
 const { calculateDepreciationToday } = require("../../../tools/Tools");
 
 module.exports = ({ conec, firebaseService }) => async function detailDepreciacion(data) {
-    const { idProducto, serie } = data;
+    const { idProducto, idInventarioActivo } = data;
 
     const bucket = firebaseService.getBucket();
 
@@ -70,13 +70,13 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
     WHERE 
         p.idProducto = ?
     AND 
-        ia.serie = ?
+        ia.idInventarioActivo = ?
     ORDER BY 
         k.fecha ASC,
         k.hora ASC
     LIMIT 1`, [
         idProducto,
-        serie
+        idInventarioActivo
     ]);
 
     const metricas = calculateDepreciationToday(activo);
@@ -97,11 +97,11 @@ module.exports = ({ conec, firebaseService }) => async function detailDepreciaci
     WHERE 
         idProducto = ?
     AND 
-        serie = ?
+        idInventarioActivo = ?
     ORDER BY 
         periodo ASC`, [
         idProducto,
-        serie
+        idInventarioActivo
     ]);
 
     return {

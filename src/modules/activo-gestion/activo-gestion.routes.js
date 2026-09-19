@@ -32,4 +32,6 @@ router.delete('/:id', activoGestionController.deleteById);
  */
 router.put('/', activoGestionController.update);
 
+router.post('/reporte', activoGestionController.reportAsignacion);
+
 module.exports = router;

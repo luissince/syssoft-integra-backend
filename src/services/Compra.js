@@ -438,7 +438,6 @@ class Compra {
                         INSERT INTO inventarioActivo(
                             idInventario,
                             serie,
-                            numero,
                             cantidad,
                             vidaUtil,                                
                             valorResidual,
@@ -451,10 +450,9 @@ class Compra {
                             hora,
                             idUsuario,
                             costo
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                             inventario.idInventario,
                             inventarioDetalle.serie,
-                            inventarioDetalle.numero,
                             Number(inventarioDetalle.cantidad),
                             inventarioDetalle.vidaUtil,
                             inventarioDetalle.valorResidual,
