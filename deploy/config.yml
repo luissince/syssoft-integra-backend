@@ -16,7 +16,7 @@ clients:
 
   leatsac:
     service: leatsac-services
-    deploy: production
+    deploy: canary
 
   ferreteria-rym:
     service: ferreteria-rym-services
