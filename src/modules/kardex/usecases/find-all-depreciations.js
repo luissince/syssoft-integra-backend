@@ -26,7 +26,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
         ia.valorResidual,
         u.descripcion AS ubicacion
     FROM 
-        inventarioactivo ia
+        inventarioActivo ia
     JOIN 
     	inventario i on i.idInventario = ia.idInventario
     JOIN producto p 
@@ -86,7 +86,7 @@ module.exports = ({ conec }) => async function findAllDepreciacion(data) {
     const total = await conec.query(`
     SELECT COUNT(*) AS Total
     FROM 
-        inventarioactivo ia
+        inventarioActivo ia
     JOIN inventario i
         ON ia.idInventario = i.idInventario
     JOIN producto p 

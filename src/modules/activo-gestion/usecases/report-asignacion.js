@@ -35,11 +35,11 @@ module.exports = ({ conec }) => async function reportAsignacion(data) {
     prd.nombre as producto, 
     prd.codigo 
   FROM 
-    documentoactivo da
+    documentoActivo da
   INNER JOIN 
-    documentoactivodetalle dd on dd.idDocumentoActivo = da.idDocumentoActivo
+    documentoActivoDetalle dd on dd.idDocumentoActivo = da.idDocumentoActivo
   INNER JOIN 
-    inventarioactivo ia on ia.idInventarioActivo = dd.idInventarioActivo
+    inventarioActivo ia on ia.idInventarioActivo = dd.idInventarioActivo
   INNER JOIN 
     inventario i on i.idInventario = ia.idInventario
   INNER JOIN 
@@ -47,7 +47,7 @@ module.exports = ({ conec }) => async function reportAsignacion(data) {
   INNER JOIN 
     persona p on p.idPersona = da.idPersona
   INNER JOIN 
-    tipodocumento td on td.idTipoDocumento = p.idTipoDocumento 
+    tipoDocumento td on td.idTipoDocumento = p.idTipoDocumento 
   LEFT JOIN 
     ubicacion u on u.idUbicacion = ia.idUbicacion
   LEFT JOIN 

@@ -198,7 +198,7 @@ module.exports = ({ conec }) => async function createDepreciacion(data) {
             ia.fechaDepreciacion,
             p.idMetodoDepreciacion
         FROM 
-            inventarioactivo ia
+            inventarioActivo ia
         JOIN 
             inventario i on i.idInventario = ia.idInventario
         JOIN 
