@@ -12,8 +12,6 @@ class Pedido {
 
     async list(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
-
             const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
 
             const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?,?)`, [
@@ -29,19 +27,39 @@ class Pedido {
                 parseInt(filasPorPagina)
             ]);
 
-            const newLista = await Promise.all(lista.map(async function (item, index) {
+            const resultLista = await Promise.all(lista.map(async function (item, index) {
                 const ligado = await conec.query(`
-                    SELECT 
-                        COUNT(*) AS total
-                    FROM 
-                        ventaPedido AS vc 
-                    INNER JOIN 
-                        venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3 
-                    WHERE 
-                        vc.idPedido = ?`, [
+                SELECT
+                    pd.idPedido,
+                    SUM(pd.cantidad) AS cantidadPedido,
+                    COALESCE((
+                        SELECT SUM(vd.cantidad)
+                        FROM ventaPedido vc
+                        INNER JOIN venta v 
+                            ON v.idVenta = vc.idVenta
+                            AND v.estado <> 3
+                        INNER JOIN ventaDetalle vd 
+                            ON vd.idVenta = v.idVenta
+                        WHERE vc.idPedido = pd.idPedido
+                    ), 0) AS cantidadVendida
+                FROM pedidoDetalle pd
+                WHERE pd.idPedido = ?
+                GROUP BY pd.idPedido`, [
                     item.idPedido
                 ]);
 
+                const cantidadPedido = Number(ligado[0]?.cantidadPedido ?? 0);
+                const cantidadVendida = Number(ligado[0]?.cantidadVendida ?? 0);
+
+                let estadoLigado = 0;
+
+                if (cantidadVendida > 0 && cantidadVendida < cantidadPedido) {
+                    estadoLigado = 1;
+                }
+
+                if (cantidadVendida >= cantidadPedido) {
+                    estadoLigado = 2;
+                }
 
                 if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
                     const details = await conec.query(`
@@ -81,14 +99,16 @@ class Pedido {
                     item.detalles = details.map(item => {
                         return {
                             ...item,
-                            imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                            imagen: firebaseService.getUrl(item.imagen),
                         }
                     }) || [];
                 }
 
                 return {
                     ...item,
-                    ligado: ligado.length > 0 ? ligado[0].total : "LIBRE",
+                    ligado: estadoLigado,
+                    cantidadPedido,
+                    cantidadVendida,
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             }));
@@ -104,10 +124,10 @@ class Pedido {
             ]);
 
             if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
-                return sendSuccess(res, this._mapListResponse(newLista, total[0].Total));
+                return sendSuccess(res, this._mapListResponse(resultLista, total[0].Total));
             }
 
-            return sendSuccess(res, { "result": newLista, "total": total[0].Total });
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
         }
@@ -194,11 +214,10 @@ class Pedido {
                 idPedido
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -322,68 +341,65 @@ class Pedido {
                 idPedido
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
-                    ...item,
-                    imagen: bucket && item.imagen
-                        ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                        : null,
+                    ...item,                   
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
             // Consulta los ventas asociadas
-            // const ventas = await conec.query(`
-            //     SELECT 
-            //         ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
-            //         v.idVenta,
-            //         DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
-            //         v.hora,
-            //         co.nombre AS comprobante,
-            //         v.serie,
-            //         v.numeracion,
-            //         v.estado,
-            //         m.codiso,
-            //         SUM(vd.precio * vd.cantidad) AS total
-            //     FROM 
-            //         ventaPedido AS vc 
-            //     INNER JOIN 
-            //         pedido AS c ON c.idPedido = vc.idPedido
-            //     INNER JOIN 
-            //         venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-            //     INNER JOIN 
-            //         moneda AS m ON v.idMoneda = m.idMoneda
-            //     INNER JOIN 
-            //         ventaDetalle AS vd ON vd.idVenta = v.idVenta
-            //     INNER JOIN 
-            //         comprobante AS co ON co.idComprobante = v.idComprobante
-            //     WHERE 
-            //         vc.idPedido = ? 
-            //     GROUP BY 
-            //         v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
-            //     ORDER BY 
-            //         v.fecha DESC, v.hora DESC`, [
-            //     idPedido
-            // ]);
+            const ventas = await conec.query(`
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY v.idVenta DESC) AS id,
+                    v.idVenta,
+                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
+                    v.hora,
+                    co.nombre AS comprobante,
+                    v.serie,
+                    v.numeracion,
+                    v.estado,
+                    m.codiso,
+                    SUM(vd.precio * vd.cantidad) AS total
+                FROM 
+                    ventaPedido AS vp
+                INNER JOIN 
+                    pedido AS p ON p.idPedido = vp.idPedido
+                INNER JOIN 
+                    venta AS v ON v.idVenta = vp.idVenta AND v.estado <> 3
+                INNER JOIN 
+                    moneda AS m ON v.idMoneda = m.idMoneda
+                INNER JOIN 
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                INNER JOIN 
+                    comprobante AS co ON co.idComprobante = v.idComprobante
+                WHERE 
+                    vp.idPedido = ? 
+                GROUP BY 
+                    v.idVenta, v.fecha, v.hora, co.nombre, v.serie, v.numeracion, v.estado,  m.codiso
+                ORDER BY 
+                    v.fecha DESC, v.hora DESC`, [
+                idPedido
+            ]);
 
-            // const vendidos = await conec.query(`
-            //     SELECT 
-            //         p.idProducto,
-            //         SUM(vd.cantidad) AS cantidad
-            //     FROM 
-            //         ventaPedido AS vc
-            //     INNER JOIN
-            //         venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-            //     INNER JOIN
-            //         ventaDetalle AS vd ON vd.idVenta = v.idVenta
-            //     INNER JOIN
-            //         producto AS p ON p.idProducto = vd.idProducto
-            //     WHERE 
-            //         vc.idPedido = ?
-            //     GROUP BY 
-            //         p.idProducto`, [
-            //     idPedido
-            // ]);
+            const vendidos = await conec.query(`
+                SELECT 
+                    p.idProducto,
+                    SUM(vd.cantidad) AS cantidad
+                FROM 
+                    ventaPedido AS vp
+                INNER JOIN
+                    venta AS v ON v.idVenta = vp.idVenta AND v.estado <> 3
+                INNER JOIN
+                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
+                INNER JOIN
+                    producto AS p ON p.idProducto = vd.idProducto
+                WHERE 
+                    vp.idPedido = ?
+                GROUP BY 
+                    p.idProducto`, [
+                idPedido
+            ]);
 
             // Si el cliente es el CATALOG_NEXT, devuelve el pedido en formato CATALOG_NEXT
             if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
@@ -391,7 +407,7 @@ class Pedido {
             }
 
             // Si el cliente es el ADMIN_REACT, devuelve el pedido en formato ADMIN_REACT
-            return sendSuccess(res, { cabecera: pedido[0], envio: envio[0], detalles: listaDetalles });
+            return sendSuccess(res, { cabecera: pedido[0], envio: envio[0], detalles: listaDetalles, ventas, vendidos  });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
@@ -400,18 +416,21 @@ class Pedido {
 
     async forSale(req, res) {
         try {
+            const { idPedido } = req.params;
+            const { idAlmacen } = req.query;
+
             const validate = await conec.query(`
                 SELECT 
                     *
                 FROM 
                     pedido
                 WHERE 
-                    idPedido = ? AND estado IN ('pending', 'preparing', 'ready')`, [
-                req.query.idPedido
+                    idPedido = ? AND estado = 0`, [
+                idPedido
             ]);
 
             if (validate.length !== 0) {
-                return sendClient(res, "El pedido se encuentra anulado.");
+                throw new ClientError("El pedido se encuentra anulado.");
             }
 
             const cliente = await conec.query(`
@@ -429,7 +448,7 @@ class Pedido {
                 persona AS p ON p.idPersona = c.idCliente
             WHERE 
                 c.idPedido = ?`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const vendidos = await conec.query(`
@@ -448,7 +467,7 @@ class Pedido {
                     vc.idPedido = ?
                 GROUP BY 
                     p.idProducto`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const detalles = await conec.query(`
@@ -462,7 +481,7 @@ class Pedido {
                     cd.idPedido = ?
                 ORDER BY 
                     cd.idPedidoDetalle ASC`, [
-                req.query.idPedido
+                idPedido
             ]);
 
             const newDetalles = detalles
@@ -486,63 +505,19 @@ class Pedido {
 
             let index = 0;
             for (const item of newDetalles) {
-                const producto = await conec.query(`
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.sku,
-                    p.codigoBarras,
-                    p.nombre AS nombreProducto, 
-                    pc.valor AS precio,
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-
-                    CASE 
-                        WHEN 
-                            p.idTipoProducto = 'TP0002' THEN 'SIN ALMACEN'
-                        ELSE 
-                            a.nombre
-                    END AS almacen,
-               
-                    ROUND(CASE 
-                        WHEN p.idTipoProducto = 'TP0002' THEN 0
-                        ELSE IFNULL(i.cantidad, 0)
-                    END, 2) AS cantidad,
-                    
-                    p.idTipoProducto
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                
-                LEFT JOIN 
-                    inventario AS i ON i.idProducto = p.idProducto 
-                LEFT JOIN 
-                    almacen AS a ON a.idAlmacen = i.idAlmacen
-
-                WHERE 
-                    p.idProducto = ?
-                    AND 
-                    (? IS NULL OR i.idAlmacen = ?)`, [
+                const producto = await conec.procedure(`CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)`, [
+                    3,
                     item.idProducto,
-                    req.query.idAlmacen,
-                    req.query.idAlmacen
+                    idAlmacen,
+                    0,
+                    1
                 ]);
 
-                const bucket = firebaseService.getBucket();
                 const newProducto = {
                     ...producto[0],
                     precio: item.precio,
                     cantidad: item.cantidad,
-                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
+                    imagen: firebaseService.getUrl(producto[0].imagen),
                     id: index + 1
                 }
 
@@ -553,7 +528,11 @@ class Pedido {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "OrdenCompra/detailVenta", error)
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Pedido/forSale", error);
+            }
+
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/forSale", error)
         }
     }
 
@@ -712,14 +691,14 @@ class Pedido {
             const {
                 idPedido,
                 idTipoPedido,
-                
+
                 idSucursal,
                 idUsuario,
                 idMoneda,
                 idCliente,
                 observacion,
                 nota,
-                estado            } = req.body;
+                estado } = req.body;
 
 
             const date = currentDate();
@@ -738,8 +717,7 @@ class Pedido {
             ]);
 
             if (validate.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "El pedido ya esta ligado a una venta y no se puede editar.");
+                throw new ClientError("El pedido ya esta ligado a una venta y no se puede editar.");
             }
 
             await conec.execute(connection, `
@@ -815,6 +793,11 @@ class Pedido {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Pedido/update", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido /update", error)
         }
     }
@@ -837,8 +820,7 @@ class Pedido {
             ]);
 
             if (validate.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "El pedido ya esta ligado a una venta y no se puede anular.");
+                throw new ClientError("El pedido ya esta ligado a una venta y no se puede anular.");
             }
 
             const pedido = await conec.execute(connection, `
@@ -852,20 +834,18 @@ class Pedido {
             ]);
 
             if (pedido.length === 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se encontro registros del pedido.");
+                throw new ClientError("No se encontro registros del pedido.");
             }
 
-            if (pedido[0].estado === 'cancelled') {
-                await conec.rollback(connection);
-                return sendClient(res, "El pedido ya se encuentra anulado.");
+            if (pedido[0].estado === 0) {
+                throw new ClientError("El pedido ya se encuentra anulado.");
             }
 
             await conec.execute(connection, `
             UPDATE 
                 pedido
             SET 
-                estado = 'cancelled'
+                estado = 0
             WHERE
                 idPedido = ?`, [
                 req.query.idPedido
@@ -877,6 +857,11 @@ class Pedido {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Pedido/cancel", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/cancel", error)
         }
     }
@@ -947,7 +932,6 @@ class Pedido {
                 throw new ClientError("No se pudo obtener datos del pedido, vuelve a recargar la vista.");
             }
 
-
             const sucursal = await conec.query(`
             SELECT 
                 s.nombre,
@@ -974,7 +958,7 @@ class Pedido {
 
             const detalles = await conec.query(` 
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY cd.idPedidoDetalle ASC) AS id,
+                ROW_NUMBER() OVER (ORDER BY pd.idPedidoDetalle ASC) AS id,
                 p.idProducto,
                 p.imagen,
                 p.codigo,
@@ -983,26 +967,26 @@ class Pedido {
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
 
-                cd.precio,
-                cd.cantidad,
+                pd.cantidad,
+                pd.precio,
 
-                cd.idImpuesto,
-                imp.nombre AS impuesto,
-                imp.porcentaje
+                i.idImpuesto,
+                i.nombre AS impuesto,
+                i.porcentaje
             FROM 
-                pedidoDetalle AS cd 
+                pedidoDetalle AS pd 
             INNER JOIN 
-                producto AS p ON cd.idProducto = p.idProducto 
+                producto AS p ON p.idProducto = pd.idProducto
             INNER JOIN 
                 medida AS md ON md.idMedida = cd.idMedida 
             INNER JOIN 
-                categoria AS m ON p.idCategoria = m.idCategoria 
+                categoria AS m ON p.idCategoria = pd.idCategoria 
             INNER JOIN 
-                impuesto AS imp ON cd.idImpuesto = imp.idImpuesto 
+                impuesto AS i ON i.idImpuesto = cd.idImpuesto
             WHERE
-                cd.idPedido = ?
+                pd.idPedido = ?
             ORDER BY 
-                cd.idPedidoDetalle ASC`, [
+                pd.idPedidoDetalle ASC`, [
                 idPedido
             ]);
 
@@ -1017,8 +1001,6 @@ class Pedido {
                 reporte = 1 AND estado = 1 AND idSucursal = ?`, [
                 pedido[0].idSucursal
             ]);
-
-            const bucket = firebaseService.getBucket();
 
             const subTotal = detalles.reduce((accumulator, item) => {
                 const total = item.precio * item.cantidad;
@@ -1064,7 +1046,6 @@ class Pedido {
 
             const title = `PEDIDO ${pedido[0].serie}-${numeracion} - ${pedido[0].informacion}`;
 
-
             const template =
                 type === 'document'
                     ? size === 'A4' ? 'pedido/document/a4' : 'pedido/document/ticket'
@@ -1077,7 +1058,7 @@ class Pedido {
                 title: title,
                 empresa: {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
                 sucursal: {
                     ...sucursal[0],
@@ -1123,7 +1104,7 @@ class Pedido {
                         producto: {
                             codigo: item.codigo,
                             nombre: item.producto,
-                            imagen: item.imagen && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
+                            imagen: firebaseService.getUrl(item.imagen) ?? noImageUrl,
                         },
                         medida: {
                             nombre: item.medida,
@@ -1173,7 +1154,7 @@ class Pedido {
                 return sendClient(res, error.message, "Pedido/cancel", error);
             }
 
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/cancel", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/pdfDocumentOrPreview", error);
         }
     }
 
@@ -1202,7 +1183,7 @@ class Pedido {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/documentsPdfReports", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/pdfList", error);
         }
     }
 

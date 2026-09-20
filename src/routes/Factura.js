@@ -14,7 +14,7 @@ router.delete("/cancel", async (req, res) => await factura.cancel(req, res));
 
 router.get("/detail", async (req, res) => await factura.detail(req, res));
 
-router.get("/detail/venta", async (req, res) => await factura.detailVenta(req, res));
+router.get("/for-sale", async (req, res) => await factura.forSale(req, res));
 
 router.get("/list/accounts/receivable", async (req, res) => await factura.listAccountsReceivable(req, res));
 

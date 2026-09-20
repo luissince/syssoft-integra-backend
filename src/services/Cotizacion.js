@@ -1,9 +1,24 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, toNullString, toNullNumber } = require('../tools/Tools');
+const {
+    currentDate,
+    currentTime,
+    generateAlphanumericCode,
+    generateNumericCode,
+    toNullString,
+    toNullNumber,
+    calculateTaxBruto,
+    calculateTax,
+    formatNumberWithZeros,
+    renderTemplate,
+    rounded,
+    formatDecimal,
+} = require('../tools/Tools');
 const { sendSuccess, sendError, sendSave, sendFile, sendClient } = require('../tools/Message');
 const conec = require('../database/mysql-connection');
 const { default: axios } = require('axios');
 const firebaseService = require('../common/fire-base');
-const { noImageUrl } = require('../common/constants/paths.constants');
+const { noImageUrl, cssUrl, logoUrl } = require('../common/constants/paths.constants');
+const { ClientError } = require('../tools/Error');
+const NumberLleters = require('../tools/NumberLleters');
 
 class Cotizacion {
 
@@ -25,20 +40,43 @@ class Cotizacion {
 
             const resultLista = await Promise.all(lista.map(async function (item, index) {
                 const ligado = await conec.query(`
-                    SELECT 
-                        COUNT(*) AS total
-                    FROM 
-                        ventaCotizacion AS vc 
-                    INNER JOIN 
-                        venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3 
-                    WHERE 
-                        vc.idCotizacion = ?`, [
+                SELECT
+                    cd.idCotizacion,
+                    SUM(cd.cantidad) AS cantidadCotizada,
+                    COALESCE((
+                        SELECT SUM(vd.cantidad)
+                        FROM ventaCotizacion vc
+                        INNER JOIN venta v 
+                            ON v.idVenta = vc.idVenta
+                            AND v.estado <> 3
+                        INNER JOIN ventaDetalle vd 
+                            ON vd.idVenta = v.idVenta
+                        WHERE vc.idCotizacion = cd.idCotizacion
+                    ), 0) AS cantidadVendida
+                FROM cotizacionDetalle cd
+                WHERE cd.idCotizacion = ?
+                GROUP BY cd.idCotizacion`, [
                     item.idCotizacion
                 ]);
 
+                const cantidadCotizada = Number(ligado[0]?.cantidadCotizada ?? 0);
+                const cantidadVendida = Number(ligado[0]?.cantidadVendida ?? 0);
+
+                let estadoLigado = 0;
+
+                if (cantidadVendida > 0 && cantidadVendida < cantidadCotizada) {
+                    estadoLigado = 1;
+                }
+
+                if (cantidadVendida >= cantidadCotizada) {
+                    estadoLigado = 2;
+                }
+
                 return {
                     ...item,
-                    ligado: ligado.length > 0 ? ligado[0].total : 0,
+                    ligado: estadoLigado,
+                    cantidadCotizada,
+                    cantidadVendida,
                     id: (index + 1) + parseInt(posicionPagina)
                 }
             }));
@@ -115,11 +153,10 @@ class Cotizacion {
                 req.query.idCotizacion,
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -139,8 +176,11 @@ class Cotizacion {
             // Consulta la información principal de la compra
             const cotizacion = await conec.query(`
             SELECT 
+                ROW_NUMBER() OVER (ORDER BY c.idCotizacion ASC) AS id,
+                c.idCotizacion,
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
                 c.hora,
+
                 co.nombre AS comprobante,
                 c.serie,
                 c.numeracion,
@@ -182,10 +222,13 @@ class Cotizacion {
                 p.codigo,
                 p.nombre AS producto,
                 p.imagen,
+
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
+
                 cd.precio,
                 cd.cantidad,
+
                 cd.idImpuesto,
                 imp.nombre AS impuesto,
                 imp.porcentaje
@@ -206,11 +249,10 @@ class Cotizacion {
                 idCotizacion
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -277,6 +319,8 @@ class Cotizacion {
 
     async forSale(req, res) {
         try {
+            const { idCotizacion } = req.query;
+
             const validate = await conec.query(`
                 SELECT 
                     *
@@ -288,7 +332,7 @@ class Cotizacion {
             ]);
 
             if (validate.length !== 0) {
-                return sendClient(res, "La cotización se encuentra anulada.");
+                throw new ClientError("La cotización se encuentra anulada.");
             }
 
             const cliente = await conec.query(`
@@ -306,7 +350,7 @@ class Cotizacion {
                 persona AS p ON p.idPersona = c.idCliente
             WHERE 
                 c.idCotizacion = ?`, [
-                req.query.idCotizacion
+                idCotizacion
             ]);
 
             const vendidos = await conec.query(`
@@ -325,7 +369,7 @@ class Cotizacion {
                 vc.idCotizacion = ?
             GROUP BY 
                 p.idProducto`, [
-                req.query.idCotizacion
+                idCotizacion
             ]);
 
             const detalles = await conec.query(`
@@ -339,7 +383,7 @@ class Cotizacion {
                 cd.idCotizacion = ?
             ORDER BY 
                 cd.idCotizacionDetalle ASC`, [
-                req.query.idCotizacion
+                idCotizacion
             ]);
 
             const newDetalles = detalles
@@ -363,63 +407,19 @@ class Cotizacion {
 
             let index = 0;
             for (const item of newDetalles) {
-                const producto = await conec.query(`
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.sku,
-                    p.codigoBarras,
-                    p.nombre AS nombreProducto, 
-                    pc.valor AS precio,
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-
-                    CASE 
-                        WHEN 
-                            p.idTipoProducto = 'TP0002' THEN 'SIN ALMACEN'
-                        ELSE 
-                            a.nombre
-                    END AS almacen,
-               
-                    ROUND(CASE 
-                        WHEN p.idTipoProducto = 'TP0002' THEN 0
-                        ELSE IFNULL(i.cantidad, 0)
-                    END, 2) AS cantidad,
-                    
-                    p.idTipoProducto
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                
-                LEFT JOIN 
-                    inventario AS i ON i.idProducto = p.idProducto 
-                LEFT JOIN 
-                    almacen AS a ON a.idAlmacen = i.idAlmacen
-
-                WHERE 
-                    p.idProducto = ?
-                    AND 
-                    (? IS NULL OR i.idAlmacen = ?)`, [
+                const producto = await conec.procedure(`CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)`, [
+                    3,
                     item.idProducto,
                     req.query.idAlmacen,
-                    req.query.idAlmacen
+                    0,
+                    1
                 ]);
 
-                const bucket = firebaseService.getBucket();
                 const newProducto = {
                     ...producto[0],
                     precio: item.precio ?? producto[0].precio,
                     cantidad: item.cantidad ?? producto[0].cantidad,
-                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
+                    imagen: firebaseService.getUrl(producto[0].imagen),
                     id: index + 1
                 }
 
@@ -430,6 +430,10 @@ class Cotizacion {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Cotizacion/forSale", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/forSale", error)
         }
     }
@@ -560,8 +564,7 @@ class Cotizacion {
             ]);
 
             if (validate.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "La cotización ya esta ligado a una venta y no se puede editar.");
+                throw new ClientError("La cotización ya esta ligado a una venta y no se puede editar.");
             }
 
             await conec.execute(connection, `
@@ -635,6 +638,10 @@ class Cotizacion {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Cotizacion/update", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/update", error)
         }
     }
@@ -657,8 +664,7 @@ class Cotizacion {
             ]);
 
             if (validate.length !== 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "La cotización ya esta ligado a una venta y no se puede anular.");
+                throw new ClientError("La cotización ya esta ligado a una venta y no se puede anular.");
             }
 
             const cotizacion = await conec.execute(connection, `
@@ -672,13 +678,11 @@ class Cotizacion {
             ]);
 
             if (cotizacion.length === 0) {
-                await conec.rollback(connection);
-                return "No se encontro registros de la cotización.";
+                throw new ClientError("No se encontro registros de la cotización.");
             }
 
             if (cotizacion[0].estado === 0) {
-                await conec.rollback(connection);
-                return "La cotización ya se encuentra anulado.";
+                throw new ClientError("La cotización ya se encuentra anulado.");
             }
 
             await conec.execute(connection, `
@@ -697,15 +701,18 @@ class Cotizacion {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Cotizacion/cancel", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/cancel", error)
         }
     }
 
-    async documentsPdfInvoicesOrList(req, res) {
+    async pdfDocumentOrPreview(req, res) {
         try {
-            const { idCotizacion, size } = req.params;
-
-            const bucket = firebaseService.getBucket();
+            const { idCotizacion, type, size } = req.params;
 
             const empresa = await conec.query(`
             SELECT
@@ -717,6 +724,10 @@ class Cotizacion {
                 tipoEnvio
             FROM 
                 empresa`);
+
+            if (empresa.length === 0) {
+                throw new ClientError("No se pudo obtener datos de empresa, vuelve a recargar la vista.");
+            }
 
             const cotizacion = await conec.query(`
             SELECT 
@@ -754,6 +765,10 @@ class Cotizacion {
                 idCotizacion
             ]);
 
+            if (cotizacion.length === 0) {
+                throw new ClientError("No se pudo obtener datos de la cotización, vuelve a recargar la vista.");
+            }
+
             const sucursal = await conec.query(`
             SELECT 
                 s.nombre,
@@ -774,131 +789,233 @@ class Cotizacion {
                 cotizacion[0].idSucursal
             ]);
 
+            if (sucursal.length === 0) {
+                throw new ClientError("No se pudo obtener datos del sucursal, vuelve a recargar la vista.")
+            }
+
             const detalles = await conec.query(` 
             SELECT 
-                ROW_NUMBER() OVER (ORDER BY gd.idCotizacionDetalle ASC) AS id,
-                p.codigo,
-                p.nombre,
+                ROW_NUMBER() OVER (ORDER BY cd.idCotizacionDetalle ASC) AS id,
+                p.idProducto,
                 p.imagen,
-                gd.cantidad,
-                gd.precio,
+                p.codigo,
+                p.nombre AS producto,     
+
                 m.nombre AS medida,
+                c.nombre AS categoria, 
+
+                cd.cantidad,
+                cd.precio,
+
                 i.idImpuesto,
                 i.nombre AS impuesto,
                 i.porcentaje
             FROM 
-                cotizacionDetalle AS gd
+                cotizacionDetalle AS cd
             INNER JOIN 
-                producto AS p ON gd.idProducto = p.idProducto
+                producto AS p ON p.idProducto = cd.idProducto
             INNER JOIN 
-                medida AS m ON m.idMedida = p.idMedida
+                medida AS m ON m.idMedida = cd.idMedida
+            INNER JOIN 
+                categoria AS c ON c.idCategoria = p.idCategoria
             INNER JOIN
-                impuesto AS i ON i.idImpuesto = gd.idImpuesto
+                impuesto AS i ON i.idImpuesto = cd.idImpuesto
             WHERE 
-                gd.idCotizacion = ?
+                cd.idCotizacion = ?
             ORDER BY 
-                gd.idCotizacionDetalle ASC`, [
+                cd.idCotizacionDetalle ASC`, [
                 idCotizacion
             ]);
 
             const bancos = await conec.query(`
-                SELECT 
-                    nombre,
-                    numCuenta,
-                    cci
-                FROM
-                    banco
-                WHERE 
-                    reporte = 1 AND idSucursal = ?`, [
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1 AND idSucursal = ?`, [
                 cotizacion[0].idSucursal
             ]);
 
-            return {
-                "size": size,
-                "company": {
+            const subTotal = detalles.reduce((accumulator, item) => {
+                const total = item.precio * item.cantidad;
+                return accumulator + calculateTaxBruto(item.porcentaje, total);
+            }, 0);
+
+            const impuestos = detalles.reduce((
+                accumulator,
+                item,
+            ) => {
+                const total = item.cantidad * item.precio;
+                const subTotal = calculateTaxBruto(item.porcentaje, total);
+                const monto = calculateTax(item.porcentaje, subTotal);
+
+                const existingImpuesto = accumulator.find(
+                    (imp) => imp.idImpuesto === item.idImpuesto,
+                );
+
+                if (existingImpuesto) {
+                    existingImpuesto.monto += monto;
+                } else {
+                    const tax = {
+                        idImpuesto: item.idImpuesto,
+                        nombre: item.impuesto,
+                        monto: monto,
+                    };
+                    accumulator.push(tax);
+                }
+
+                return accumulator;
+            },
+                [],
+            );
+
+            const total = detalles.reduce(
+                (accumulator, item) => accumulator + item.precio * item.cantidad,
+                0,
+            );
+
+            const numeracion = formatNumberWithZeros(
+                cotizacion[0].numeracion,
+            );
+
+            const title = `COTIZACIÓN ${cotizacion[0].serie}-${numeracion} - ${cotizacion[0].informacion}`;
+
+            const template =
+                type === 'document'
+                    ? size === 'A4' ? 'cotizacion/document/a4' : 'cotizacion/document/ticket'
+                    : 'cotizacion/preview/a4';
+
+            const html = await renderTemplate(template, {
+                formatDecimal,
+                style: cssUrl,
+                icon: logoUrl,
+                title: title,
+                empresa: {
                     ...empresa[0],
-                    rutaLogo: bucket && empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
-                "branch": {
-                    "nombre": sucursal[0].nombre,
-                    "telefono": sucursal[0].telefono,
-                    "celular": sucursal[0].celular,
-                    "email": sucursal[0].email,
-                    "paginaWeb": empresa[0].paginaWeb,
-                    "direccion": sucursal[0].direccion,
-                    "ubigeo": {
-                        "departamento": sucursal[0].departamento,
-                        "provincia": sucursal[0].provincia,
-                        "distrito": sucursal[0].distrito
+                sucursal: {
+                    ...sucursal[0],
+                    ubigeo: {
+                        departamento: sucursal[0].departamento,
+                        provincia: sucursal[0].provincia,
+                        distrito: sucursal[0].distrito
                     }
                 },
-                "quotation": {
-                    "fecha": cotizacion[0].fecha,
-                    "hora": cotizacion[0].hora,
-                    "nota": cotizacion[0].nota,
-                    "comprobante": {
-                        "nombre": cotizacion[0].comprobante,
-                        "serie": cotizacion[0].serie,
-                        "numeracion": cotizacion[0].numeracion
+                cotizacion: {
+                    fecha: cotizacion[0].fecha,
+                    hora: cotizacion[0].hora,
+                    nota: cotizacion[0].nota,
+                    comprobante: {
+                        nombre: cotizacion[0].comprobante,
+                        serie: cotizacion[0].serie,
+                        numeracion: cotizacion[0].numeracion
                     },
-                    "cliente": {
-                        "documento": cotizacion[0].documento,
-                        "informacion": cotizacion[0].informacion,
-                        "direccion": cotizacion[0].direccion
+                    cliente: {
+                        documento: cotizacion[0].documento,
+                        informacion: cotizacion[0].informacion,
+                        direccion: cotizacion[0].direccion
                     },
-                    "moneda": {
-                        "nombre": cotizacion[0].moneda,
-                        "simbolo": cotizacion[0].simbolo,
-                        "codiso": cotizacion[0].codiso
+                    moneda: {
+                        nombre: cotizacion[0].moneda,
+                        simbolo: cotizacion[0].simbolo,
+                        codiso: cotizacion[0].codiso
                     },
-                    "usuario": {
-                        "apellidos": cotizacion[0].apellidos,
-                        "nombres": cotizacion[0].nombres
+                    usuario: {
+                        apellidos: cotizacion[0].apellidos,
+                        nombres: cotizacion[0].nombres
                     },
-                    "cotizacionDetalles": detalles.map(item => {
-                        return {
-                            "id": item.id,
-                            "cantidad": item.cantidad,
-                            "precio": item.precio,
-                            "producto": {
-                                "codigo": item.codigo,
-                                "nombre": item.nombre,
-                                "imagen": bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
-                            },
-                            "medida": {
-                                "nombre": item.medida,
-                            },
-                            "impuesto": {
-                                "idImpuesto": item.idImpuesto,
-                                "nombre": item.impuesto,
-                                "porcentaje": item.porcentaje,
-                            },
-
-                        }
-                    }),
                 },
-                "banks": bancos
-            };
-        } catch (error) {
-            throw new Error(error.message);
-        }
-    }
+                detalles: detalles.map(item => {
+                    return {
+                        id: item.id,
+                        cantidad: item.cantidad,
+                        precio: item.precio,
+                        producto: {
+                            codigo: item.codigo,
+                            nombre: item.nombre,
+                            imagen: firebaseService.getUrl(item.imagen) ?? noImageUrl,
+                        },
+                        medida: {
+                            nombre: item.medida,
+                        },
+                        impuesto: {
+                            idImpuesto: item.idImpuesto,
+                            nombre: item.impuesto,
+                            porcentaje: item.porcentaje,
+                        },
+                    }
+                }),
+                subTotal,
+                impuestos,
+                total,
+                importLetras: new NumberLleters().getResult(
+                    String(rounded(total)),
+                    cotizacion[0].moneda,
+                ),
+                bancos: bancos
+            });
 
-    async documentsPdfReports(req, res) {
-        try {
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/quotation/pdf/reports`,
+                url: `${process.env.APP_PDF}/html-to-pdf`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                data: {
+                    title: title,
+                    htmlContent: html,
+                    paper: {
+                        paperType: size,
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: 'pdf'
+                },
+                timeout: 60000,
                 responseType: 'arraybuffer'
             };
 
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/documentsPdfReports", error);
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Cotizacion/pdfDocumentOrPreview", error);
+            }
+
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/pdfDocumentOrPreview", error);
+        }
+    }
+
+    async pdfList(req, res) {
+        try {
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/html-to-pdf`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    title: title,
+                    htmlContent: `<html><body><h1>REPORTE</h1></body></html>`,
+                    paper: {
+                        paperType: "A4",
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: 'pdf'
+                },
+                timeout: 60000,
+                responseType: 'arraybuffer'
+            };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/pdfList", error);
         }
     }
 

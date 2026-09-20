@@ -4,6 +4,8 @@ const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
+const { TIPO_PRODUCTO_NORMAL, TIPO_PRODUCTO_SERVICIO } = require('../common/constants/tipo-producto.constants');
+const { ClientError } = require('../tools/Error');
 
 class Factura {
 
@@ -103,7 +105,9 @@ class Factura {
                     WHERE 
                         vc.idCotizacion = ?
                     GROUP BY 
-                        p.idProducto`, [idCotizacion]);
+                        p.idProducto`, [
+                    idCotizacion
+                ]);
 
                 const cotizacionDetalles = await conec.query(`
                     SELECT 
@@ -113,7 +117,9 @@ class Factura {
                     FROM
                         cotizacionDetalle AS cd
                     WHERE
-                        cd.idCotizacion = ?`, [idCotizacion]);
+                        cd.idCotizacion = ?`, [
+                    idCotizacion
+                ]);
 
                 const newDetallesCotizacion = cotizacionDetalles.map((detalle) => {
                     const item = vendidos.find(pro => pro.idProducto === detalle.idProducto);
@@ -132,7 +138,7 @@ class Factura {
 
                 const newDetallesVenta = [];
                 for (const item of detalleVenta) {
-                    if (item.tipo === "PRODUCTO") {
+                    if (item.idTipoProducto === TIPO_PRODUCTO_NORMAL) {
                         const producto = await conec.execute(connection, `
                             SELECT 
                                 p.costo, 
@@ -149,7 +155,7 @@ class Factura {
                         const cantidad = item.inventarios.reduce((sum, inventario) => {
                             let cantidad = 0;
 
-                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                            if (["TT0001", "TT0003", "TT0004"].includes(item.idTipoTratamientoProducto)) {
                                 cantidad = inventario.cantidad;
                             } else if (item.idTipoTratamientoProducto === "TT0002") {
                                 cantidad = item.precio / producto[0].precio;
@@ -162,7 +168,9 @@ class Factura {
                             idProducto: item.idProducto,
                             cantidad
                         });
-                    } else if (item.tipo === "SERVICIO") {
+                    }
+
+                    if (item.idTipoProducto === TIPO_PRODUCTO_SERVICIO) {
                         newDetallesVenta.push({
                             idProducto: item.idProducto,
                             cantidad: item.cantidad
@@ -172,8 +180,7 @@ class Factura {
 
                 // 1️ Validación de cantidad de ítems
                 if (newDetallesVenta.length > newDetallesCotizacion.length) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "El número de productos en la cotización no coincide con los productos vendidos." });
+                    throw new ClientError("El número de productos en la cotización no coincide con los productos vendidos.");
                 }
 
                 // 2 Validación de ids
@@ -182,8 +189,7 @@ class Factura {
 
                 for (let id of ids2) {
                     if (!ids1.has(id)) {
-                        await conec.rollback(connection);
-                        return sendClient(res, { "message": "Los productos vendidos no son iguales al de la cotización." });
+                        throw new ClientError("Los productos vendidos no son iguales al de la cotización.");
                     }
                 }
 
@@ -201,8 +207,7 @@ class Factura {
                 }
 
                 if (diferencias.length > 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente a la cotización." });
+                    throw new ClientError("Algunos productos tienen una cantidad diferente a la cotización.");
                 }
             }
 
@@ -222,7 +227,9 @@ class Factura {
                     WHERE 
                         vc.idPedido = ?
                     GROUP BY 
-                        p.idProducto`, [idPedido]);
+                        p.idProducto`, [
+                    idPedido
+                ]);
 
                 const pedidoDetalles = await conec.query(`
                     SELECT 
@@ -232,7 +239,9 @@ class Factura {
                     FROM
                         pedidoDetalle AS cd
                     WHERE
-                        cd.idPedido = ?`, [idPedido]);
+                        cd.idPedido = ?`, [
+                    idPedido
+                ]);
 
                 const newDetallesPedido = pedidoDetalles.map((detalle) => {
                     const item = vendidos.find(pro => pro.idProducto === detalle.idProducto);
@@ -251,7 +260,7 @@ class Factura {
 
                 const newDetallesVenta = [];
                 for (const item of detalleVenta) {
-                    if (item.tipo === "PRODUCTO") {
+                    if (item.idTipoProducto === TIPO_PRODUCTO_NORMAL) {
                         const producto = await conec.execute(connection, `
                             SELECT 
                                 p.costo, 
@@ -268,7 +277,7 @@ class Factura {
                         const cantidad = item.inventarios.reduce((sum, inventario) => {
                             let cantidad = 0;
 
-                            if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                            if (["TT0001", "TT0003", "TT0004"].includes(item.idTipoTratamientoProducto)) {
                                 cantidad = inventario.cantidad;
                             } else if (item.idTipoTratamientoProducto === "TT0002") {
                                 cantidad = item.precio / producto[0].precio;
@@ -281,7 +290,9 @@ class Factura {
                             idProducto: item.idProducto,
                             cantidad
                         });
-                    } else if (item.tipo === "SERVICIO") {
+                    }
+
+                    if (item.idTipoProducto === TIPO_PRODUCTO_SERVICIO) {
                         newDetallesVenta.push({
                             idProducto: item.idProducto,
                             cantidad: item.cantidad
@@ -291,8 +302,7 @@ class Factura {
 
                 // 1️ Validación de cantidad de ítems
                 if (newDetallesVenta.length > newDetallesPedido.length) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "El número de productos en el pedido no coincide con los productos vendidos." });
+                    throw new ClientError("El número de productos en el pedido no coincide con los productos vendidos.");
                 }
 
                 // 2 Validación de ids
@@ -301,8 +311,7 @@ class Factura {
 
                 for (let id of ids2) {
                     if (!ids1.has(id)) {
-                        await conec.rollback(connection);
-                        return sendClient(res, { "message": "Los productos vendidos no son iguales al del pedido." });
+                        throw new ClientError("Los productos vendidos no son iguales al del pedido.");
                     }
                 }
 
@@ -320,8 +329,7 @@ class Factura {
                 }
 
                 if (diferencias.length > 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente al pedido." });
+                    throw new ClientError("Algunos productos tienen una cantidad diferente al pedido.");
                 }
             }
 
@@ -333,7 +341,7 @@ class Factura {
             let mensajeInventario = [];
 
             for (const item of detalleVenta) {
-                if (item.tipo === "PRODUCTO") {
+                if (item.idTipoProducto === TIPO_PRODUCTO_NORMAL) {
                     for (const inventario of item.inventarios) {
                         const result = await conec.execute(connection, `
                         SELECT 
@@ -373,6 +381,7 @@ class Factura {
             if (validarInventario > 0) {
                 await conec.rollback(connection);
                 return sendClient(res, { "message": "error de 0", body: mensajeInventario });
+                throw new ClientError("error de 0", mensajeInventario);
             }
 
             /**
@@ -436,8 +445,7 @@ class Factura {
             }
 
             if (!nuevoIdCliente) {
-                await conec.rollback(connection);
-                return sendClient(res, "No se genero el id de cliente, comuníquese con su proveedor de software.");
+                throw new ClientError("No se genero el id de cliente, comuníquese con su proveedor de software.");
             }
 
             /**
@@ -522,17 +530,14 @@ class Factura {
             let idVentaDetalle = generateNumericCode(1, listaIdVentaDetalle, 'idVentaDetalle');
 
             // Generar el Id único
-            const resultKardex = await conec.execute(connection, 'SELECT idKardex FROM kardex');
-            let idKardex = 0;
+            const kardexIds = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Proceso de registro  
             for (const item of detalleVenta) {
-                if (item.tipo === "PRODUCTO") {
+                if (item.idTipoProducto === TIPO_PRODUCTO_NORMAL) {
                     const producto = await conec.execute(connection, `
                     SELECT 
                         p.costo, 
@@ -549,7 +554,7 @@ class Factura {
                     for (const inventario of item.inventarios) {
                         let cantidad = 0;
 
-                        if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                        if (["TT0001", "TT0003", "TT0004",].includes(item.idTipoTratamientoProducto)) {
                             cantidad = inventario.cantidad;
                         } else if (item.idTipoTratamientoProducto === 'TT0002') {
                             cantidad = item.precio / producto[0].precio;
@@ -571,7 +576,7 @@ class Factura {
                             hora,
                             idUsuario
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                            `KD${String(idKardex += 1).padStart(4, '0')}`,
+                            generarIdKardex(),
                             item.idProducto,
                             TIPO_KARDEX.SALIDA,
                             MOTIVO_KARDEX.SALIDA,
@@ -601,12 +606,10 @@ class Factura {
                     let cantidad = 0;
                     let precio = 0;
 
-                    if (["TT0001", "TT0004", "TT0003"].includes(item.idTipoTratamientoProducto)) {
+                    if (["TT0001", "TT0003", "TT0004",].includes(item.idTipoTratamientoProducto)) {
                         precio = item.precio;
                         cantidad = item.inventarios.reduce((acc, current) => acc + current.cantidad, 0);
-                    }
-
-                    if (item.idTipoTratamientoProducto === "TT0002") {
+                    } else if (item.idTipoTratamientoProducto === "TT0002") {
                         precio = producto[0].precio;
                         cantidad = item.precio / producto[0].precio;
                     }
@@ -633,7 +636,7 @@ class Factura {
                     idVentaDetalle++;
                 }
 
-                if (item.tipo === "SERVICIO") {
+                if (item.idTipoProducto === TIPO_PRODUCTO_SERVICIO) {
                     await conec.execute(connection, `
                     INSERT INTO ventaDetalle(
                         idVentaDetalle,
@@ -691,13 +694,13 @@ class Factura {
                 // Proceso de registro  
                 for (const item of bancosAgregados) {
                     await conec.execute(connection, `
-                        INSERT INTO transaccionDetalle(
-                            idTransaccionDetalle,
-                            idTransaccion,
-                            idBanco,
-                            monto,
-                            observacion
-                        ) VALUES(?,?,?,?,?)`, [
+                    INSERT INTO transaccionDetalle(
+                        idTransaccionDetalle,
+                        idTransaccion,
+                        idBanco,
+                        monto,
+                        observacion
+                    ) VALUES(?,?,?,?,?)`, [
                         idTransaccionDetalle,
                         idTransaccion,
                         item.idBanco,
@@ -823,6 +826,11 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Factura/create", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/create", error);
         }
     }
@@ -902,11 +910,10 @@ class Factura {
                 req.query.idVenta
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -1271,11 +1278,10 @@ class Factura {
                 idVenta
             ]);
 
-            const bucket = firebaseService.getBucket();
             const newDetails = details.map(item => {
                 return {
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -1287,10 +1293,8 @@ class Factura {
         }
     }
 
-    async detailVenta(req, res) {
+    async forSale(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
-
             const cliente = await conec.query(`
             SELECT 
                 p.idPersona,
@@ -1328,59 +1332,12 @@ class Factura {
             let index = 0;
 
             for (const item of detalles) {
-                const producto = await conec.query(`
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    a.nombre AS almacen,
-                    i.idInventario,
-                    'PRODUCTO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                INNER JOIN 
-                    inventario AS i ON i.idProducto = p.idProducto 
-                INNER JOIN 
-                    almacen AS a ON a.idAlmacen = i.idAlmacen
-                WHERE 
-                    p.idProducto = ? AND a.idAlmacen = ?
-                UNION
-                SELECT 
-                    p.idProducto, 
-                    p.codigo,
-                    p.preferido,
-                    p.negativo,
-                    c.nombre AS categoria, 
-                    m.nombre AS medida,
-                    p.idTipoTratamientoProducto,
-                    p.imagen,
-                    'SIN ALMACEN' AS almacen,
-                    0 AS idInventario,
-                    'SERVICIO' AS tipo
-                FROM 
-                    producto AS p
-                INNER JOIN 
-                    precio AS pc ON p.idProducto = pc.idProducto AND pc.preferido = 1
-                INNER JOIN 
-                    categoria AS c ON p.idCategoria = c.idCategoria
-                INNER JOIN 
-                    medida AS m ON m.idMedida = p.idMedida
-                WHERE 
-                    p.idProducto = ?`, [
+                const producto = await conec.procedure(`CALL Filtrar_Productos_Para_Venta(?,?,?,?,?)`, [
+                    3,
                     item.idProducto,
                     req.query.idAlmacen,
-                    item.idProducto,
+                    0,
+                    1
                 ]);
 
                 const newProducto = {
@@ -1388,7 +1345,7 @@ class Factura {
                     nombreProducto: item.descripcion,
                     precio: item.precio,
                     cantidad: item.cantidad,
-                    imagen: !producto[0].imagen ? null : `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}`,
+                    imagen: firebaseService.getUrl(producto[0].imagen),
                     id: index + 1
                 }
 
@@ -1504,11 +1461,11 @@ class Factura {
                 vd.idVentaDetalle ASC`, [
                 req.query.idVenta
             ]);
-            const bucket = firebaseService.getBucket();
+
             const listaDetalles = detalles.map(item => {
                 return {
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -1896,8 +1853,6 @@ class Factura {
         try {
             const { idVenta, size, outputType = "pdf" } = req.params;
 
-            const bucket = firebaseService.getBucket();
-
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -2013,7 +1968,7 @@ class Factura {
                 "outputType": outputType,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,
