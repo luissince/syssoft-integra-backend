@@ -442,7 +442,7 @@ class Gasto {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,

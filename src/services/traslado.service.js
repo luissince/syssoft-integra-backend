@@ -108,11 +108,10 @@ class Traslado {
             req.query.idTraslado,
         ]);
 
-        const bucket = firebaseService.getBucket();
         const listaDetalles = detalles.map((item, index) => {
             return {
                 ...item,
-                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                imagen: firebaseService.getUrl(item.imagen),
                 id: index + 1,
             }
         });
@@ -645,8 +644,6 @@ class Traslado {
             throw new ClientError("No se pudo obtener datos del detalle de traslado, vuelve a recarga la vista.")
         }
 
-        const bucket = firebaseService.getBucket();
-
         const title = 'Traslado';
 
         const template = size === 'A4' ? 'traslado/a4' : 'traslado/ticket';
@@ -657,7 +654,7 @@ class Traslado {
             title: title,
             empresa: {
                 ...empresa[0],
-                rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
             },
             sucursal: {
                 ...sucursal[0],
@@ -763,10 +760,9 @@ class Traslado {
             idTraslado
         ]);
 
-        const bucket = firebaseService.getBucket();
         const newDetails = details.map(item => {
             return {
-                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                imagen: firebaseService.getUrl(item.imagen),
                 ...item,
             }
         });

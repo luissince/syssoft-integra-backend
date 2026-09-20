@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="<%= data.style %>">
+  <link rel="stylesheet" href="<%= style %>">
   <title>
-    <%= data.title %>
+    <%= title %>
   </title>
 </head>
 
@@ -14,37 +14,37 @@
   <main class="pl-20 pr-20">
     <div class="flex justify-content-between pt-10 pb-10">
       <div>
-        <img src="<%= data.company.rutaLogo ?? data.icon %>" width="100" height="100" />
+        <img src="<%= empresa.rutaLogo ?? icon %>" width="100" height="100" />
       </div>
 
       <div class="w-40p text-center flex flex-column justify-content-center align-items-center gap-4">
         <h3>
-          <%= data.company.nombreEmpresa %>
+          <%= empresa.nombreEmpresa %>
         </h3>
         <p>
-          <%= data.branch.direccion %>
+          <%= sucursal.direccion %>
         </p>
         <p>
-          <%= data.branch.ubigeo.departamento %> - <%= data.branch.ubigeo.provincia %> - <%= data.branch.ubigeo.distrito
+          <%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito
                 %>
         </p>
         <p>
-          <%= data.branch.telefono %> | <%= data.branch.celular %>
+          <%= sucursal.telefono %> | <%= sucursal.celular %>
         </p>
         <p>
-          <%= data.branch.paginaWeb %> | <%= data.branch.email %>m
+          <%= sucursal.paginaWeb %> | <%= sucursal.email %>m
         </p>
       </div>
 
       <div
         class="text-center border-1 border-solid flex flex-column justify-content-center pl-20 pr-20 pt-10 pb-10 gap-4">
-        <h3>RUC: <%= data.company.documento %>
+        <h3>RUC: <%= empresa.documento %>
         </h3>
         <p>
-          <%= data.quotation.comprobante.nombre %>
+          <%= cotizacion.comprobante.nombre %>
         </p>
         <p>
-          <%= data.quotation.comprobante.serie %>-<%= data.quotation.comprobante.numeracion %>
+          <%= cotizacion.comprobante.serie %>-<%= cotizacion.comprobante.numeracion %>
         </p>
       </div>
     </div>
@@ -52,23 +52,23 @@
     <div class="flex justify-content-between pt-10 pb-10">
       <div class="w-50p flex flex-column gap-4">
         <p><span class="font-weight-bold">RUC / DNI:</span>
-          <%= data.quotation.cliente.documento %>
+          <%= cotizacion.cliente.documento %>
         </p>
         <p><span class="font-weight-bold">CLIENTE:</span>
-          <%= data.quotation.cliente.informacion %>
+          <%= cotizacion.cliente.informacion %>
         </p>
         <p><span class="font-weight-bold">DIRECCION:</span>
-          <%= data.quotation.cliente.direccion %>
+          <%= cotizacion.cliente.direccion %>
         </p>
       </div>
 
       <div class="w-50p flex flex-column gap-4">
         <p><span class="font-weight-bold">FECHA EMISION:</span>
-          <%= data.quotation.fecha %>
-            <%= data.quotation.hora %>
+          <%= cotizacion.fecha %>
+            <%= cotizacion.hora %>
         </p>
         <p><span class="font-weight-bold">MONEDA:</span>
-          <%= data.quotation.moneda.nombre %> - <%= data.quotation.moneda.codiso %>
+          <%= cotizacion.moneda.nombre %> - <%= cotizacion.moneda.codiso %>
         </p>
       </div>
     </div>
@@ -98,7 +98,7 @@
           </tr>
         </thead>
         <tbody>
-          <% for (const item of data.quotation.cotizacionDetalles) { %>
+          <% for (const item of detalles) { %>
             <tr>
               <td class="text-center">
                 <p>
@@ -141,7 +141,7 @@
     <div class="flex justify-content-between align-items-center pt-10 pb-10">
       <div class="w-50p">
         <h3 class="mb-5">MONTO EN LETRAS</h3>
-        <p>SON: <%= data.importLetras %>
+        <p>SON: <%= importLetras %>
         </p>
       </div>
 
@@ -154,13 +154,13 @@
               </td>
               <td class="text-right">
                 <p>
-                  <%= data.quotation.moneda.simbolo %>
-                    <%= formatDecimal(data.subTotal) %>
+                  <%= cotizacion.moneda.simbolo %>
+                    <%= formatDecimal(subTotal) %>
                 </p>
               </td>
             </tr>
             <tr>
-              <% for (const item of data.impuestos) { %>
+              <% for (const item of impuestos) { %>
             <tr>
               <td>
                 <p>
@@ -169,7 +169,7 @@
               </td>
               <td class="text-right">
                 <p>
-                  <%= data.quotation.moneda.simbolo %>
+                  <%= cotizacion.moneda.simbolo %>
                     <%= formatDecimal(item.monto) %>
                 </p>
               </td>
@@ -182,8 +182,8 @@
                 </th>
                 <th class="text-right">
                   <p>
-                    <%= data.quotation.moneda.simbolo %>
-                      <%= formatDecimal(data.total) %>
+                    <%= cotizacion.moneda.simbolo %>
+                      <%= formatDecimal(total) %>
                   </p>
                 </th>
               </tr>
@@ -192,15 +192,15 @@
       </div>
     </div>
 
-    <% if (data.quotation.nota) { %>
+    <% if (cotizacion.nota) { %>
       <div class="pt-10 pb-10">
         <h3 class="mb-5">NOTA:</h3>
-        <p>* <%= data.quotation.nota %>
+        <p>* <%= cotizacion.nota %>
         </p>
       </div>
       <% } %>
 
-        <% if (data.banks.length> 0) { %>
+        <% if (bancos.length> 0) { %>
           <div class="pt-10 pb-10">
             <h3 class="mb-5">Cuentas Bancarias</h3>
             <table class="table w-full">
@@ -218,7 +218,7 @@
                 </tr>
               </thead>
               <tbody>
-                <% for (const item of data.banks) { %>
+                <% for (const item of bancos) { %>
                   <tr>
                     <td>
                       <p>
@@ -242,7 +242,7 @@
           </div>
           <% } %>
 
-            <% if (data.company.tipoEnvio===0) { %>
+            <% if (empresa.tipoEnvio===0) { %>
               <p class="text-danger font-weight-bold text-center">
                 Documento no valido
               </p>

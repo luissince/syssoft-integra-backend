@@ -5,6 +5,8 @@ const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 const logger = require('../tools/Logger');
+const { TIPO_PRODUCTO_NORMAL, TIPO_PRODUCTO_SERVICIO } = require('../common/constants/tipo-producto.constants');
+const { ClientError } = require('../tools/Error');
 
 class Compra {
 
@@ -120,7 +122,7 @@ class Compra {
 
                 const newDetallesCompra = [];
                 for (const item of detalles) {
-                    if (item.tipo === "PRODUCTO") {
+                    if (item.idTipoProducto === TIPO_PRODUCTO_NORMAL) {
                         const producto = await conec.execute(connection, `
                         SELECT 
                             p.costo, 
@@ -150,7 +152,9 @@ class Compra {
                             idProducto: item.idProducto,
                             cantidad
                         });
-                    } else if (item.tipo === "SERVICIO") {
+                    }
+
+                    if (item.idTipoProducto === TIPO_PRODUCTO_SERVICIO) {
                         newDetallesCompra.push({
                             idProducto: item.idProducto,
                             cantidad: item.cantidad
@@ -160,8 +164,7 @@ class Compra {
 
                 // 1️ Validación de cantidad de ítems
                 if (newDetallesCompra.length > newDetallesOrdenCompra.length) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "El número de productos en la orden de compra no coincide con los productos comprados." });
+                    throw new Error("El número de productos en la orden de compra no coincide con los productos comprados.");
                 }
 
                 // 2 Validación de ids
@@ -170,8 +173,7 @@ class Compra {
 
                 for (let id of ids2) {
                     if (!ids1.has(id)) {
-                        await conec.rollback(connection);
-                        return sendClient(res, { "message": "Los productos comprados no son iguales al de la orden de compra." });
+                        throw new Error("Los productos comprados no son iguales al de la orden de compra.");
                     }
                 }
 
@@ -189,8 +191,7 @@ class Compra {
                 }
 
                 if (diferencias.length > 0) {
-                    await conec.rollback(connection);
-                    return sendClient(res, { "message": "Algunos productos tienen una cantidad diferente a la orden de compra." });
+                    throw new Error("Algunos productos tienen una cantidad diferente a la orden de compra.");
                 }
             }
 
@@ -272,18 +273,11 @@ class Compra {
                 compraDetalle`);
             let idCompraDetalle = generateNumericCode(1, listaCompraDetalle, 'idCompraDetalle');
 
-            // Consulta el último ID de Kardex
-            const resultKardex = await conec.execute(connection, `
-            SELECT 
-                idKardex 
-            FROM 
-                kardex`);
-            let idKardex = 0;
+            // Consulta el último ID de Kardex            
+            const kardexIds = await conec.execute(connection, 'SELECT idKardex FROM kardex');
+            let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
-            if (resultKardex.length != 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Inserta los detalles de compra en la base de datos
             for (const item of detalles) {
@@ -381,7 +375,7 @@ class Compra {
                     hora,
                     idUsuario
                 ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                    `KD${String(idKardex += 1).padStart(4, '0')}`,
+                    generarIdKardex(),
                     item.idProducto,
                     TIPO_KARDEX.INGRESO,
                     MOTIVO_KARDEX.AJUSTE,
@@ -583,6 +577,11 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Compra/create", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/create", error);
         }
     }
@@ -663,11 +662,10 @@ class Compra {
                 req.query.idCompra,
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -741,15 +739,13 @@ class Compra {
             // Verifica si la compra existe
             if (validate.length === 0) {
                 // Si no existe, realiza un rollback y devuelve un mensaje de error
-                await conec.rollback(connection);
-                return sendClient(res, "La compra no existe, verifique el código o actualiza la lista.");
+                throw new ClientError("La compra no existe, verifique el código o actualiza la lista.");
             }
 
             // Verifica si la compra ya está anulada
             if (validate[0].estado === 3) {
                 // Si ya está anulada, realiza un rollback y devuelve un mensaje de error
-                await conec.rollback(connection);
-                return sendClient(res, "La compra ya se encuentra anulada.");
+                throw new ClientError("La compra ya se encuentra anulada.");
             }
 
             // Actualiza el estado de la compra a anulado
@@ -848,21 +844,21 @@ class Compra {
                 for (const kardex of kardexes) {
                     // Inserta un nuevo registro en el kardex
                     await conec.execute(connection, `
-                        INSERT INTO kardex(
-                            idKardex,
-                            idProducto,
-                            idTipoKardex,
-                            idMotivoKardex,
-                            idCompra,
-                            detalle,
-                            cantidad,
-                            costo,
-                            idAlmacen,
-                            idInventario,
-                            fecha,
-                            hora,
-                            idUsuario
-                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+                    INSERT INTO kardex(
+                        idKardex,
+                        idProducto,
+                        idTipoKardex,
+                        idMotivoKardex,
+                        idCompra,
+                        detalle,
+                        cantidad,
+                        costo,
+                        idAlmacen,
+                        idInventario,
+                        fecha,
+                        hora,
+                        idUsuario
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                         generarIdKardex(),
                         kardex.idProducto,
                         TIPO_KARDEX.SALIDA,
@@ -900,6 +896,11 @@ class Compra {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Compra/cancel", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/cancel", error);
         }
     }
@@ -1006,11 +1007,10 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -1423,8 +1423,6 @@ class Compra {
         try {
             const { idCompra, size } = req.params;
 
-            const bucket = firebaseService.getBucket();
-
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -1535,7 +1533,7 @@ class Compra {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,

@@ -974,8 +974,6 @@ class Producto {
                 for (const productoImagen of productoImagenes) {
                     await firebaseService.deleteFile(productoImagen.nombre);
                 }
-
-
             } else {
                 await conec.execute(connection, `
                 UPDATE 
