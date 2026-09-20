@@ -48,10 +48,9 @@ class GuiaRemision {
             req.query.idGuiaRemision,
         ]);
 
-        const bucket = firebaseService.getBucket();
         const listaDetalles = detalles.map(item => {
             return {
-                imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                imagen: firebaseService.getUrl(item.imagen),
                 ...item,
             }
         });
@@ -415,7 +414,6 @@ class GuiaRemision {
             ]);
 
             if (guiaRemision.length === 0) {
-                await conec.rollback(connection);
                 throw new ClientError("La guía de remisión no existe.")
             }
 
@@ -607,8 +605,6 @@ class GuiaRemision {
             throw new ClientError("No se pudo obtener datos del detalle de la guía de remisión, vuelve a recargar la vista.");
         }
 
-        const bucket = firebaseService.getBucket();
-
         const numeracion = formatNumberWithZeros(
             guiaRemision[0].numeracion,
         );
@@ -628,7 +624,7 @@ class GuiaRemision {
             title: title,
             empresa: {
                 ...empresa[0],
-                rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
             },
             sucursal: {
                 ...sucursal[0],

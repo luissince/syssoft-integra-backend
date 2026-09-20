@@ -41,7 +41,7 @@ class Sucursal {
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getImagen(item.imagen),
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
@@ -190,17 +190,14 @@ class Sucursal {
             ]);
 
             const bucket = firebaseService.getBucket();
-            
-            let respuesta = { ...result };
-            if (bucket && result.imagen) {
-                respuesta = {
-                    ...result,
-                    imagen: {
-                        nombre: result.imagen,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.imagen}`
-                    }
-                };
-            }
+
+            let respuesta = {
+                ...result,
+                imagen: bucket && result.imagen ? {
+                    nombre: result.imagen,
+                    url: firebaseService.getUrl(result.imagen)
+                } : null
+            };          
 
             return sendSuccess(res, respuesta);
         } catch (error) {
@@ -381,18 +378,10 @@ class Sucursal {
                 req.dataToken.idPerfil
             ]);
 
-            const bucket = firebaseService.getBucket();
-
             const newLista = lista.map(function (item) {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
-                    imagen: null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -423,7 +412,7 @@ class Sucursal {
             const newLista = lista.map(function (item) {
                 return {
                     ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -472,14 +461,9 @@ class Sucursal {
                 p.estado = 1`);
 
             const newData = list.map(item => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
                 return {
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 

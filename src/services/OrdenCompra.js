@@ -103,7 +103,7 @@ class OrdenCompra {
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getImagen(item.imagen),
                 }
             });
 
@@ -183,11 +183,10 @@ class OrdenCompra {
                 req.query.idOrdenCompra,
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 
@@ -372,7 +371,7 @@ class OrdenCompra {
                     ...producto[0],
                     costo: item.costo,
                     cantidad: item.cantidad,
-                    imagen: bucket && producto[0].imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${producto[0].imagen}` : null,
+                    imagen: firebaseService.getUrl(producto[0].imagen),
                     id: index + 1
                 }
 
@@ -655,8 +654,6 @@ class OrdenCompra {
         try {
             const { idOrdenCompra, size } = req.params;
 
-            const bucket = firebaseService.getBucket();
-
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -767,7 +764,7 @@ class OrdenCompra {
                 "size": size,
                 "company": {
                     ...empresa[0],
-                    rutaLogo: bucket && empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                    rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
                 "branch": {
                     "nombre": sucursal[0].nombre,
@@ -813,7 +810,7 @@ class OrdenCompra {
                             "producto": {
                                 "codigo": item.codigo,
                                 "nombre": item.nombre,
-                                "imagen": bucket && item.imagen  ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : noImageUrl,
+                                "imagen": firebaseService.getUrl(item.imagen) ?? noImageUrl,
                             },
                             "medida": {
                                 "nombre": item.medida,

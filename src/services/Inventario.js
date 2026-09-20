@@ -23,14 +23,12 @@ class Inventario {
                 parseInt(filasPorPagina)
             ]);
 
-            const bucket = firebaseService.getBucket();
-
             // Genera lista con índice
             const resultLista = await Promise.all(lista.map(async (item, index) => {
                 return {
                     ...item,
                     id: (index + 1) + parseInt(posicionPagina),
-                    imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+                    imagen: firebaseService.getUrl(item.imagen),
                 };
             }));
 

@@ -15,12 +15,10 @@ class Marca {
         parseInt(req.query.filasPorPagina)
       ]);
 
-      const bucket = firebaseService.getBucket();
-
       const resultLista = list.map(function (item, index) {
         return {
           ...item,
-          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+          imagen: firebaseService.getUrl(item.imagen),
           id: index + 1 + parseInt(req.query.posicionPagina),
         };
       });
@@ -58,7 +56,7 @@ class Marca {
       if (bucket && result[0].imagen) {
         result[0].imagen = {
           nombre: result[0].imagen,
-          url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].imagen}`
+          url: firebaseService.getUrl(result[0].imagen)
         }
       }
 
@@ -290,14 +288,9 @@ class Marca {
         estado = 1`);
 
       const newData = result.map(item => {
-        if (bucket && item.imagen) {
-          return {
-            ...item,
-            imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-          }
-        }
         return {
           ...item,
+          imagen: firebaseService.getUrl(item.imagen)
         }
       });
 
