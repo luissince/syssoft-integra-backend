@@ -8,7 +8,8 @@ class Web {
         SELECT
             w.idWeb,
             w.idSucursal,
-            w.idAlmacen
+            w.idAlmacen,
+            w.url
         FROM 
             web AS w
         LIMIT 1`);
@@ -29,6 +30,7 @@ class Web {
             const {
                 idSucursal,
                 idAlmacen,
+                url,
                 idUsuario
             } = req.body;
 
@@ -51,6 +53,7 @@ class Web {
                 SET 
                     idSucursal = ?,
                     idAlmacen = ?,
+                    url = ?,
                     fecha = ?,
                     hora = ?,
                     idUsuario = ?
@@ -58,6 +61,7 @@ class Web {
                     idWeb = ?`, [
                     idSucursal,
                     idAlmacen,
+                    url,
                     date,
                     time,
                     idUsuario,
@@ -74,13 +78,15 @@ class Web {
                     idWeb,
                     idSucursal,
                     idAlmacen,
+                    url,
                     fecha,
                     hora,
                     idUsuario
-                ) VALUES(?,?,?,?,?,?)`, [
+                ) VALUES(?,?,?,?,?,?,?)`, [
                     idWeb,
                     idSucursal,
                     idAlmacen,
+                    url,
                     date,
                     time,
                     idUsuario
