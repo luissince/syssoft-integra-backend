@@ -379,9 +379,7 @@ class Factura {
             }
 
             if (validarInventario > 0) {
-                await conec.rollback(connection);
-                return sendClient(res, { "message": "error de 0", body: mensajeInventario });
-                throw new ClientError("error de 0", mensajeInventario);
+                throw new ClientError(null, { "message": "error de 0", body: mensajeInventario });
             }
 
             /**
@@ -828,7 +826,7 @@ class Factura {
             }
 
             if (error instanceof ClientError) {
-                return sendClient(res, error.message, "Factura/create", error);
+                return sendClient(res, error.message ?? error.body, "Factura/create", error);
             }
 
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/create", error);
