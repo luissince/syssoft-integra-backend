@@ -1,18 +1,11 @@
-const getYear = (date) => {
-  if (date instanceof Date) return date.getFullYear();
-
-  const value = String(date);
-  const year = value.match(/(?:^|\/)(\d{4})(?:$|\/)/) || value.match(/(\d{4})/);
-
-  return year ? Number(year[1]) : null;
-};
+const { getYear } = require("../../../tools/Tools");
 
 module.exports = ({ conec }) => async function reportDepreciacions(data) {
-  const fechaInicio = getYear(data.fechaInicio);
+  const fechaInicial = getYear(data.fechaInicial);
   const fechaFinal = getYear(data.fechaFinal);
 
-  if (!fechaInicio || !fechaFinal) {
-    throw new Error('fechaInicio y fechaFinal deben contener una fecha válida');
+  if (!fechaInicial || !fechaFinal) {
+    throw new Error('fechaInicial y fechaFinal deben contener una fecha válida');
   }
 
     const result = await conec.query(`
@@ -49,7 +42,7 @@ module.exports = ({ conec }) => async function reportDepreciacions(data) {
     inventarioActivo ia on ia.idInventarioActivo  = ad.idInventarioActivo
   WHERE 
     YEAR(ad.periodo) BETWEEN ? AND ?`, [
-    fechaInicio,
+    fechaInicial,
     fechaFinal
   ]);
 

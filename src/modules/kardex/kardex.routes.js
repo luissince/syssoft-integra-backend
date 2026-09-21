@@ -18,4 +18,6 @@ router.post('/depreciacion/devolver', kardexController.findAllDepreciationsToRet
 
 router.post('/depreciacion/reporte', kardexController.reportDepreciations);
 
+router.post('/depreciacion/excel', kardexController.excelDepreciations);
+
 module.exports = router;

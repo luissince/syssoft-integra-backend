@@ -515,6 +515,15 @@ function calculateDepreciationToday(activo) {
     };
 }
 
+const getYear = (date) => {
+  if (date instanceof Date) return date.getFullYear();
+
+  const value = String(date);
+  const year = value.match(/(?:^|\/)(\d{4})(?:$|\/)/) || value.match(/(\d{4})/);
+
+  return year ? Number(year[1]) : null;
+};
+
 module.exports = {
     formatNumberWithZeros,
     isNumber,
@@ -539,5 +548,6 @@ module.exports = {
     registerLog,
     responseSSE,
     sleep,
-    calculateDepreciationToday
+    calculateDepreciationToday,
+    getYear
 };
