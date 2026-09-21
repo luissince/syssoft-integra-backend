@@ -379,7 +379,7 @@ class Factura {
             }
 
             if (validarInventario > 0) {
-                throw new ClientError(null, { "message": "error de 0", body: mensajeInventario });
+                throw new ClientError("", { body: mensajeInventario });
             }
 
             /**
@@ -826,7 +826,7 @@ class Factura {
             }
 
             if (error instanceof ClientError) {
-                return sendClient(res, error.message ?? error.body, "Factura/create", error);
+                return sendClient(res, error.message || error.body, "Factura/create", error);
             }
 
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/create", error);
@@ -986,14 +986,12 @@ class Factura {
 
             // Verificar si la venta existe
             if (validate.length === 0) {
-                await conec.rollback(connection);
-                return sendClient(res, "La venta no existe, verifique el código o actualiza la lista.");
+                throw new ClientError("La venta no existe, verifique el código o actualiza la lista.");
             }
 
             // Verificar si la venta ya está anulada
             if (validate[0].estado === 3) {
-                await conec.rollback(connection);
-                return sendClient(res, "La venta ya se encuentra anulada.");
+                throw new ClientError("La venta ya se encuentra anulada.");
             }
 
             // Actualizar el estado de la venta a anulado
@@ -1150,6 +1148,11 @@ class Factura {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
+            if (error instanceof ClientError) {
+                return sendClient(res, error.message, "Factura/cancel", error);
+            }
+
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/cancel", error);
         }
     }

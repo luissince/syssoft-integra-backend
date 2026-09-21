@@ -125,7 +125,7 @@ function sendError(res, result = "Se produjo un error de servidor, intente nueva
 *     res.send('<p>some html</p>');
 *     res.status(400).send('Sorry, cant find that');
 */
-function sendClient(res, result = "Error de cliente", title, error) {
+function sendClient(res, result, title, error) {
     registerLog(title, error);
 
     return res.status(400).send(result);
