@@ -32,13 +32,21 @@ class Producto {
                 parseInt(filasPorPagina)
             ]);
 
-            const resultLista = lista.map(function (item, index) {
+            const resultLista = await Promise.all(lista.map(async function (item, index) {
+                const web = await conec.query(`
+                SELECT
+                    w.url
+                FROM 
+                    web AS w
+                LIMIT 1`);
+
                 return {
                     ...item,
+                    url: web?.[0]?.url ? `${web[0].url}/product/${item.idProducto}` : null,
                     imagen: firebaseService.getUrl(item.imagen),
                     id: (index + 1) + parseInt(posicionPagina)
                 }
-            });
+            }));
 
             const total = await conec.procedure(`CALL Listar_Productos_Count(?,?,?,?,?,?)`, [
                 parseInt(opcion),
