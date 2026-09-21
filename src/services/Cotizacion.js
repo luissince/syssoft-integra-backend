@@ -936,7 +936,7 @@ class Cotizacion {
                         precio: item.precio,
                         producto: {
                             codigo: item.codigo,
-                            nombre: item.nombre,
+                            nombre: item.producto,
                             imagen: firebaseService.getUrl(item.imagen) ?? noImageUrl,
                         },
                         medida: {
