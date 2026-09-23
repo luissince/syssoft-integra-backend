@@ -89,7 +89,7 @@ app.use((err, req, res, next) => {
         });
     }
 
-    return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Server", err);
+    return sendError(res, err.message || "Se produjo un error de servidor, intente nuevamente.", "Server", err);
 });
 
 

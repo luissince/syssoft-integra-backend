@@ -34,4 +34,6 @@ router.put('/', activoGestionController.update);
 
 router.post('/reporte', activoGestionController.reportAsignacion);
 
+router.post('/excel', activoGestionController.excelAsignacion);
+
 module.exports = router;

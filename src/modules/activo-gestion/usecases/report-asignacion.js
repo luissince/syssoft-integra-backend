@@ -1,12 +1,3 @@
-const getYear = (date) => {
-  if (date instanceof Date) return date.getFullYear();
-
-  const value = String(date);
-  const year = value.match(/(?:^|\/)(\d{4})(?:$|\/)/) || value.match(/(\d{4})/);
-
-  return year ? Number(year[1]) : null;
-};
-
 module.exports = ({ conec }) => async function reportAsignacion(data) {
   const fechaInicio = data.fechaInicio;
   const fechaFinal = data.fechaFinal;
@@ -15,7 +6,7 @@ module.exports = ({ conec }) => async function reportAsignacion(data) {
     throw new Error('fechaInicio y fechaFinal deben contener una fecha válida');
   }
 
-    const result = await conec.query(`
+  const result = await conec.query(`
   SELECT 
     da.idDocumentoActivo, 
     p.documento, 
