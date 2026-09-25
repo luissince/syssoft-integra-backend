@@ -77,4 +77,5 @@ module.exports = (app) => {
     app.use('/api/agencia', require('./agencia.route'));
 
     app.use('/api/firebase', require('./firebase.route'));
+    app.use('/api/dniruc', require('./dniruc.route'));
 };

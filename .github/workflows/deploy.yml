@@ -249,7 +249,6 @@ jobs:
           APP_URL="${{secrets.APP_URL}}"
           APP_PDF="${{secrets.APP_PDF}}"
           APP_CPE_SUNAT="${{secrets.APP_CPE_SUNAT}}"
-          APP_APIS_PERU="${{secrets.APP_APIS_PERU}}"
           APP_EMAIL="${{secrets.APP_EMAIL}}"
           JWT_SECRET="${{secrets.JWT_SECRET}}"
 
@@ -259,13 +258,16 @@ jobs:
           DB_NAME="${{secrets.DB_NAME}}"
           DB_PORT="${{secrets.DB_PORT}}"
 
+          TZ="${{secrets.TZ}}"
+          ENVIRONMENT=${{vars.ENVIRONMENT}}
+
+          CPE_SUNAT_URL="${{secrets.CPE_SUNAT_URL}}"
+          CPE_SUNAT_TOKEN="${{secrets.CPE_SUNAT_TOKEN}}"
+
           FIREBASE_SERVICE_ACCOUNT="${{secrets.FIREBASE_SERVICE_ACCOUNT}}"
           FIREBASE_BUCKET="${{secrets.FIREBASE_BUCKET}}"
           FIREBASE_URL_PUBLIC="${{secrets.FIREBASE_URL_PUBLIC}}"
           FIREBASE_FILE_ACCOUNT_NAME="${{secrets.FIREBASE_FILE_ACCOUNT_NAME}}"
-
-          TZ="${{secrets.TZ}}"
-          ENVIRONMENT=${{vars.ENVIRONMENT}}
 
           AWS_REGION_S3=${{ secrets.AWS_REGION_S3 }}
           AWS_ACCESS_KEY_ID_S3=${{ secrets.AWS_ACCESS_KEY_ID_S3 }}
