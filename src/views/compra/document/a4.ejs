@@ -1,0 +1,256 @@
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="<%= style %>">
+  <title>
+    <%= title %>
+  </title>
+</head>
+
+<body>
+  <main class="pl-20 pr-20">
+    <div class="flex justify-content-between pt-10 pb-10">
+      <div>
+        <img src="<%= empresa.rutaLogo ?? icon %>" width="100" height="100" />
+      </div>
+
+      <div class="w-40p text-center flex flex-column justify-content-center align-items-center gap-4">
+        <h3>
+          <%= empresa.nombreEmpresa %>
+        </h3>
+        <p>
+          <%= sucursal.direccion %>
+        </p>
+        <p>
+          <%= sucursal.ubigeo.departamento %> - <%= sucursal.ubigeo.provincia %> - <%= sucursal.ubigeo.distrito
+                %>
+        </p>
+        <p>
+          <%= sucursal.telefono %> | <%= sucursal.celular %>
+        </p>
+        <p>
+          <%= sucursal.paginaWeb %> | <%= sucursal.email %>m
+        </p>
+      </div>
+
+      <div
+        class="text-center border-1 border-solid flex flex-column justify-content-center pl-20 pr-20 pt-10 pb-10 gap-4">
+        <h3>RUC: <%= empresa.documento %>
+        </h3>
+        <p>
+          <%= pedido.comprobante.nombre %>
+        </p>
+        <p>
+          <%= pedido.comprobante.serie %>-<%= pedido.comprobante.numeracion %>
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-content-between pt-10 pb-10">
+      <div class="w-50p flex flex-column gap-4">
+        <p><span class="font-weight-bold">RUC / DNI:</span>
+          <%= pedido.cliente.documento %>
+        </p>
+        <p><span class="font-weight-bold">CLIENTE:</span>
+          <%= pedido.cliente.informacion %>
+        </p>
+        <p><span class="font-weight-bold">DIRECCION:</span>
+          <%= pedido.cliente.direccion %>
+        </p>
+      </div>
+
+      <div class="w-50p flex flex-column gap-4">
+        <p><span class="font-weight-bold">FECHA EMISION:</span>
+          <%= pedido.fecha %>
+            <%= pedido.hora %>
+        </p>
+        <p><span class="font-weight-bold">MONEDA:</span>
+          <%= pedido.moneda.nombre %> - <%= pedido.moneda.codiso %>
+        </p>
+         <p><span class="font-weight-bold">TIPO PEDIDO:</span>
+          <%= pedido.tipoPedido.nombre %>
+        </p>
+      </div>
+    </div>
+
+    <div class="pt-10 pb-10">
+      <table class="table w-full">
+        <thead>
+          <tr>
+            <th width="5%">
+              <p>Ítem</p>
+            </th>
+            <th width="10%">
+              <p>Cantidad</p>
+            </th>
+            <th width="10%">
+              <p>Unid/Med</p>
+            </th>
+            <th width="55%">
+              <p>Descripción</p>
+            </th>
+            <th width="10%">
+              <p>Precio</p>
+            </th>
+            <th width="10%">
+              <p>Importe</p>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const item of detalles) { %>
+            <tr>
+              <td class="text-center">
+                <p>
+                  <%= item.id %>
+                </p>
+              </td>
+              <td class="text-center">
+                <p>
+                  <%= formatDecimal(item.cantidad) %>
+                </p>
+              </td>
+              <td class="text-center">
+                <p>
+                  <%= item.medida.nombre %>
+                </p>
+              </td>
+              <td class="text-left">
+                <p>
+                  <%= item.producto.codigo %>
+                    <br />
+                    <%= item.producto.nombre %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= formatDecimal(item.precio) %>
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= formatDecimal(item.precio * item.cantidad) %>
+                </p>
+              </td>
+            </tr>
+            <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex justify-content-between align-items-center pt-10 pb-10">
+      <div class="w-50p">
+        <h3 class="mb-5">MONTO EN LETRAS</h3>
+        <p>SON: <%= importLetras %>
+        </p>
+      </div>
+
+      <div class="w-30p">
+        <table class="table w-full">
+          <tbody>
+            <tr>
+              <td>
+                <p>SUB TOTAL:</p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= pedido.moneda.simbolo %>
+                    <%= formatDecimal(subTotal) %>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <% for (const item of impuestos) { %>
+            <tr>
+              <td>
+                <p>
+                  <%= item.nombre %>:
+                </p>
+              </td>
+              <td class="text-right">
+                <p>
+                  <%= pedido.moneda.simbolo %>
+                    <%= formatDecimal(item.monto) %>
+                </p>
+              </td>
+            </tr>
+            <% } %>
+              </tr>
+              <tr>
+                <th class="text-left">
+                  <p>TOTAL:</p>
+                </th>
+                <th class="text-right">
+                  <p>
+                    <%= pedido.moneda.simbolo %>
+                      <%= formatDecimal(total) %>
+                  </p>
+                </th>
+              </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <% if (pedido.nota) { %>
+      <div class="pt-10 pb-10">
+        <h3 class="mb-5">NOTA:</h3>
+        <p>* <%= pedido.nota %>
+        </p>
+      </div>
+      <% } %>
+
+        <% if (bancos.length> 0) { %>
+          <div class="pt-10 pb-10">
+            <h3 class="mb-5">Cuentas Bancarias</h3>
+            <table class="table w-full">
+              <thead>
+                <tr>
+                  <th class="text-left">
+                    <p>BANCO</p>
+                  </th>
+                  <th class="text-left">
+                    <p>CUENTA</p>
+                  </th>
+                  <th class="text-left">
+                    <p>CCI</p>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <% for (const item of bancos) { %>
+                  <tr>
+                    <td>
+                      <p>
+                        <%= item.nombre %>
+                      </p>
+                    </td>
+                    <td>
+                      <p>
+                        <%= item.numCuenta %>
+                      </p>
+                    </td>
+                    <td>
+                      <p>
+                        <%= item.cci %>
+                      </p>
+                    </td>
+                  </tr>
+                  <% } %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+
+            <% if (empresa.tipoEnvio===0) { %>
+              <p class="text-danger font-weight-bold text-center">
+                Documento no valido
+              </p>
+              <% } %>
+  </main>
+</body>
+
+</html>
