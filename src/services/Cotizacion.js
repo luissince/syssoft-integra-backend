@@ -415,6 +415,12 @@ class Cotizacion {
                     1
                 ]);
 
+                if (!producto?.[0]) {
+                    throw new ClientError(
+                        `No se encontró información para el producto ${item.idProducto}.`
+                    );
+                }
+
                 const newProducto = {
                     ...producto[0],
                     precio: item.precio ?? producto[0].precio,
