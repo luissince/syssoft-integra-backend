@@ -114,7 +114,6 @@ class Categoria {
         idCategoria,
         codigo,
         nombre,
-        porcentaje,
         descripcion,
         estado,
         imagen,
@@ -123,11 +122,10 @@ class Categoria {
         fupdate,
         hupdate,
         idUsuario
-      ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, [
+      ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, [
         idCategoria,
         req.body.codigo,
         req.body.nombre,
-        req.body.porcentaje,
         req.body.descripcion,
         req.body.estado,
         imagen,
@@ -214,7 +212,6 @@ class Categoria {
       SET
         codigo = ?,
         nombre = ?,
-        porcentaje = ?,
         descripcion = ?,
         estado = ?,
         imagen = ?,
@@ -225,7 +222,6 @@ class Categoria {
         idCategoria  = ?`, [
         req.body.codigo,
         req.body.nombre,
-        req.body.porcentaje,
         req.body.descripcion,
         req.body.estado,
         imagen,

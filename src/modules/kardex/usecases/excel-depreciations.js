@@ -15,6 +15,7 @@ module.exports = ({ conec }) => async function excelDepreciacions(data) {
     const result = await conec.query(`
         SELECT
             ad.idProducto,
+            c.nombre as categoria,
             ad.serie,
             ad.numeracion,
             ia.correlativo,
@@ -43,7 +44,14 @@ module.exports = ({ conec }) => async function excelDepreciacions(data) {
         FROM activoDepreciacion ad
         INNER JOIN inventarioActivo ia
             ON ia.idInventarioActivo = ad.idInventarioActivo
+        INNER JOIN inventario i 
+            ON i.idInventario = ia.idInventario 
+        INNER JOIN producto p 
+            ON p.idProducto = i.idProducto 
+        LEFT JOIN categoria c 
+            ON c.idCategoria = p.idCategoria
         WHERE YEAR(ad.periodo) BETWEEN ? AND ?
+        ORDER BY LEFT(ia.correlativo, 2), c.nombre, ia.correlativo, ad.periodo
     `, [
         fechaInicial,
         fechaFinal
@@ -144,72 +152,139 @@ module.exports = ({ conec }) => async function excelDepreciacions(data) {
                     bottom: { style: 'thin' },
                     right: { style: 'thin' }
                 };
+
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE699' }
+                };
             });
         }
     });
 
-    worksheet.getRow(1).height = 25;
-    worksheet.getRow(2).height = 25;
-    worksheet.getRow(3).height = 40;
+    worksheet.getRow(1).height = 15;
+    worksheet.getRow(2).height = 20;
+    worksheet.getRow(3).height = 25;
 
     // =========================
     // DATOS
     // =========================
 
+    const groups = [];
+    const groupsByKey = new Map();
+
     for (const inventario of result) {
+        const ta = inventario.correlativo
+            ? inventario.correlativo.substring(0, 2)
+            : '';
+        const categoria = inventario.categoria || 'SIN CATEGORIA';
+        const key = `${ta}\u0000${categoria}`;
 
-        worksheet.addRow([
-            inventario.correlativo
-                ? inventario.correlativo.substring(0, 2)
-                : '',
+        if (!groupsByKey.has(key)) {
+            const group = { categoria, inventarios: [] };
+            groupsByKey.set(key, group);
+            groups.push(group);
+        }
 
-            inventario.fechaAdquisicion
-                ? new Date(inventario.fechaAdquisicion)
-                : null,
+        groupsByKey.get(key).inventarios.push(inventario);
+    }
 
-            inventario.fechaIngreso
-                ? new Date(inventario.fechaIngreso)
-                : null,
+    const subtotalRows = [];
+    const totalColumns = [10, 11, 14, 15, ...Array.from(
+        { length: 12 },
+        (_, index) => index + 16
+    )];
 
-            '',
+    worksheet.addRow([]);
 
-            '',
+    const categoryRows = new Set();
 
-            inventario.serie,
+    for (const group of groups) {
+        const categoryRow = worksheet.addRow([]);
+        worksheet.mergeCells(`A${categoryRow.number}:AA${categoryRow.number}`);
+        worksheet.getCell(`A${categoryRow.number}`).value = group.categoria;
+        worksheet.getCell(`A${categoryRow.number}`).font = { bold: true };
+        worksheet.getCell(`A${categoryRow.number}`).alignment = {
+            vertical: 'middle'
+        };
 
-            inventario.numeracion || 'NA',
+        categoryRows.add(categoryRow.number);
 
-            inventario.correlativo,
+        worksheet.addRow([]);
+        const firstDataRow = worksheet.rowCount + 1;
 
-            '',
+        for (const inventario of group.inventarios) {
+            worksheet.addRow([
+                inventario.correlativo
+                    ? inventario.correlativo.substring(0, 2)
+                    : '',
+                inventario.fechaAdquisicion
+                    ? new Date(inventario.fechaAdquisicion)
+                    : null,
+                inventario.fechaIngreso
+                    ? new Date(inventario.fechaIngreso)
+                    : null,
+                '',
+                '',
+                inventario.serie,
+                inventario.numeracion || 'NA',
+                inventario.correlativo,
+                '',
+                inventario.costoFijo,
+                inventario.valorLibros,
+                inventario.vidaUtil
+                    ? 100 / inventario.vidaUtil
+                    : 0,
+                inventario.dias,
+                inventario.depreciacionAcumulada,
+                inventario.depreciacion,
+                inventario.enero,
+                inventario.febrero,
+                inventario.marzo,
+                inventario.abril,
+                inventario.mayo,
+                inventario.junio,
+                inventario.julio,
+                inventario.agosto,
+                inventario.septiembre,
+                inventario.octubre,
+                inventario.noviembre,
+                inventario.diciembre
+            ]);
+        }
 
-            inventario.costoFijo,
+        // =========================
+        // SUBTOTALES
+        // =========================
 
-            inventario.valorLibros,
+        const lastDataRow = worksheet.rowCount;
+        const subtotalRow = worksheet.addRow([]);
 
-            inventario.vidaUtil
-                ? 100 / inventario.vidaUtil
-                : 0,
+        worksheet.mergeCells(`A${subtotalRow.number}:H${subtotalRow.number}`);
+        worksheet.getCell(`A${subtotalRow.number}`).value = 'TOTALES';
 
-            inventario.dias,
+        for (const col of totalColumns) {
+            const letter = worksheet.getColumn(col).letter;
+            worksheet.getCell(`${letter}${subtotalRow.number}`).value = {
+                formula: `SUM(${letter}${firstDataRow}:${letter}${lastDataRow})`
+            };
+        }
 
-            inventario.depreciacionAcumulada,
+        subtotalRows.push(subtotalRow.number);
+        worksheet.addRow([]);
 
-            inventario.depreciacion,
+        subtotalRow.eachCell((cell) => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE699' }
+            };
 
-            inventario.enero,
-            inventario.febrero,
-            inventario.marzo,
-            inventario.abril,
-            inventario.mayo,
-            inventario.junio,
-            inventario.julio,
-            inventario.agosto,
-            inventario.septiembre,
-            inventario.octubre,
-            inventario.noviembre,
-            inventario.diciembre
-        ]);
+            cell.font = {
+                    bold: true,
+                    size: 10
+                };
+        });
     }
 
     // =========================
@@ -229,7 +304,7 @@ module.exports = ({ conec }) => async function excelDepreciacions(data) {
     // Bordes de datos
     worksheet.eachRow((row, rowNumber) => {
 
-        if (rowNumber >= 4) {
+        if (rowNumber >= 4 && !categoryRows.has(rowNumber)) {
 
             row.eachCell((cell) => {
 
@@ -251,52 +326,36 @@ module.exports = ({ conec }) => async function excelDepreciacions(data) {
     // TOTALES
     // =========================
 
-    const totalRow = worksheet.addRow([]);
+    // const totalRow = worksheet.addRow([]);
 
-    worksheet.mergeCells(`A${totalRow.number}:H${totalRow.number}`);
+    // worksheet.mergeCells(`A${totalRow.number}:H${totalRow.number}`);
+    // worksheet.getCell(`A${totalRow.number}`).value = 'TOTAL GENERAL';
 
-    worksheet.getCell(`A${totalRow.number}`).value = 'TOTALES';
+    // for (const col of totalColumns) {
+    //     const letter = worksheet.getColumn(col).letter;
+    //     const subtotalReferences = subtotalRows.map((rowNumber) => (
+    //         `${letter}${rowNumber}`
+    //     ));
 
-    worksheet.getCell(`J${totalRow.number}`).value = {
-        formula: `SUM(J4:J${totalRow.number - 1})`
-    };
+    //     worksheet.getCell(`${letter}${totalRow.number}`).value = subtotalReferences.length
+    //         ? { formula: `SUM(${subtotalReferences.join(',')})` }
+    //         : 0;
+    // }
 
-    worksheet.getCell(`K${totalRow.number}`).value = {
-        formula: `SUM(K4:K${totalRow.number - 1})`
-    };
-
-    worksheet.getCell(`N${totalRow.number}`).value = {
-        formula: `SUM(N4:N${totalRow.number - 1})`
-    };
-
-    worksheet.getCell(`O${totalRow.number}`).value = {
-        formula: `SUM(O4:O${totalRow.number - 1})`
-    };
-
-    for (let col = 16; col <= 27; col++) {
-
-        const letter = worksheet.getColumn(col).letter;
-
-        worksheet.getCell(`${letter}${totalRow.number}`).value = {
-            formula: `SUM(${letter}4:${letter}${totalRow.number - 1})`
-        };
-    }
-
-    totalRow.eachCell((cell) => {
-
-        cell.font = {
-            bold: true
-        };
-
-        cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-        };
-
-        cell.numFmt = '#,##0.00';
-    });
+    // worksheet.eachRow((row) => {
+    //     if (row.number > 3 && (subtotalRows.includes(row.number) || row.number === totalRow.number)) {
+    //         row.eachCell((cell) => {
+    //             cell.font = { bold: true };
+    //             cell.border = {
+    //                 top: { style: 'thin' },
+    //                 left: { style: 'thin' },
+    //                 bottom: { style: 'thin' },
+    //                 right: { style: 'thin' }
+    //             };
+    //             cell.numFmt = '#,##0.00';
+    //         });
+    //     }
+    // });
 
     // =========================
     // ANCHO COLUMNAS
