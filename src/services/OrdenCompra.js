@@ -99,11 +99,10 @@ class OrdenCompra {
                 req.query.idOrdenCompra,
             ]);
 
-            const bucket = firebaseService.getBucket();
             const listaDetalles = detalles.map(item => {
                 return {
                     ...item,
-                    imagen: firebaseService.getImagen(item.imagen),
+                    imagen: firebaseService.getUrl(item.imagen),
                 }
             });
 

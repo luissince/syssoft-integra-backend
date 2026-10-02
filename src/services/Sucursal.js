@@ -37,11 +37,10 @@ class Sucursal {
                 parseInt(req.query.filasPorPagina)
             ]);
 
-            const bucket = firebaseService.getBucket();
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    imagen: firebaseService.getImagen(item.imagen),
+                    imagen: firebaseService.getUrl(item.imagen),
                     id: (index + 1) + parseInt(req.query.posicionPagina)
                 }
             });
