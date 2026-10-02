@@ -24,18 +24,17 @@
       <div class="border-1 border-dashed"></div>
   
       <div class="text-center pt-5 pb-5">
-        <p class="font-weight-bold text-uppercase font-size-13"><%= pedido.comprobante.nombre %></p>
-        <p class="font-weight-bold font-size-13"><%= pedido.comprobante.serie %>-<%= pedido.comprobante.numeracion %></p>
+        <p class="font-weight-bold text-uppercase font-size-13"><%= compra.comprobante.nombre %></p>
+        <p class="font-weight-bold font-size-13"><%= compra.comprobante.serie %>-<%= compra.comprobante.numeracion %></p>
       </div>
   
       <div class="pt-5 pb-5">
-        <p><span class="font-weight-bold">Fecha de Emisión: </span> <%= pedido.fecha %> <%= pedido.hora %></p>
-        <p><span class="font-weight-bold">RUC / DNI:</span> <%= pedido.cliente.documento %></p>
-        <p><span class="font-weight-bold">Cliente:</span> <%= pedido.cliente.informacion %></p>
-        <p><span class="font-weight-bold">Tipo Pedido:</span> <%= pedido.tipoPedido.nombre %></p>
-        <p><span class="font-weight-bold">Dirección:</span> <%= pedido.cliente.direccion %></p>
-        <% if (pedido.nota) { %>
-          <p><span class="font-weight-bold">Nota: </span> * <%= pedido.nota %></p>
+        <p><span class="font-weight-bold">Fecha de Emisión: </span> <%= compra.fecha %> <%= compra.hora %></p>
+        <p><span class="font-weight-bold">Proveedor:</span> <%= compra.proveedor.informacion %></p>
+        <p><span class="font-weight-bold">RUC / DNI:</span> <%= compra.proveedor.documento %></p>
+        <p><span class="font-weight-bold">Dirección:</span> <%= compra.proveedor.direccion %></p>
+        <% if (compra.nota) { %>
+          <p><span class="font-weight-bold">Nota: </span> * <%= compra.nota %></p>
         <% } %>      
       </div>
   
@@ -47,7 +46,7 @@
               <tr>
                   <th width="5%" class="text-center"><p>Cant.</p></th>
                   <th width="30%" class="text-center"><p>Producto</p></th>
-                  <th width="10%" class="text-center"><p>Precio</p></th>
+                  <th width="10%" class="text-center"><p>Costo</p></th>
                   <th width="10%" class="text-right"><p>Importe</p></th>
               </tr>
           </thead>
@@ -56,8 +55,8 @@
               <tr>
                   <td class="text-center"><p><%= formatDecimal(item.cantidad) %></p></td>
                   <td class="text-left"><p><%= item.producto.nombre %></p></td>
-                  <td class="text-center"><p><%= formatDecimal(item.precio) %></p></td>
-                  <td class="text-right"><p><%= formatDecimal(item.precio * item.cantidad) %></p></td>
+                  <td class="text-center"><p><%= formatDecimal(item.costo) %></p></td>
+                  <td class="text-right"><p><%= formatDecimal(item.costo * item.cantidad) %></p></td>
               </tr>
               <% } %>
           </tbody>
@@ -71,19 +70,19 @@
           <tbody>
             <tr>
               <td><p>SUB TOTAL:</p></td>
-              <td class="text-right"><p><p><%= pedido.moneda.simbolo %> <%= formatDecimal(subTotal) %></p></td>
+              <td class="text-right"><p><p><%= compra.moneda.simbolo %> <%= formatDecimal(subTotal) %></p></td>
             </tr>
             <tr>
               <% for (const item of impuestos) { %>
                 <tr>
                   <td><p><%= item.nombre %>:</p></td>
-                  <td class="text-right"><p><%= pedido.moneda.simbolo %> <%= formatDecimal(item.monto) %></p></td>
+                  <td class="text-right"><p><%= compra.moneda.simbolo %> <%= formatDecimal(item.monto) %></p></td>
                 </tr>
               <% } %>
             </tr>
             <tr>
               <th class="text-left"><p>TOTAL:</p></th>
-              <th class="text-right"><p><%= pedido.moneda.simbolo %> <%= formatDecimal(total) %></p></th>
+              <th class="text-right"><p><%= compra.moneda.simbolo %> <%= formatDecimal(total) %></p></th>
             </tr>
           </tbody>
         </table>
@@ -99,7 +98,7 @@
   
       <footer class="pt-5">    
         <div class="text-center mb-5">
-          <p>Vendedor: <%= pedido.usuario.nombres %>, <%= pedido.usuario.apellidos %></p>
+          <p>Vendedor: <%= compra.usuario.nombres %>, <%= compra.usuario.apellidos %></p>
         </div>
   
         <div class="text-center mt-2">

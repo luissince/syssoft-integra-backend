@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Factura = require('../services/Factura');
-const { default: axios } = require('axios');
-const { sendFile, sendError } = require('../tools/Message');
 
 const factura = new Factura();
 
@@ -16,10 +14,6 @@ router.get("/detail", async (req, res) => await factura.detail(req, res));
 
 router.get("/for-sale", async (req, res) => await factura.forSale(req, res));
 
-router.get("/list/accounts/receivable", async (req, res) => await factura.listAccountsReceivable(req, res));
-
-router.get("/detail/accounts/receivable", async (req, res) => await factura.detailAccountsReceivable(req, res));
-
 router.post("/create/accounts/receivable", async (req, res) => await factura.createAccountsReceivable(req, res));
 
 router.delete("/cancel/accounts/receivable", async (req, res) => await factura.cancelAccountsReceivable(req, res));
@@ -32,31 +26,12 @@ router.get("/shippingGuide/:idVenta", async (req, res) => await factura.shipping
 
 router.get("/shippingGuide/:idVenta/details", async (req, res) => await factura.shippingGuideDetails(req, res));
 
-router.get("/documents/pdf/invoices/:idVenta/:size/:outputType", async (req, res) => {
-    try {
-        const data = await factura.documentsPdfInvoices(req, res);
+router.get("/pdf/:type/:idVenta/:size/:outputType", async (req, res) => await factura.pdfDocumentOrPreview(req, res));
 
-        const options = {
-            method: 'POST',
-            url: `${process.env.APP_PDF}/sale/pdf/invoices`,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            data: data,
-            responseType: 'arraybuffer'
-        };
+router.get("/pdf/account-receivable/:idVenta/:size", async (req, res) => await factura.documentsPdfAccountsReceivable(req, res));
 
-        const response = await axios.request(options);
-        return sendFile(res, response);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/documentsPdfInvoices", error);
-    }
-});
+router.get("/pdf/list", async (req, res) => await factura.documentsPdfReports(req, res));
 
-router.get("/documents/pdf/account/receivable/:idCuota/:idVenta/:size", async (req, res) => await factura.documentsPdfAccountsReceivable(req, res));
-
-router.get("/documents/pdf/reports", async (req, res) => await factura.documentsPdfReports(req, res));
-
-router.get("/documents/excel", async (req, res) => await factura.documentsPdfExcel(req, res));
+router.get("/excel", async (req, res) => await factura.documentsPdfExcel(req, res));
 
 module.exports = router;

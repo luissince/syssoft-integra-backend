@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, formatDecimal, generateQr, rounded, formatNumberWithZeros, renderTemplate, calculateTaxBruto, calculateTax } = require('../tools/Tools');
 const { sendSuccess, sendError, sendClient, sendSave, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
@@ -6,6 +6,8 @@ const firebaseService = require('../common/fire-base');
 const { TIPO_KARDEX, MOTIVO_KARDEX } = require('../common/constants/kardex.constants');
 const { TIPO_PRODUCTO_NORMAL, TIPO_PRODUCTO_SERVICIO } = require('../common/constants/tipo-producto.constants');
 const { ClientError } = require('../tools/Error');
+const { cssUrl, logoUrl } = require('../common/constants/paths.constants');
+const NumberLleters = require('../tools/NumberLleters');
 
 class Factura {
 
@@ -464,6 +466,7 @@ class Factura {
                 idComprobante
             ]);
 
+            // Consulta numeraciones de ventas asociadas al mismo comprobante
             const ventas = await conec.execute(connection, `
             SELECT 
                 numeracion  
@@ -474,12 +477,31 @@ class Factura {
                 idComprobante
             ]);
 
+            // Genera una nueva numeración para la venta
             const numeracion = generateNumericCode(comprobante[0].numeracion, ventas, "numeracion");
 
-            /**
-             * Proceso para ingresar una venta.
-             */
+            // Obtener fecha de vencimiento sin el plazo no es null
+            let fechaVencimiento = null;
 
+            if (idPlazo) {
+                const plazo = await conec.execute(connection, `
+                SELECT 
+                    dias 
+                FROM 
+                    plazo 
+                WHERE 
+                    idPlazo = ?`, [
+                    idPlazo
+                ]);
+
+                if (plazo.length > 0) {
+                    const current = new Date();
+                    current.setDate(current.getDate() + parseInt(plazo[0].dias, 10));
+                    fechaVencimiento = current;
+                }
+            }
+
+            // Inserta la información principal de la venta en la base de datos
             await conec.execute(connection, `
             INSERT INTO venta(
                 idVenta,
@@ -492,12 +514,13 @@ class Factura {
                 numeracion,                
                 idFormaPago,
                 idPlazo,
+                fechaVencimiento,
                 observacion,
                 nota,
                 estado,
                 fecha,
                 hora
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
                 idVenta,
                 nuevoIdCliente,
                 idUsuario,
@@ -508,6 +531,7 @@ class Factura {
                 numeracion,
                 idFormaPago,
                 idPlazo,
+                fechaVencimiento,
                 observacion,
                 nota,
                 estado,
@@ -704,7 +728,6 @@ class Factura {
                 }
             }
 
-
             // Si la venta está asociada a una cotización
             if (idCotizacion) {
                 const listaIdVentaCotizacion = await conec.execute(connection, 'SELECT idVentaCotizacion FROM ventaCotizacion');
@@ -778,40 +801,41 @@ class Factura {
             // Obtener información general de la venta
             const result = await conec.query(`
             SELECT
-                v.idVenta, 
-                com.nombre AS comprobante,
-                com.codigo as codigoVenta,
-                v.serie,
-                v.numeracion,
-                td.nombre AS tipoDoc,      
-                td.codigo AS codigoCliente,      
-                c.documento,
-                c.informacion,
-                c.direccion,
-                c.celular,
-                c.email,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
                 DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
                 v.hora, 
-                v.idFormaPago, 
+
+                co.nombre AS comprobante,                
+                v.serie,
+                v.numeracion,
+
+                cn.documento,
+                cn.informacion,
+                cn.direccion,
+                cn.celular,
+                cn.email,
+
+                fc.idFormaPago,
+                fc.nombre AS formaPago,
+            
                 v.estado, 
-                m.simbolo,
-                m.codiso,
-                m.nombre as moneda,
                 v.observacion,
-                v.nota
+                v.nota,
+
+                mo.codiso,                
+
+                CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 venta AS v 
             INNER JOIN 
-                persona AS c ON v.idCliente = c.idPersona
+                comprobante AS co ON co.idComprobante = v.idComprobante
+            INNER JOIN 
+                formaPago AS fc ON fc.idFormaPago = v.idFormaPago
+            INNER JOIN 
+                moneda AS mo ON mo.idMoneda = v.idMoneda
+            INNER JOIN 
+                persona AS cn ON cn.idPersona = v.idCliente                       
             INNER JOIN 
                 usuario AS us ON us.idUsuario = v.idUsuario 
-            INNER JOIN 
-                tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-            INNER JOIN 
-                comprobante AS com ON v.idComprobante = com.idComprobante
-            INNER JOIN 
-                moneda AS m ON m.idMoneda = v.idMoneda
             WHERE 
                 v.idVenta = ?`, [
                 req.query.idVenta
@@ -855,8 +879,8 @@ class Factura {
                 }
             });
 
-            // Obtener información de transaccion asociados a la venta
-            const transaccion = await conec.query(`
+            // Obtener información de transacciones asociados a la venta
+            const transacciones = await conec.query(`
             SELECT 
                 t.idTransaccion,
                 DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
@@ -875,8 +899,8 @@ class Factura {
                 req.query.idVenta
             ]);
 
-            for (const item of transaccion) {
-                const transacciones = await conec.query(`
+            for (const transaccion of transacciones) {
+                const detalles = await conec.query(`
                     SELECT 
                         b.nombre,
                         td.monto,
@@ -887,14 +911,14 @@ class Factura {
                         banco b on td.idBanco = b.idBanco     
                     WHERE 
                         td.idTransaccion = ?`, [
-                    item.idTransaccion
+                    transaccion.idTransaccion
                 ]);
 
-                item.detalles = transacciones;
+                transaccion.detalles = detalles;
             }
 
             // Enviar respuesta exitosa con la información recopilada
-            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, transaccion });
+            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, transacciones });
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detail", error);
@@ -970,17 +994,10 @@ class Factura {
             ]);
 
             // Obtener el máximo idKardex existente
-            const resultKardex = await conec.execute(connection, `
-                SELECT 
-                    idKardex 
-                FROM 
-                    kardex`);
-            let idKardex = 0;
+            const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
+            let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
-            if (resultKardex.length !== 0) {
-                const quitarValor = resultKardex.map(item => parseInt(item.idKardex.replace("KD", '')));
-                idKardex = Math.max(...quitarValor);
-            }
+            const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
 
             // Procesar cada detalle de la venta
             for (const detalle of detalleVenta) {
@@ -1017,7 +1034,7 @@ class Factura {
                         hora,
                         idUsuario
                     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, [
-                        `KD${String(idKardex += 1).padStart(4, '0')}`,
+                        generarIdKardex(),
                         item.idProducto,
                         TIPO_KARDEX.INGRESO,
                         MOTIVO_KARDEX.DEVOLUCION,
@@ -1269,184 +1286,6 @@ class Factura {
         }
     }
 
-    async listAccountsReceivable(req, res) {
-        try {
-            const lista = await conec.procedure(`CALL Listar_Cuenta_Cobrar(?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.tipo,
-                req.query.buscar,
-                req.query.idSucursal,
-
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
-            ])
-
-            const resultLista = lista.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            });
-
-            const total = await conec.procedure(`CALL Listar_Cuenta_Cobrar_Count(?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.tipo,
-                req.query.buscar,
-                req.query.idSucursal
-            ]);
-
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/listAccountReceivable", error);
-        }
-    }
-
-    async detailAccountsReceivable(req, res) {
-        try {
-            const result = await conec.query(`
-            SELECT
-                v.idVenta, 
-                com.nombre AS comprobante,
-                com.codigo as codigoVenta,
-                v.serie,
-                v.numeracion,
-                td.nombre AS tipoDoc,      
-                td.codigo AS codigoCliente,      
-                c.documento,
-                c.informacion,
-                c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
-                DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-                v.hora, 
-                v.idFormaPago, 
-                p.nombre AS plazo,
-                v.estado, 
-                m.simbolo,
-                m.codiso,
-                m.nombre as moneda
-            FROM 
-                venta AS v 
-            INNER JOIN
-                plazo AS p ON p.idPlazo = v.idPlazo
-            INNER JOIN 
-                persona AS c ON v.idCliente = c.idPersona
-            INNER JOIN 
-                usuario AS us ON us.idUsuario = v.idUsuario 
-            INNER JOIN 
-                tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-            INNER JOIN 
-                comprobante AS com ON v.idComprobante = com.idComprobante
-            INNER JOIN 
-                moneda AS m ON m.idMoneda = v.idMoneda
-            WHERE 
-                v.idVenta = ?`, [
-                req.query.idVenta
-            ]);
-
-            const detalles = await conec.query(`
-            SELECT 
-                ROW_NUMBER() OVER (ORDER BY vd.idVentaDetalle ASC) AS id,
-                p.imagen,
-                p.nombre AS producto,
-                md.nombre AS medida, 
-                m.nombre AS categoria, 
-                vd.precio,
-                vd.cantidad,
-                vd.idImpuesto,
-                imp.nombre AS impuesto,
-                imp.porcentaje
-            FROM 
-                ventaDetalle AS vd 
-            INNER JOIN 
-                producto AS p ON vd.idProducto = p.idProducto 
-            INNER JOIN 
-                medida AS md ON md.idMedida = p.idMedida 
-            INNER JOIN 
-                categoria AS m ON p.idCategoria = m.idCategoria 
-            INNER JOIN 
-                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
-            WHERE 
-                vd.idVenta = ?
-            ORDER BY 
-                vd.idVentaDetalle ASC`, [
-                req.query.idVenta
-            ]);
-
-            const listaDetalles = detalles.map(item => {
-                return {
-                    ...item,
-                    imagen: firebaseService.getUrl(item.imagen),
-                }
-            });
-
-            const resumen = await conec.query(`
-            SELECT 
-                SUM(cd.cantidad * cd.precio) AS total,
-                (
-                    SELECT 
-                        IFNULL(SUM(td.monto), 0)
-                    FROM 
-                        transaccion AS t
-                    INNER JOIN 
-                        transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
-                    WHERE 
-                        t.idReferencia = c.idVenta AND t.estado = 1
-                ) AS cobrado
-            FROM 
-                venta AS c 
-            INNER JOIN 
-                ventaDetalle AS cd ON cd.idVenta = c.idVenta
-            WHERE 
-                c.idVenta = ?`, [
-                req.query.idVenta
-            ]);
-
-            // Obtener información de transaccion asociados a la compra
-            const transaccion = await conec.query(`
-                SELECT 
-                   t.idTransaccion,
-                   DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
-                   t.hora,
-                   c.nombre AS concepto,
-                   t.nota,
-                   pu.informacion AS usuario
-                FROM 
-                   transaccion t            
-                INNER JOIN
-                   concepto c ON c.idConcepto = t.idConcepto
-                INNER JOIN 
-                   usuario AS us ON us.idUsuario = t.idUsuario
-                INNER JOIN
-                   persona AS pu ON pu.idPersona = u.idPersona
-                WHERE 
-                   t.idReferencia = ? AND t.estado = 1`, [
-                req.query.idVenta
-            ]);
-
-            for (const item of transaccion) {
-                const transacciones = await conec.query(`
-                    SELECT 
-                       b.nombre,
-                       td.monto,
-                       td.observacion
-                    FROM
-                       transaccionDetalle td
-                    INNER JOIN 
-                       banco b on td.idBanco = b.idBanco     
-                    WHERE 
-                       td.idTransaccion = ?`, [
-                    item.idTransaccion
-                ]);
-
-                item.detalles = transacciones;
-            }
-
-            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, cuotas });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountReceivable", error);
-        }
-    }
-
     async createAccountsReceivable(req, res) {
         let connection = null;
         try {
@@ -1464,26 +1303,25 @@ class Factura {
             const fecha = currentDate();
             const hora = currentTime();
 
-
             const resumen = await conec.execute(connection, `
-                SELECT 
-                    SUM(cd.cantidad * cd.precio) AS total,
-                    (
-                        SELECT 
-                            IFNULL(SUM(td.monto), 0)
-                        FROM 
-                            transaccion AS t
-                        INNER JOIN 
-                            transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
-                        WHERE 
-                            t.idReferencia = v.idVenta AND t.estado = 1
-                    ) AS cobrado
-                FROM 
-                    venta AS v 
-                INNER JOIN 
-                    ventaDetalle AS vd ON vd.idVenta = v.idVenta
-                WHERE 
-                    v.idVenta = ?`, [
+            SELECT 
+                SUM(cd.cantidad * cd.precio) AS total,
+                (
+                    SELECT 
+                        IFNULL(SUM(td.monto), 0)
+                    FROM 
+                        transaccion AS t
+                    INNER JOIN 
+                        transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+                    WHERE 
+                        t.idReferencia = v.idVenta AND t.estado = 1
+                ) AS cobrado
+            FROM 
+                venta AS v 
+            INNER JOIN 
+                ventaDetalle AS vd ON vd.idVenta = v.idVenta
+            WHERE 
+                v.idVenta = ?`, [
                 idVenta
             ]);
 
@@ -1504,23 +1342,21 @@ class Factura {
             let idTransaccion = generateAlphanumericCode('TC0001', listaTransaccion, 'idTransaccion');
 
             await conec.execute(connection, `
-                    INSERT INTO transaccion(
-                        idTransaccion,
-                        idConcepto,
-                        idReferencia,
-                        idSucursal,
-                        nota,
-                        estado,
-                        fecha,
-                        hora,
-                        idUsuario
-                    ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+            INSERT INTO transaccion(
+                idTransaccion,
+                idConcepto,
+                idReferencia,
+                idSucursal,
+                nota,
+                fecha,
+                hora,
+                idUsuario
+            ) VALUES(?,?,?,?,?,?,?,?)`, [
                 idTransaccion,
                 'CP0004',
                 idVenta,
                 idSucursal,
                 notaTransacion,
-                1,
                 fecha,
                 hora,
                 idUsuario
@@ -1531,13 +1367,13 @@ class Factura {
 
             for (const item of bancosAgregados) {
                 await conec.execute(connection, `
-                    INSERT INTO transaccionDetalle(
-                        idTransaccionDetalle,
-                        idTransaccion,
-                        idBanco,
-                        monto,
-                        observacion
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO transaccionDetalle(
+                    idTransaccionDetalle,
+                    idTransaccion,
+                    idBanco,
+                    monto,
+                    observacion
+                ) VALUES(?,?,?,?,?)`, [
                     idTransaccionDetalle,
                     idTransaccion,
                     item.idBanco,
@@ -1651,9 +1487,9 @@ class Factura {
         }
     }
 
-    async documentsPdfInvoices(req, _) {
+    async pdfDocumentOrPreview(req, _) {
         try {
-            const { idVenta, size, outputType = "pdf" } = req.params;
+            const { idVenta, size, type, outputType = "pdf" } = req.params;
 
             const empresa = await conec.query(`
             SELECT
@@ -1665,6 +1501,10 @@ class Factura {
                 tipoEnvio
             FROM 
                 empresa`);
+
+            if (empresa.length === 0) {
+                throw new ClientError("No se pudo obtener datos de empresa, vuelve a recargar la vista.");
+            }
 
             const venta = await conec.query(`
             SELECT 
@@ -1707,6 +1547,10 @@ class Factura {
                 idVenta
             ]);
 
+            if (venta.length === 0) {
+                throw new ClientError("No se pudo obtener datos de la venta, vuelve a recargar la vista.");
+            }
+
             const sucursal = await conec.query(`
             SELECT 
                 s.nombre,
@@ -1726,6 +1570,10 @@ class Factura {
                 s.idSucursal = ?`, [
                 venta[0].idSucursal
             ]);
+
+            if (sucursal.length === 0) {
+                throw new ClientError("No se pudo obtener datos del sucursal, vuelve a recargar la vista.")
+            }
 
             const detalles = await conec.query(` 
             SELECT 
@@ -1754,87 +1602,171 @@ class Factura {
             ]);
 
             const bancos = await conec.query(`
-                SELECT 
-                    nombre,
-                    numCuenta,
-                    cci
-                FROM
-                    banco
-                WHERE 
-                    reporte = 1 AND idSucursal = ?`, [
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1 AND idSucursal = ?`, [
                 venta[0].idSucursal
             ]);
 
-            return {
-                "size": size,
-                "outputType": outputType,
-                "company": {
+            const buffer = await generateQr('https://www.syssoftintegra.com/');
+            const base64QR = buffer.toString('base64');
+
+            const subTotal = detalles.reduce((accumulator, item) => {
+                const total = item.precio * item.cantidad;
+                return accumulator + calculateTaxBruto(item.impuesto.porcentaje, total);
+            }, 0);
+
+            const impuestos = detalles.reduce((
+                accumulator,
+                item,
+            ) => {
+                const total = item.cantidad * item.precio;
+                const subTotal = calculateTaxBruto(item.porcentaje, total);
+                const monto = calculateTax(item.porcentaje, subTotal);
+
+                const existingImpuesto = accumulator.find(
+                    (imp) => imp.idImpuesto === item.idImpuesto,
+                );
+
+                if (existingImpuesto) {
+                    existingImpuesto.monto += monto;
+                } else {
+                    const tax = {
+                        idImpuesto: item.idImpuesto,
+                        nombre: item.impuesto,
+                        monto: monto,
+                    };
+                    accumulator.push(tax);
+                }
+
+                return accumulator;
+            },
+                [],
+            );
+
+            const total = detalles.reduce(
+                (accumulator, item) => accumulator + item.precio * item.cantidad,
+                0,
+            );
+
+            const numeracion = formatNumberWithZeros(
+                venta[0].numeracion,
+            );
+            const title = `VENTA ${venta[0].serie}-${numeracion} - ${venta[0].informacion}`;
+
+            const template =
+                type === 'document'
+                    ? size === 'A4' ? 'venta/document/a4' : 'venta/document/ticket'
+                    : 'venta/preview/a4';
+
+            const html = await renderTemplate(template, {
+                formatDecimal,
+                style: cssUrl,
+                icon: logoUrl,
+                title: title,
+                base64QR,
+                empresa: {
                     ...empresa[0],
                     rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                 },
-                "branch": {
-                    "nombre": sucursal[0].nombre,
-                    "telefono": sucursal[0].telefono,
-                    "celular": sucursal[0].celular,
-                    "email": sucursal[0].email,
-                    "paginaWeb": empresa[0].paginaWeb,
-                    "direccion": sucursal[0].direccion,
-                    "ubigeo": {
-                        "departamento": sucursal[0].departamento,
-                        "provincia": sucursal[0].provincia,
-                        "distrito": sucursal[0].distrito
+                sucursal: {
+                    nombre: sucursal[0].nombre,
+                    telefono: sucursal[0].telefono,
+                    celular: sucursal[0].celular,
+                    email: sucursal[0].email,
+                    paginaWeb: empresa[0].paginaWeb,
+                    direccion: sucursal[0].direccion,
+                    ubigeo: {
+                        departamento: sucursal[0].departamento,
+                        provincia: sucursal[0].provincia,
+                        distrito: sucursal[0].distrito
                     }
                 },
-                "sale": {
-                    "fecha": venta[0].fecha,
-                    "hora": venta[0].hora,
-                    "nota": venta[0].nota,
-                    "comprobante": {
-                        "nombre": venta[0].comprobante,
-                        "serie": venta[0].serie,
-                        "numeracion": venta[0].numeracion,
-                        "facturado": venta[0].facturado
+                venta: {
+                    fecha: venta[0].fecha,
+                    hora: venta[0].hora,
+                    nota: venta[0].nota,
+                    comprobante: {
+                        nombre: venta[0].comprobante,
+                        serie: venta[0].serie,
+                        numeracion: venta[0].numeracion,
+                        facturado: venta[0].facturado
                     },
-                    "cliente": {
-                        "documento": venta[0].documento,
-                        "informacion": venta[0].informacion,
-                        "direccion": venta[0].direccion
+                    cliente: {
+                        documento: venta[0].documento,
+                        informacion: venta[0].informacion,
+                        direccion: venta[0].direccion
                     },
-                    "formaPago": {
-                        "nombre": venta[0].formaPago
+                    formaPago: {
+                        nombre: venta[0].formaPago
                     },
-                    "moneda": {
-                        "nombre": venta[0].moneda,
-                        "simbolo": venta[0].simbolo,
-                        "codiso": venta[0].codiso
+                    moneda: {
+                        nombre: venta[0].moneda,
+                        simbolo: venta[0].simbolo,
+                        codiso: venta[0].codiso
                     },
-                    "usuario": {
-                        "apellidos": venta[0].apellidos,
-                        "nombres": venta[0].nombres
+                    usuario: {
+                        apellidos: venta[0].apellidos,
+                        nombres: venta[0].nombres
                     },
-                    "ventaDetalles": detalles.map(item => {
-                        return {
-                            "id": item.id,
-                            "cantidad": item.cantidad,
-                            "precio": item.precio,
-                            "producto": {
-                                "codigo": item.codigo,
-                                "nombre": item.nombre,
-                                "medida": {
-                                    "nombre": item.medida,
-                                }
-                            },
-                            "impuesto": {
-                                "idImpuesto": item.idImpuesto,
-                                "nombre": item.impuesto,
-                                "porcentaje": item.porcentaje,
-                            },
-
-                        }
-                    }),
                 },
-                "banks": bancos
+                detalles: detalles.map(item => {
+                    return {
+                        id: item.id,
+                        cantidad: item.cantidad,
+                        precio: item.precio,
+                        producto: {
+                            codigo: item.codigo,
+                            nombre: item.nombre,
+                            medida: {
+                                nombre: item.medida,
+                            }
+                        },
+                        impuesto: {
+                            idImpuesto: item.idImpuesto,
+                            nombre: item.impuesto,
+                            porcentaje: item.porcentaje,
+                        },
+
+                    }
+                }),
+                subTotal,
+                impuestos,
+                total,
+                importLetras: new NumberLleters().getResult(
+                    String(rounded(total)),
+                    compra[0].moneda,
+                ),
+                bancos: bancos
+            });
+
+            const options = {
+                method: 'POST',
+                url: `${process.env.APP_PDF}/html-to-pdf`,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                data: {
+                    title: title,
+                    htmlContent: html,
+                    paper: {
+                        paperType: size,
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: outputType
+                },
+                timeout: 60000,
+                responseType: 'arraybuffer'
             };
+
+            const response = await axios.request(options);
+            return sendFile(res, response);
         } catch (error) {
             throw new Error(error.message);
         }

@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, sleep, formatDecimal, formatNumberWithZeros, calculateTaxBruto, calculateTax, renderTemplate, } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, formatDecimal, formatNumberWithZeros, calculateTaxBruto, calculateTax, renderTemplate, } = require('../tools/Tools');
 const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
@@ -286,11 +286,7 @@ class Compra {
             ]);
 
             // Genera un nuevo ID para los detalles de compra
-            const listaCompraDetalle = await conec.execute(connection, `
-            SELECT 
-                idCompraDetalle 
-            FROM 
-                compraDetalle`);
+            const listaCompraDetalle = await conec.execute(connection, `SELECT idCompraDetalle FROM compraDetalle`);
             let idCompraDetalle = generateNumericCode(1, listaCompraDetalle, 'idCompraDetalle');
 
             // Consulta el último ID de Kardex            
@@ -528,21 +524,29 @@ class Compra {
             SELECT 
                 DATE_FORMAT(c.fecha, '%d/%m/%Y') AS fecha, 
                 c.hora,
+                
                 co.nombre AS comprobante,
                 c.serie,
                 c.numeracion,
+
                 cn.documento,
                 cn.informacion,
                 cn.telefono,
                 cn.celular,
                 cn.email,
                 cn.direccion,                
-                al.nombre AS almacen,
-                fc.nombre AS tipo,
+
+                fc.idFormaPago,
+                fc.nombre AS formaPago,
+
                 c.estado,
                 c.observacion,
                 c.nota,
+
+                al.nombre AS almacen,
+
                 mo.codiso,
+                
                 CONCAT(us.nombres,' ',us.apellidos) AS usuario
             FROM 
                 compra AS c
@@ -604,8 +608,8 @@ class Compra {
                 }
             });
 
-            // Obtener información de transaccion asociados a la compra
-            const transaccion = await conec.query(`
+            // Obtener información de transacciones asociados a la compra
+            const transacciones = await conec.query(`
             SELECT 
                 t.idTransaccion,
                 DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
@@ -624,8 +628,8 @@ class Compra {
                 req.query.idCompra
             ]);
 
-            for (const item of transaccion) {
-                const transacciones = await conec.query(`
+            for (const transaccion of transacciones) {
+                const detalles = await conec.query(`
                     SELECT 
                         b.nombre,
                         td.monto,
@@ -636,14 +640,14 @@ class Compra {
                         banco b on td.idBanco = b.idBanco     
                     WHERE 
                         td.idTransaccion = ?`, [
-                    item.idTransaccion
+                    transaccion.idTransaccion
                 ]);
 
-                item.detalles = transacciones;
+                transaccion.detalles = detalles;
             }
 
             // Devuelve un objeto con la información de la compra, los detalles y las salidas
-            return sendSave(res, { cabecera: compra[0], detalles: listaDetalles, transaccion });
+            return sendSave(res, { cabecera: compra[0], detalles: listaDetalles, transacciones });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/detail", error);
         }
@@ -809,186 +813,6 @@ class Compra {
         }
     }
 
-    async listAccountsPayable(req, res) {
-        try {
-            const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.tipo,
-                req.query.buscar,
-                req.query.idSucursal,
-
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
-            ])
-
-            const resultLista = lista.map(function (item, index) {
-                return {
-                    ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
-                }
-            });
-
-            const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.tipo,
-                req.query.buscar,
-                req.query.idSucursal
-            ]);
-
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/listAccountsPayable", error);
-        }
-    }
-
-    async detailAccountsPayable(req, res) {
-        try {
-            const result = await conec.query(`
-            SELECT
-                v.idCompra, 
-                com.nombre AS comprobante,
-                com.codigo as codigoCompra,
-                v.serie,
-                v.numeracion,
-                td.nombre AS tipoDoc,      
-                td.codigo AS codigoCliente,      
-                c.documento,
-                c.informacion,
-                c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
-                DATE_FORMAT(v.fecha,'%d/%m/%Y') as fecha,
-                v.hora, 
-                v.idFormaPago, 
-                p.nombre AS plazo,
-                v.estado, 
-                m.simbolo,
-                m.codiso,
-                m.nombre as moneda
-            FROM 
-                compra AS v 
-            INNER JOIN
-                plazo AS p ON p.idPlazo = v.idPlazo
-            INNER JOIN 
-                persona AS c ON v.idProveedor = c.idPersona
-            INNER JOIN 
-                usuario AS us ON us.idUsuario = v.idUsuario 
-            INNER JOIN 
-                tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
-            INNER JOIN 
-                comprobante AS com ON v.idComprobante = com.idComprobante
-            INNER JOIN 
-                moneda AS m ON m.idMoneda = v.idMoneda
-            WHERE 
-                v.idCompra = ?`, [
-                req.query.idCompra
-            ]);
-
-            const detalles = await conec.query(`
-            SELECT 
-                ROW_NUMBER() OVER (ORDER BY vd.idCompraDetalle ASC) AS id,
-                p.imagen,
-                p.codigo,
-                p.nombre AS producto,
-                md.nombre AS medida, 
-                m.nombre AS categoria, 
-                vd.costo,
-                vd.cantidad,
-                vd.idImpuesto,
-                imp.nombre AS impuesto,
-                imp.porcentaje
-            FROM 
-                compraDetalle AS vd 
-            INNER JOIN 
-                producto AS p ON vd.idProducto = p.idProducto 
-            INNER JOIN 
-                medida AS md ON md.idMedida = p.idMedida 
-            INNER JOIN 
-                categoria AS m ON p.idCategoria = m.idCategoria 
-            INNER JOIN 
-                impuesto AS imp ON vd.idImpuesto  = imp.idImpuesto  
-            WHERE 
-                vd.idCompra = ?
-            ORDER BY 
-                vd.idCompraDetalle ASC`, [
-                req.query.idCompra
-            ]);
-
-            const listaDetalles = detalles.map(item => {
-                return {
-                    ...item,
-                    imagen: firebaseService.getUrl(item.imagen),
-                }
-            });
-
-            // Obtener el resumen de pagado
-            const resumen = await conec.query(`
-            SELECT 
-                SUM(cd.cantidad * cd.costo) AS total,
-                (
-                    SELECT 
-                        IFNULL(SUM(td.monto), 0)
-                    FROM 
-                        transaccion AS t
-                    INNER JOIN 
-                        transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
-                    WHERE 
-                        t.idReferencia = c.idCompra AND t.estado = 1
-                ) AS pagado
-            FROM 
-                compra AS c 
-            INNER JOIN 
-                compraDetalle AS cd ON cd.idCompra = c.idCompra
-            WHERE 
-                c.idCompra = ?`, [
-                req.query.idCompra
-            ]);
-
-            // Obtener información de transaccion asociados a la compra
-            const transaccion = await conec.query(`
-                SELECT 
-                    t.idTransaccion,
-                    DATE_FORMAT(t.fecha,'%d/%m/%Y') AS fecha,
-                    t.hora,
-                    c.nombre AS concepto,
-                    t.nota,
-                    pu.informacion AS usuario
-                FROM 
-                    transaccion t            
-                INNER JOIN
-                    concepto c ON c.idConcepto = t.idConcepto
-                INNER JOIN 
-                    usuario AS us ON us.idUsuario = t.idUsuario
-                INNER JOIN
-                    persona AS pu ON pu.idPersona = us.idPersona
-                WHERE 
-                    t.idReferencia = ? AND t.estado = 1`, [
-                req.query.idCompra
-            ]);
-
-            for (const item of transaccion) {
-                const transacciones = await conec.query(`
-                    SELECT 
-                        b.nombre,
-                        td.monto,
-                        td.observacion
-                    FROM
-                        transaccionDetalle td
-                    INNER JOIN 
-                        banco b on td.idBanco = b.idBanco     
-                    WHERE 
-                        td.idTransaccion = ?`, [
-                    item.idTransaccion
-                ]);
-
-                item.detalles = transacciones;
-            }
-
-            return sendSuccess(res, { "cabecera": result[0], detalles: listaDetalles, resumen, transaccion });
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailAccountsPayable", error);
-        }
-    }
-
     async createAccountsPayable(req, res) {
         let connection = null;
         try {
@@ -1050,18 +874,16 @@ class Compra {
                 idConcepto,
                 idReferencia,
                 idSucursal,
-                nota,
-                estado,
+                nota,               
                 fecha,
                 hora,
                 idUsuario
-            ) VALUES(?,?,?,?,?,?,?,?,?)`, [
+            ) VALUES(?,?,?,?,?,?,?,?)`, [
                 idTransaccion,
                 'CP0004',
                 idCompra,
                 idSucursal,
-                notaTransacion,
-                1,
+                notaTransacion,                
                 fecha,
                 hora,
                 idUsuario
@@ -1072,13 +894,13 @@ class Compra {
 
             for (const item of bancosAgregados) {
                 await conec.execute(connection, `
-                    INSERT INTO transaccionDetalle(
-                        idTransaccionDetalle,
-                        idTransaccion,
-                        idBanco,
-                        monto,
-                        observacion
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO transaccionDetalle(
+                    idTransaccionDetalle,
+                    idTransaccion,
+                    idBanco,
+                    monto,
+                    observacion
+                ) VALUES(?,?,?,?,?)`, [
                     idTransaccionDetalle,
                     idTransaccion,
                     item.idBanco,
@@ -1097,7 +919,6 @@ class Compra {
             }
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/createAccountsPayable", error);
         }
-
     }
 
     async cancelAccountsPayable(req, res) {
@@ -1169,12 +990,12 @@ class Compra {
             ]);
 
             await conec.execute(connection, `    
-                INSERT INTO auditoria(
-                    idReferencia,
-                    idUsuario,
-                    tipo,
-                    descripción
-                ) VALUES(?,?,?,?)`, [
+            INSERT INTO auditoria(
+                idReferencia,
+                idUsuario,
+                tipo,
+                descripción
+            ) VALUES(?,?,?,?)`, [
                 req.query.idTransaccion,
                 req.query.idUsuario,
                 "ELIMINAR",
@@ -1272,7 +1093,7 @@ class Compra {
             ]);
 
             if (compra.length === 0) {
-                throw new ClientError("No se pudo obtener datos de la cotización, vuelve a recargar la vista.");
+                throw new ClientError("No se pudo obtener datos de la compra, vuelve a recargar la vista.");
             }
 
             const sucursal = await conec.query(`
@@ -1327,14 +1148,14 @@ class Compra {
             ]);
 
             const bancos = await conec.query(`
-                SELECT 
-                    nombre,
-                    numCuenta,
-                    cci
-                FROM
-                    banco
-                WHERE 
-                    reporte = 1 AND idSucursal = ?`, [
+            SELECT 
+                nombre,
+                numCuenta,
+                cci
+            FROM
+                banco
+            WHERE 
+                reporte = 1 AND idSucursal = ?`, [
                 compra[0].idSucursal
             ]);
 
@@ -1377,9 +1198,9 @@ class Compra {
             );
 
             const numeracion = formatNumberWithZeros(
-                cotizacion[0].numeracion,
+                compra[0].numeracion,
             );
-            const title = `COMPRA ${cotizacion[0].serie}-${numeracion} - ${cotizacion[0].informacion}`;
+            const title = `COMPRA ${compra[0].serie}-${numeracion} - ${compra[0].informacion}`;
 
             const template =
                 type === 'document'
@@ -1406,9 +1227,9 @@ class Compra {
                         departamento: sucursal[0].departamento,
                         provincia: sucursal[0].provincia,
                         distrito: sucursal[0].distrito
-                    }
+                    } 
                 },
-                cotizacion: {
+                compra: {
                     fecha: compra[0].fecha,
                     hora: compra[0].hora,
                     nota: compra[0].nota,
@@ -1457,7 +1278,7 @@ class Compra {
                 total,
                 importLetras: new NumberLleters().getResult(
                     String(rounded(total)),
-                    cotizacion[0].moneda,
+                    compra[0].moneda,
                 ),
                 bancos: bancos
             });

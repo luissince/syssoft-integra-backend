@@ -41,10 +41,10 @@
         <h3>RUC: <%= empresa.documento %>
         </h3>
         <p>
-          <%= pedido.comprobante.nombre %>
+          <%= compra.comprobante.nombre %>
         </p>
         <p>
-          <%= pedido.comprobante.serie %>-<%= pedido.comprobante.numeracion %>
+          <%= compra.comprobante.serie %>-<%= compra.comprobante.numeracion %>
         </p>
       </div>
     </div>
@@ -52,26 +52,23 @@
     <div class="flex justify-content-between pt-10 pb-10">
       <div class="w-50p flex flex-column gap-4">
         <p><span class="font-weight-bold">RUC / DNI:</span>
-          <%= pedido.cliente.documento %>
+          <%= compra.proveedor.documento %>
         </p>
-        <p><span class="font-weight-bold">CLIENTE:</span>
-          <%= pedido.cliente.informacion %>
+        <p><span class="font-weight-bold">PROVEEDOR:</span>
+          <%= compra.proveedor.informacion %>
         </p>
         <p><span class="font-weight-bold">DIRECCION:</span>
-          <%= pedido.cliente.direccion %>
+          <%= compra.proveedor.direccion %>
         </p>
       </div>
 
       <div class="w-50p flex flex-column gap-4">
         <p><span class="font-weight-bold">FECHA EMISION:</span>
-          <%= pedido.fecha %>
-            <%= pedido.hora %>
+          <%= compra.fecha %>
+            <%= compra.hora %>
         </p>
         <p><span class="font-weight-bold">MONEDA:</span>
-          <%= pedido.moneda.nombre %> - <%= pedido.moneda.codiso %>
-        </p>
-         <p><span class="font-weight-bold">TIPO PEDIDO:</span>
-          <%= pedido.tipoPedido.nombre %>
+          <%= compra.moneda.nombre %> - <%= compra.moneda.codiso %>
         </p>
       </div>
     </div>
@@ -93,7 +90,7 @@
               <p>Descripción</p>
             </th>
             <th width="10%">
-              <p>Precio</p>
+              <p>Costo</p>
             </th>
             <th width="10%">
               <p>Importe</p>
@@ -127,12 +124,12 @@
               </td>
               <td class="text-right">
                 <p>
-                  <%= formatDecimal(item.precio) %>
+                  <%= formatDecimal(item.costo) %>
                 </p>
               </td>
               <td class="text-right">
                 <p>
-                  <%= formatDecimal(item.precio * item.cantidad) %>
+                  <%= formatDecimal(item.costo * item.cantidad) %>
                 </p>
               </td>
             </tr>
@@ -157,7 +154,7 @@
               </td>
               <td class="text-right">
                 <p>
-                  <%= pedido.moneda.simbolo %>
+                  <%= compra.moneda.simbolo %>
                     <%= formatDecimal(subTotal) %>
                 </p>
               </td>
@@ -172,7 +169,7 @@
               </td>
               <td class="text-right">
                 <p>
-                  <%= pedido.moneda.simbolo %>
+                  <%= compra.moneda.simbolo %>
                     <%= formatDecimal(item.monto) %>
                 </p>
               </td>
@@ -185,7 +182,7 @@
                 </th>
                 <th class="text-right">
                   <p>
-                    <%= pedido.moneda.simbolo %>
+                    <%= compra.moneda.simbolo %>
                       <%= formatDecimal(total) %>
                   </p>
                 </th>
@@ -195,10 +192,10 @@
       </div>
     </div>
 
-    <% if (pedido.nota) { %>
+    <% if (compra.nota) { %>
       <div class="pt-10 pb-10">
         <h3 class="mb-5">NOTA:</h3>
-        <p>* <%= pedido.nota %>
+        <p>* <%= compra.nota %>
         </p>
       </div>
       <% } %>
