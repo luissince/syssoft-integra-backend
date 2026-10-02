@@ -262,3 +262,19 @@ git merge --no-ff desarrollo -m "Mensaje de prueba"
 ```
 
 El uso de --no-ff asegurará que se cree un nuevo commit, incluso si no hubo cambios adicionales en desarrollo.
+
+### 11. Crear ramas para nuevos cambios
+
+```bash
+git checkout develop
+
+git pull origin develop
+
+git merge fix/corregir-al-editar-orden-de-compra
+
+git push origin develop
+
+git branch -d fix/corregir-al-editar-orden-de-compra
+
+git push origin --delete fix/corregir-al-editar-orden-de-compra
+```
