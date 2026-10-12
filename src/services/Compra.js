@@ -25,12 +25,25 @@ class Compra {
                 parseInt(filasPorPagina)
             ]);
 
-            const resultLista = lista.map(function (item, index) {
+            const resultLista = await Promise.all(lista.map(async function (item, index) {
+                const pagado = await conec.query(`
+                SELECT 
+                    IFNULL(SUM(td.monto), 0)
+                FROM 
+                    transaccion AS t
+                INNER JOIN 
+                    transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+                WHERE 
+                    t.idReferencia = ? AND t.estado = 1`, [
+                    item.idCompra,
+                ]);
+
                 return {
                     ...item,
+                    pagado: pagado[0].total ?? 0,
                     id: (index + 1) + parseInt(posicionPagina)
                 }
-            });
+            }));
 
             const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?,?,?)`, [
                 parseInt(opcion),
@@ -862,7 +875,7 @@ class Compra {
             for (const item of detalles) {
                 const producto = await conec.procedure(`CALL Filtrar_Productos_Por_Almacen(?,?)`, [
                     req.query.idAlmacen,
-                    item.idProducto,                    
+                    item.idProducto,
                 ]);
 
                 const newProducto = {
