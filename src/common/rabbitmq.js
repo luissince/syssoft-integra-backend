@@ -1,4 +1,5 @@
 // cammon/rabbitmq.js
+
 const amqp = require("amqplib");
 const logger = require("../tools/Logger");
 /**

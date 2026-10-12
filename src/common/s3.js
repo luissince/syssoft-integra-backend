@@ -1,4 +1,5 @@
-// src/config/s3.js
+// common/config/s3.js
+
 const { S3Client, GetObjectCommand, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 

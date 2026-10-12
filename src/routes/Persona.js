@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Persona = require('../services/Persona');
+const authenticate = require('../middlewares/auth.middleware');
 
 const persona = new Persona();
 
@@ -31,6 +32,10 @@ router.get('/filtrar', async (req, res) => await persona.filtrar(req, res));
 router.get('/predeterminado', async (req, res) => await persona.predeterminado(req, res));
 
 router.post('/login', async (req, res) => await persona.login(req, res));
+
+router.get('/validate', authenticate, async (req, res) => await persona.validate(req, res));
+
+router.post('/logout', async (req, res) => await persona.logout(req, res));
 
 router.patch('/:idPersona', async (req, res) => await persona.updateWeb(req, res));
 

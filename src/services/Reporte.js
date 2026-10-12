@@ -4,6 +4,7 @@ const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
 const { logoUrl } = require('../common/constants/paths.constants');
+const { TIPO_PRODUCTO_SERVICIO } = require('../common/constants/tipo-producto.constants');
 
 class Reporte {
     async generarPreFacturacion(req, res, tipo) {
@@ -87,7 +88,7 @@ class Reporte {
 
             const newEmpresa = {
                 ...empresa[0],
-                "logoEmpresa": empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                "logoEmpresa": firebaseService.getUrl(empresa[0].rutaLogo),
                 "logoDesarrollador": logoUrl,
             }
 
@@ -116,7 +117,7 @@ class Reporte {
                 let cantidad = 0;
                 let precio = 0;
 
-                if (item.tipo == "SERVICIO") {
+                if (item.idTipoProducto === TIPO_PRODUCTO_SERVICIO) {
                     precio = item.precio;
                     cantidad = item.cantidad;
                 } else {

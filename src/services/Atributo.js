@@ -189,6 +189,59 @@ class Atributo {
       return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/combo", error);
     }
   }
+
+  async comboTipos(req, res) {
+    try {
+      const result = await conec.query(`
+      SELECT
+        a.idAtributo,
+        a.idTipoAtributo,
+        ta.nombre AS nombreTipo,
+        a.nombre,
+        a.hexadecimal,
+        a.valor
+      FROM 
+        atributo a
+      INNER JOIN 
+        tipoAtributo ta ON ta.idTipoAtributo = a.idTipoAtributo
+      WHERE 
+        a.estado = 1
+      ORDER BY 
+        a.idTipoAtributo, a.nombre`, [
+        req.query.idTipoAtributo
+      ]);
+
+      const grouped = result.reduce((acc, item) => {
+        let grupo = acc.find(
+          (x) => x.idTipoAtributo === item.idTipoAtributo
+        );
+
+        if (!grupo) {
+          grupo = {
+            idTipoAtributo: item.idTipoAtributo,
+            nombre: item.nombreTipo,
+            atributos: []
+          };
+
+          acc.push(grupo);
+        }
+
+        grupo.atributos.push({
+          idAtributo: item.idAtributo,
+          nombre: item.nombre,
+          hexadecimal: item.hexadecimal,
+          valor: item.valor
+        });
+
+        return acc;
+
+      }, []);
+
+      return sendSuccess(res, grouped);
+    } catch (error) {
+      return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Atributo/combo", error);
+    }
+  }
 }
 
 module.exports = Atributo;

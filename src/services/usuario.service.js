@@ -160,12 +160,7 @@ class Usuario {
                 await conec.rollback(connection);
             }
 
-            if (error instanceof ClientError) {
-                throw error;  // No es necesario crear una nueva instancia de ClientError
-            } else {
-                // Lanzar el error tal cual si no es un ClientError
-                throw error;
-            }
+            throw error;
         }
     }
 
@@ -231,18 +226,11 @@ class Usuario {
             await conec.commit(connection)
             return "Se actualizó correctamente el usuario.";
         } catch (error) {
-            // Revertir la transacción en caso de error
             if (connection != null) {
                 await conec.rollback(connection);
             }
 
-            // Si el error es un ClientError, lo lanzamos directamente
-            if (error instanceof ClientError) {
-                throw error;  // No es necesario crear una nueva instancia de ClientError
-            } else {
-                // Lanzar el error tal cual si no es un ClientError
-                throw error;
-            }
+            throw error;
         }
     }
 
@@ -315,307 +303,287 @@ class Usuario {
             if (connection != null) {
                 await conec.rollback(connection);
             }
+
             throw error;
         }
     }
 
     async id(idUsuario) {
-        try {
-            const result = await conec.query('SELECT * FROM usuario WHERE idUsuario  = ?', [
-                idUsuario
-            ]);
+        const result = await conec.query('SELECT * FROM usuario WHERE idUsuario  = ?', [
+            idUsuario
+        ]);
 
-            if (result.length === 0) {
-                throw new ClientError("Datos no encontrados");
-            }
-
-            return result[0];
-        } catch (error) {
-            if (error instanceof ClientError) {
-                throw error;  // No es necesario crear una nueva instancia de ClientError
-            } else {
-                // Lanzar el error tal cual si no es un ClientError
-                throw error;
-            }       
+        if (result.length === 0) {
+            throw new ClientError("Datos no encontrados");
         }
+
+        return result[0];
     }
 
     async combo() {
-        try {
-            const result = await conec.query(`
-                SELECT 
-                    idUsuario, 
-                    nombres, 
-                    apellidos,
-                    dni,
-                    estado
-                FROM 
-                    usuario`);
-            return result;
-        } catch (error) {
-            throw error;
-        }
+        const result = await conec.query(`
+        SELECT 
+            idUsuario, 
+            nombres, 
+            apellidos,
+            dni,
+            estado
+        FROM 
+            usuario`);
+        return result;
     }
 
     async createSession(data) {
-        try {
-            const validate = await conec.query(`
-                SELECT 
-                    idUsuario, 
-                    clave 
-                FROM 
-                    usuario 
-                WHERE 
-                    usuario = ?`, [
-                data.username,
-            ]);
+        const validate = await conec.query(`
+        SELECT 
+            idUsuario, 
+            clave 
+        FROM 
+            usuario 
+        WHERE 
+            usuario = ?`, [
+            data.username,
+        ]);
 
-            if (validate.length == 0) {
-                throw new ClientError("Datos incorrectos, intente nuevamente.");
-            }
-
-            const hash = bcrypt.compareSync(data.password, validate[0].clave);
-            if (!hash) {
-                throw new ClientError("Datos incorrectos, intente nuevamente.");
-            }
-
-            const usuario = await conec.query(`
-                SELECT 
-                    u.idUsuario, 
-                    u.nombres,
-                    u.apellidos,
-                    u.idPerfil,
-                    u.estado,
-                    u.login,
-                    p.descripcion AS rol
-                FROM 
-                    usuario AS u
-                INNER JOIN 
-                    perfil AS p ON u.idPerfil = p.idPerfil
-                WHERE 
-                    u.idUsuario = ?`, [
-                validate[0].idUsuario
-            ]);
-
-            if (usuario[0].estado === 0) {
-                throw new ClientError("Su cuenta se encuentra inactiva.");
-            }
-
-            if (usuario[0].login === 0) {
-                throw new ClientError("Su cuenta no tiene acceso al sistema.");
-            }
-
-            const user = {
-                idUsuario: usuario[0].idUsuario,
-                nombres: usuario[0].nombres,
-                apellidos: usuario[0].apellidos,
-                estado: usuario[0].estado,
-                rol: usuario[0].rol
-            }
-
-            const menus = await conec.query(`
-                SELECT 
-                    m.idMenu,
-                    m.nombre,
-                    m.ruta,
-                    pm.estado,
-                    m.icon 
-                FROM 
-                    permisoMenu as pm 
-                INNER JOIN 
-                    perfil as p on pm.idPerfil = p.idPerfil
-                INNER JOIN 
-                    menu as m on pm.idMenu = m.idMenu
-                WHERE 
-                    p.idPerfil = ?`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const subMenus = await conec.query(`
-                SELECT 
-                    sm.idMenu,
-                    sm.idSubMenu,
-                    sm.nombre,
-                    sm.ruta,
-                    sm.icon,
-                    psm.estado
-                FROM 
-                    permisoSubMenu as psm
-                INNER JOIN 
-                    perfil AS p ON psm.idPerfil = p.idPerfil
-                INNER JOIN 
-                    subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
-                WHERE 
-                    psm.idPerfil = ?
-                ORDER BY 
-                    idSubMenu`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const privilegios = await conec.query(`
-                SELECT
-                    pp.idPrivilegio,
-                    pp.idSubMenu,
-                    pp.idMenu,
-                    pv.nombre,
-                    pp.estado
-                FROM 
-                    permisoPrivilegio AS pp
-                INNER JOIN 
-                    perfil AS p ON p.idPerfil = pp.idPerfil
-                INNER JOIN 
-                    privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu
-                WHERE 
-                    pp.idPerfil = ?`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const token = await createToken({
-                ...user,
-                idPerfil: usuario[0].idPerfil,
-            }, process.env.TOKEN_ACCESS);
-
-            // const connection = await amqp.connect({
-            //     protocol: 'amqp',
-            //     hostname: 'localhost', // Usa una variable de entorno o un valor por defecto
-            //     port: 5672,
-            //     username: 'user',
-            //     password: 'password',
-            //     vhost: '/',
-            //     connectionTimeout: 10000,
-            // });
-            // const channel = await connection.createChannel();
-            // channel.assertQueue('facturas_por_declarar', { durable: true });
-            // channel.assertQueue('facturas_por_declarar', Buffer.from(JSON.stringify({ facturaId: 12345 })));
-
-            return {
-                ...user,
-                idPerfil: usuario[0].idPerfil,
-                token,
-                menus: this.generateMenus(menus, subMenus, privilegios)
-            };
-        } catch (error) {
-            if (error instanceof ClientError) {
-                throw error;  // No es necesario crear una nueva instancia de ClientError
-            } else {
-                // Lanzar el error tal cual si no es un ClientError
-                throw error;
-            }
+        if (validate.length == 0) {
+            throw new ClientError("Datos incorrectos, intente nuevamente.");
         }
+
+        const hash = bcrypt.compareSync(data.password, validate[0].clave);
+        if (!hash) {
+            throw new ClientError("Datos incorrectos, intente nuevamente.");
+        }
+
+        const usuario = await conec.query(`
+        SELECT 
+            u.idUsuario, 
+            u.nombres,
+            u.apellidos,
+            u.idPerfil,
+            u.estado,
+            u.login,
+            p.descripcion AS rol
+        FROM 
+            usuario AS u
+        INNER JOIN 
+            perfil AS p ON u.idPerfil = p.idPerfil
+        WHERE 
+            u.idUsuario = ?`, [
+            validate[0].idUsuario
+        ]);
+
+        if (usuario[0].estado === 0) {
+            throw new ClientError("Su cuenta se encuentra inactiva.");
+        }
+
+        if (usuario[0].login === 0) {
+            throw new ClientError("Su cuenta no tiene acceso al sistema.");
+        }
+
+        const user = {
+            idUsuario: usuario[0].idUsuario,
+            nombres: usuario[0].nombres,
+            apellidos: usuario[0].apellidos,
+            estado: usuario[0].estado,
+            rol: usuario[0].rol
+        }
+
+        const menus = await conec.query(`
+        SELECT 
+            m.idMenu,
+            m.nombre,
+            m.ruta,
+            pm.estado,
+            m.icon 
+        FROM 
+            permisoMenu as pm 
+        INNER JOIN 
+            perfil as p on pm.idPerfil = p.idPerfil
+        INNER JOIN 
+            menu as m on pm.idMenu = m.idMenu
+        WHERE 
+            p.idPerfil = ?`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const subMenus = await conec.query(`
+        SELECT 
+            sm.idMenu,
+            sm.idSubMenu,
+            sm.nombre,
+            sm.ruta,
+            sm.icon,
+            psm.estado
+        FROM 
+            permisoSubMenu as psm
+        INNER JOIN 
+            perfil AS p ON psm.idPerfil = p.idPerfil
+        INNER JOIN 
+            subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
+        WHERE 
+            psm.idPerfil = ?
+        ORDER BY 
+            idSubMenu`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const privilegios = await conec.query(`
+        SELECT
+            pp.idPrivilegio,
+            pp.idSubMenu,
+            pp.idMenu,
+            pv.nombre,
+            pp.estado
+        FROM 
+            permisoPrivilegio AS pp
+        INNER JOIN 
+            perfil AS p ON p.idPerfil = pp.idPerfil
+        INNER JOIN 
+            privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu
+        WHERE 
+            pp.idPerfil = ?`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const payload = {
+            ...user,
+            idPerfil: usuario[0].idPerfil,
+        }
+
+        const token = await createToken(
+            payload,
+            process.env.JWT_SECRET,
+        );
+
+        // const connection = await amqp.connect({
+        //     protocol: 'amqp',
+        //     hostname: 'localhost', // Usa una variable de entorno o un valor por defecto
+        //     port: 5672,
+        //     username: 'user',
+        //     password: 'password',
+        //     vhost: '/',
+        //     connectionTimeout: 10000,
+        // });
+        // const channel = await connection.createChannel();
+        // channel.assertQueue('facturas_por_declarar', { durable: true });
+        // channel.assertQueue('facturas_por_declarar', Buffer.from(JSON.stringify({ facturaId: 12345 })));
+
+        return {
+            ...user,
+            idPerfil: usuario[0].idPerfil,
+            token,
+            menus: this.generateMenus(menus, subMenus, privilegios)
+        };
     }
 
     async validToken(idUsuario) {
-        try {
-            const usuario = await conec.query(`
-                SELECT 
-                    u.idUsuario, 
-                    u.nombres,
-                    u.apellidos,
-                    u.idPerfil,
-                    u.estado,
-                    u.login,
-                    p.descripcion AS rol
-                FROM 
-                    usuario AS u
-                INNER JOIN 
-                    perfil AS p ON u.idPerfil = p.idPerfil
-                WHERE 
-                    u.idUsuario = ?`, [
-                idUsuario
-            ]);
+        const usuario = await conec.query(`
+        SELECT 
+            u.idUsuario, 
+            u.nombres,
+            u.apellidos,
+            u.idPerfil,
+            u.estado,
+            u.login,
+            p.descripcion AS rol
+        FROM 
+            usuario AS u
+        INNER JOIN 
+            perfil AS p ON u.idPerfil = p.idPerfil
+        WHERE 
+            u.idUsuario = ?`, [
+            idUsuario
+        ]);
 
-            if (usuario[0].estado === 0) {
-                throw new ClientError("Su cuenta se encuentra inactiva.");
-            }
-
-            if (usuario[0].login === 0) {
-                throw new ClientError("Su cuenta no tiene acceso al sistema.");
-            }
-
-            const user = {
-                idUsuario: usuario[0].idUsuario,
-                nombres: usuario[0].nombres,
-                apellidos: usuario[0].apellidos,
-                estado: usuario[0].estado,
-                rol: usuario[0].rol
-            }
-
-            const menus = await conec.query(`
-                SELECT 
-                    m.idMenu,
-                    m.nombre,
-                    m.ruta,
-                    pm.estado,
-                    m.icon 
-                FROM 
-                    permisoMenu as pm 
-                INNER JOIN 
-                    perfil as p on pm.idPerfil = p.idPerfil
-                INNER JOIN 
-                    menu as m on pm.idMenu = m.idMenu
-                WHERE 
-                    p.idPerfil = ?`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const subMenus = await conec.query(`
-                SELECT 
-                    sm.idMenu,
-                    sm.idSubMenu,
-                    sm.nombre,
-                    sm.ruta,
-                    sm.icon,
-                    psm.estado
-                FROM 
-                    permisoSubMenu as psm
-                INNER JOIN 
-                    perfil AS p ON psm.idPerfil = p.idPerfil
-                INNER JOIN 
-                    subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
-                WHERE 
-                    psm.idPerfil = ?
-                ORDER BY 
-                    idSubMenu`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const privilegios = await conec.query(`
-                SELECT
-                    pp.idPrivilegio,
-                    pp.idSubMenu,
-                    pp.idMenu,
-                    pv.nombre,
-                    pp.estado
-                FROM 
-                    permisoPrivilegio AS pp
-                INNER JOIN 
-                    perfil AS p ON p.idPerfil = pp.idPerfil
-                INNER JOIN 
-                    privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu
-                WHERE 
-                    pp.idPerfil = ?`, [
-                usuario[0].idPerfil,
-            ]);
-
-            const token = await createToken({
-                ...user,
-                idPerfil: usuario[0].idPerfil,
-            }, process.env.TOKEN_ACCESS);
-
-            return {
-                ...user,
-                idPerfil: usuario[0].idPerfil,
-                token,
-                menus: this.generateMenus(menus, subMenus, privilegios)
-            };
-        } catch (error) {
-            if (error instanceof ClientError) {
-                throw error;  // No es necesario crear una nueva instancia de ClientError
-            } else {
-                // Lanzar el error tal cual si no es un ClientError
-                throw error;
-            }
+        if (usuario[0].estado === 0) {
+            throw new ClientError("Su cuenta se encuentra inactiva.");
         }
+
+        if (usuario[0].login === 0) {
+            throw new ClientError("Su cuenta no tiene acceso al sistema.");
+        }
+
+        const user = {
+            idUsuario: usuario[0].idUsuario,
+            nombres: usuario[0].nombres,
+            apellidos: usuario[0].apellidos,
+            estado: usuario[0].estado,
+            rol: usuario[0].rol
+        }
+
+        const menus = await conec.query(`
+        SELECT 
+            m.idMenu,
+            m.nombre,
+            m.ruta,
+            pm.estado,
+            m.icon 
+        FROM 
+            permisoMenu as pm 
+        INNER JOIN 
+            perfil as p on pm.idPerfil = p.idPerfil
+        INNER JOIN 
+            menu as m on pm.idMenu = m.idMenu
+        WHERE 
+            p.idPerfil = ?`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const subMenus = await conec.query(`
+        SELECT 
+            sm.idMenu,
+            sm.idSubMenu,
+            sm.nombre,
+            sm.ruta,
+            sm.icon,
+            psm.estado
+        FROM 
+            permisoSubMenu as psm
+        INNER JOIN 
+            perfil AS p ON psm.idPerfil = p.idPerfil
+        INNER JOIN 
+            subMenu AS sm on sm.idMenu = psm.idMenu and sm.idSubMenu = psm.idSubMenu
+        WHERE 
+            psm.idPerfil = ?
+        ORDER BY 
+            idSubMenu`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const privilegios = await conec.query(`
+        SELECT
+            pp.idPrivilegio,
+            pp.idSubMenu,
+            pp.idMenu,
+            pv.nombre,
+            pp.estado
+        FROM 
+            permisoPrivilegio AS pp
+        INNER JOIN 
+            perfil AS p ON p.idPerfil = pp.idPerfil
+        INNER JOIN 
+            privilegio AS pv ON pv.idPrivilegio = pp.idPrivilegio AND pv.idSubMenu = pp.idSubMenu AND pv.idMenu = pp.idMenu
+        WHERE 
+            pp.idPerfil = ?`, [
+            usuario[0].idPerfil,
+        ]);
+
+        const payload = {
+            ...user,
+            idPerfil: usuario[0].idPerfil,
+        }
+
+        const token = await createToken(
+            payload,
+            process.env.JWT_SECRET,
+        );
+
+        return {
+            ...user,
+            idPerfil: usuario[0].idPerfil,
+            token,
+            menus: this.generateMenus(menus, subMenus, privilegios)
+        };
     }
 
     generateMenus(menus, subMenus, privilegios) {

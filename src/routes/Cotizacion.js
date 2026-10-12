@@ -20,47 +20,9 @@ router.put('/update', async (req, res) => await cotizacion.update(req, res));
 
 router.delete('/cancel', async (req, res) => await cotizacion.cancel(req, res));
 
-router.get("/documents/pdf/invoices/:idCotizacion/:size", async (req, res) => {
-    try {
-        const data = await cotizacion.documentsPdfInvoicesOrList(req, res);
+router.get("/pdf/:type/:idCotizacion/:size", async (req, res) => cotizacion.pdfDocumentOrPreview(req, res));
 
-        const options = {
-            method: 'POST',
-            url: `${process.env.APP_PDF}/quotation/pdf/invoices`,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            data: data,
-            responseType: 'arraybuffer'
-        };
-
-        const response = await axios.request(options);
-        return sendFile(res, response);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/documentsPdfInvoices", error);
-    }
-});
-
-router.get("/documents/pdf/lists/:idCotizacion", async (req, res) => {
-    try {
-        const data = await cotizacion.documentsPdfInvoicesOrList(req, res);
-
-        const options = {
-            method: 'POST',
-            url: `${process.env.APP_PDF}/quotation/pdf/lists`,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            data: data,
-            responseType: 'arraybuffer'
-        };
-
-        const response = await axios.request(options);
-        return sendFile(res, response);
-    } catch (error) {
-        return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/documentsPdfList", error);
-    }
-});
+router.get("/pdf/lists/", async (req, res) => cotizacion.pdfList(req, res));
 
 router.get("/documents/pdf/reports", async (req, res) => await cotizacion.documentsPdfReports(req, res));
 

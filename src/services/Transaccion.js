@@ -87,8 +87,6 @@ class Transaccion {
 
     async documentsPdfReports(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
-
             const empresa = await conec.query(`
             SELECT
                 documento,
@@ -158,7 +156,7 @@ class Transaccion {
                     size: req.query.size,
                     company: {
                         ...empresa[0],
-                        rutaLogo: empresa[0].rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                        rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
                     },
                     branch: {
                         nombre: sucursal[0].nombre,

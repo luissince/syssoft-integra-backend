@@ -1,13 +1,11 @@
 const { currentDate } = require('../tools/Tools');
 const { sendSuccess, sendError, sendFile, sendClient } = require('../tools/Message');
 const Factura = require('./Factura');
-const GuiaRemision = require('./GuiaRemision');
 const { default: axios } = require('axios');
 const conec = require('../database/mysql-connection');
 const ErrorResponse = require('../tools/ErrorAxios');
 
 const factura = new Factura();
-const guiaRemision = new GuiaRemision();
 
 class Sunat {
 
@@ -54,41 +52,38 @@ class Sunat {
             const venta = await conec.query(`
             SELECT
                 v.idVenta, 
-                com.nombre AS comprobante,
+                DATE_FORMAT(v.fecha,'%Y-%m-%d') as fecha,
+                v.hora,
+
+                v.idSucursal,
+
                 com.codigo as codigoVenta,
                 v.serie,
-                v.numeracion,
-                v.idSucursal,
-                td.nombre AS tipoDoc,      
+                v.numeracion,                
+                  
                 td.codigo AS codigoCliente,      
                 c.documento,
                 c.informacion,
-                c.direccion,
-                CONCAT(us.nombres,' ',us.apellidos) AS usuario,
-                DATE_FORMAT(v.fecha,'%Y-%m-%d') as fecha,
-                v.hora,
+                c.direccion,               
+                
                 DATE_FORMAT(v.fechaCorrelativo,'%Y-%m-%d') AS fechaCorrelativo,
                 v.correlativo,
                 v.ticketConsultaSunat,
                 v.idFormaPago,
-                v.estado,
-                m.simbolo,
+                v.fechaVencimiento,
+                
                 m.codiso,
                 m.nombre AS moneda
             FROM 
                 venta AS v 
             INNER JOIN 
-                persona AS c ON v.idCliente = c.idPersona
-            INNER JOIN 
-                usuario AS us ON us.idUsuario = v.idUsuario 
+                persona AS c ON v.idCliente = c.idPersona            
             INNER JOIN 
                 tipoDocumento AS td ON td.idTipoDocumento = c.idTipoDocumento 
             INNER JOIN 
                 comprobante AS com ON v.idComprobante = com.idComprobante
             INNER JOIN 
                 moneda AS m ON m.idMoneda = v.idMoneda
-            INNER JOIN 
-                formaPago AS p ON p.idFormaPago = v.idFormaPago
             WHERE 
                 v.idVenta = ?`, [
                 req.params.idVenta
@@ -150,19 +145,6 @@ class Sunat {
                 req.params.idVenta
             ]);
 
-            const cuotas = await conec.query(`
-            SELECT 
-                cuota,
-                DATE_FORMAT(fecha,'%Y-%m-%d') AS fecha,
-                hora,
-                monto
-            FROM 
-                cuota 
-            WHERE 
-                idVenta = ?`, [
-                req.params.idVenta
-            ]);
-
             const privateKeyBase64 = Buffer.from(empresa[0].privatePem).toString('base64');
 
             const flattenedPrivateKey = privateKeyBase64.replace(/\s+/g, '');
@@ -189,8 +171,7 @@ class Sunat {
                         "privateKey": privateKey,
                         "publicKey": publicKey
                     },
-                    "detalle": detalles,
-                    "cuotas": cuotas
+                    "detalle": detalles,                    
                 },
             };
 
@@ -578,7 +559,7 @@ class Sunat {
                 tipoDocumento AS tp ON tp.idTipoDocumento = e.idTipoDocumento
             LIMIT 1`);
 
-            const detalle = await conec.query(`
+            const detalles = await conec.query(`
             SELECT 
                 p.idProducto,
                 p.nombre,
@@ -621,7 +602,7 @@ class Sunat {
                         "privateKey": privateKey,
                         "publicKey": publicKey
                     },
-                    "detalle": detalle
+                    "detalles": detalles
                 },
             };
 
@@ -781,26 +762,26 @@ class Sunat {
 
                 responseInvoices = await axios.request(optionsInvoices);
             } else {
-                const params = {
-                    idGuiaRemision: req.params.idComprobante,
-                    size: "A4"
-                }
+                // const params = {
+                //     idGuiaRemision: req.params.idComprobante,
+                //     size: "A4"
+                // }
 
-                const data = await guiaRemision.documentsPdfInvoices({
-                    params: params
-                });
+                // const data = await guiaRemision.documentsPdfInvoices({
+                //     params: params
+                // });
 
-                const optionsInvoices = {
-                    method: 'POST',
-                    url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    data: data,
-                    responseType: 'arraybuffer'
-                };
+                // const optionsInvoices = {
+                //     method: 'POST',
+                //     url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //     },
+                //     data: data,
+                //     responseType: 'arraybuffer'
+                // };
 
-                responseInvoices = await axios.request(optionsInvoices);
+                // responseInvoices = await axios.request(optionsInvoices);
             }
 
             const empresa = await conec.query(`

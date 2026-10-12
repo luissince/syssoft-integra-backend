@@ -15,12 +15,10 @@ class Categoria {
         parseInt(req.query.filasPorPagina)
       ]);
 
-      const bucket = firebaseService.getBucket();
-
       const resultLista = list.map(function (item, index) {
         return {
           ...item,
-          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null,
+          imagen: firebaseService.getUrl(item.imagen),
           id: index + 1 + parseInt(req.query.posicionPagina),
         };
       });
@@ -38,7 +36,6 @@ class Categoria {
 
   async id(req, res) {
     try {
-      const bucket = firebaseService.getBucket();
 
       const result = await conec.query(`
       SELECT
@@ -55,10 +52,11 @@ class Categoria {
         req.query.idCategoria
       ]);
 
+      const bucket = firebaseService.getBucket();
       if (bucket && result[0].imagen) {
         result[0].imagen = {
           nombre: result[0].imagen,
-          url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].imagen}`
+          url: firebaseService.getUrl(result[0].imagen)
         }
       }
 
@@ -72,7 +70,7 @@ class Categoria {
     let connection = null;
     try {
       connection = await conec.beginTransaction();
-      
+
       const date = currentDate();
       const time = currentTime();
 
@@ -284,7 +282,6 @@ class Categoria {
 
   async combo(req, res) {
     try {
-      const bucket = firebaseService.getBucket();
 
       const result = await conec.query(`
       SELECT 
@@ -299,7 +296,7 @@ class Categoria {
       const newData = result.map(item => {
         return {
           ...item,
-          imagen: bucket && item.imagen ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}` : null
+          imagen: firebaseService.getUrl(item.imagen),
         }
       });
 

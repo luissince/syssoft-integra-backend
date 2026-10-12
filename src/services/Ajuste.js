@@ -89,17 +89,10 @@ class Ajuste {
                 req.query.idAjuste,
             ]);
 
-            const bucket = firebaseService.getBucket();
-            const listaDetalles = detalles.map((item, index) => {
-                if (bucket && item.imagen) {
-                    return {
-                        ...item,
-                        id: index + 1,
-                        imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                    }
-                }
+            const listaDetalles = detalles.map((item, index) => {             
                 return {
                     ...item,
+                    imagen: firebaseService.getUrl(item.imagen),
                     id: index + 1,
                 }
             });

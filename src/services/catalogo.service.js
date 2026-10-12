@@ -143,16 +143,10 @@ class Catalogo {
             data.idCatalogo
         ]);
 
-        const bucket = firebaseService.getBucket();
         const listaDetalles = detalles.map(item => {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                }
-            }
             return {
                 ...item,
+                imagen: firebaseService.getUrl(item.imagen),
             }
         });
 
@@ -195,16 +189,10 @@ class Catalogo {
             data.idCatalogo
         ]);
 
-        const bucket = firebaseService.getBucket();
         const listaDetalles = detalles.map(item => {
-            if (bucket && item.imagen) {
-                return {
-                    ...item,
-                    imagen: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`,
-                }
-            }
             return {
                 ...item,
+                imagen: firebaseService.getUrl(item.imagen),
             }
         });
 
@@ -383,7 +371,6 @@ class Catalogo {
             data.idCatalogo
         ]);
 
-        const bucket = firebaseService.getBucket();
         const listaProductos = await Promise.all(productos.map(async (item) => {
             // Clonar el objeto eliminando 'nombreMedido'
             const { nombreMedido, ...copy } = item;
@@ -402,9 +389,7 @@ class Catalogo {
 
             return {
                 ...copy,
-                imagen: bucket && item.imagen
-                    ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${item.imagen}`
-                    : noImageUrl,
+                imagen: firebaseService.getUrl(item.imagen) ?? noImageUrl,
                 medida: { nombre: nombreMedido },
                 precios,
             };
@@ -421,7 +406,7 @@ class Catalogo {
             formatDecimal,
             empresa: {
                 ...empresa[0],
-                rutaLogo: empresa[0].rutaLogo && bucket ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${empresa[0].rutaLogo}` : null,
+                rutaLogo: firebaseService.getUrl(empresa[0].rutaLogo),
             },
 
             sucursal: {
@@ -446,7 +431,7 @@ class Catalogo {
             title: title,
             htmlContent: html,
             paper: {
-                paperType:'A4',
+                paperType: 'A4',
                 width: 0,
                 height: 0,
             },

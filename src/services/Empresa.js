@@ -35,12 +35,10 @@ class Empresa {
                 throw new Error('No se encontraron datos de empresa.');
             }
 
-            const bucket = firebaseService.getBucket();
-
             const respuesta = {
                 ...primeraEmpresa,
-                rutaLogo: bucket && primeraEmpresa.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaLogo}` : null,
-                rutaImage: bucket && primeraEmpresa.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${primeraEmpresa.rutaImage}` : null
+                rutaLogo: firebaseService.getUrl(primeraEmpresa.rutaLogo),
+                rutaImage: firebaseService.getUrl(primeraEmpresa.rutaImage),
             };
 
             return sendSuccess(res, respuesta);
@@ -93,15 +91,18 @@ class Empresa {
                 req.query.idEmpresa
             ]);
 
-            const bucket = firebaseService.getBucket();
-            const createFileData = (fileName) => (
-                bucket && fileName
-                    ? {
-                        nombre: fileName,
-                        url: `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${fileName}`
-                    }
-                    : null
-            );
+            const createFileData = (fileName) => {
+                const url = firebaseService.getUrl(fileName);
+
+                if(!url){
+                    return null;
+                }
+
+                return {
+                    nombre: fileName,
+                    url: firebaseService.getUrl(fileName)
+                }
+            };
 
             const respuesta = {
                 ...empresa,
@@ -126,21 +127,15 @@ class Empresa {
                 req.query.idEmpresa
             ]);
 
-            const newBanners = [];
-
-            if (bucket) {
-                for (const banner of banners) {
-                    newBanners.push({
-                        "index": banner.id,
-                        "idBanner": banner.idBanner,
-                        "nombre": banner.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
-                        "remover": false
-                    });
+            respuesta.banners = banners.map((banner) => {
+                return {
+                    "index": banner.id,
+                    "idBanner": banner.idBanner,
+                    "nombre": banner.nombre,
+                    "url": firebaseService.getUrl(banner.nombre),
+                    "remover": false
                 }
-            }
-
-            respuesta.banners = newBanners;
+            });
 
             return sendSuccess(res, respuesta)
         } catch (error) {
@@ -448,8 +443,6 @@ class Empresa {
 
     async config(req, res) {
         try {
-            const bucket = firebaseService.getBucket();
-
             const [result] = await conec.query(`
             SELECT 
                 idEmpresa,
@@ -465,8 +458,8 @@ class Empresa {
 
             const empresa = {
                 ...result,
-                rutaLogo: bucket && result.rutaLogo ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaLogo}` : null,
-                rutaImage: bucket && result.rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result.rutaImage}` : null,
+                rutaLogo: firebaseService.getUrl(result.rutaLogo),
+                rutaImage: firebaseService.getUrl(result.rutaImage),
             }
 
             return sendSuccess(res, empresa);
@@ -535,12 +528,8 @@ class Empresa {
             LIMIT 
                 1`);
 
-            const bucket = firebaseService.getBucket();
-
-            if (bucket) {
-                result[0].rutaImage = result[0].rutaImage ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaImage}` : null;
-                result[0].rutaIcon = result[0].rutaIcon ? `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${result[0].rutaIcon}` : null;
-            }
+            result[0].rutaImage = firebaseService.getUrl(result[0].rutaImage);
+            result[0].rutaIcon = firebaseService.getUrl(result[0].rutaIcon);
 
             const banners = await conec.query(`
             SELECT
@@ -557,19 +546,15 @@ class Empresa {
                 result[0].idEmpresa
             ]);
 
-            const newBanners = [];
-
-            if (bucket) {
-                for (const banner of banners) {
-                    newBanners.push({
-                        "id": banner.id,
-                        "nombre": banner.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
-                        "ancho": banner.ancho,
-                        "alto": banner.alto,
-                    });
+            const newBanners = banners.map((banner) => {
+                return {
+                    "id": banner.id,
+                    "nombre": banner.nombre,
+                    "url": firebaseService.getUrl(banner.nombre),
+                    "ancho": banner.ancho,
+                    "alto": banner.alto,
                 }
-            }
+            });
 
             result[0].banners = newBanners;
 
@@ -604,20 +589,15 @@ class Empresa {
                 result[0].idEmpresa
             ]);
 
-            const newBanners = [];
-
-            const bucket = firebaseService.getBucket();
-            if (bucket) {
-                for (const banner of banners) {
-                    newBanners.push({
-                        "id": banner.id,
-                        "nombre": banner.nombre,
-                        "url": `${process.env.FIREBASE_URL_PUBLIC}${bucket.name}/${banner.nombre}`,
-                        "ancho": banner.ancho,
-                        "alto": banner.alto,
-                    });
+            const newBanners = banners.map((banner) => {
+                return {
+                    "id": banner.id,
+                    "nombre": banner.nombre,
+                    "url": firebaseService.getUrl(banner.nombre),
+                    "ancho": banner.ancho,
+                    "alto": banner.alto,
                 }
-            }
+            });
 
             return sendSuccess(res, newBanners);
         } catch (error) {

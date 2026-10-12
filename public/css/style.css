@@ -156,7 +156,7 @@ body {
 
 .table th p {
     display: block;
-    padding: 5px 5px;
+    padding: 5px 0px;
 }
 
 .table td {
@@ -167,7 +167,7 @@ body {
 
 .table td p {
     display: block;
-    padding: 3px 3px;
+    padding: 3px 0px;
 }
 
 .table tr:first-child td {
