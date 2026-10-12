@@ -27,6 +27,18 @@ class Factura {
             ])
 
             const resultLista = await Promise.all(lista.map(async function (item, index) {
+                const cobrado = await conec.query(`
+                SELECT 
+                    IFNULL(SUM(td.monto), 0)
+                FROM 
+                    transaccion AS t
+                INNER JOIN 
+                    transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
+                WHERE 
+                    t.idReferencia = ? AND t.estado = 1`, [
+                    item.idVenta,
+                ]);
+
                 const guiaRemision = await conec.query(`
                 SELECT 
                     COUNT(*) AS total
@@ -40,6 +52,7 @@ class Factura {
                 return {
                     ...item,
                     guiaRemision: guiaRemision.length > 0 ? guiaRemision[0].total : 0,
+                    cobrado: cobrado[0].total ?? 0,
                     id: (index + 1) + parseInt(req.query.posicionPagina),
                 }
             }));
@@ -56,6 +69,7 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
+            console.log("error");
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
