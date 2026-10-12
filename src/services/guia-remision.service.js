@@ -329,7 +329,12 @@ class GuiaRemision {
                     codigoAnexoLlegada = ?,
                     direccionLlegada = ?,
                     idUbigeoLlegada = ?,
-                    numeroTicketSunat = '',
+
+                    xmlSunat= NULL,
+                    xmlDescripcion = NULL,
+                    codigoHash = NULL,
+                    numeroTicketSunat = NULL,
+
                     idUsuario = ?
                 WHERE
                     idGuiaRemision = ?`, [
@@ -493,6 +498,7 @@ class GuiaRemision {
             gui.numeracion,
             cgui.facturado,
             --
+            mdt.idModalidadTraslado,
             mdt.nombre AS modalidadTraslado,
             --
             mvt.nombre AS motivoTraslado,
@@ -646,6 +652,7 @@ class GuiaRemision {
                     "facturado": guiaRemision[0].facturado
                 },
                 "modalidadTraslado": {
+                    "idModalidadTraslado": guiaRemision[0].idModalidadTraslado,
                     "nombre": guiaRemision[0].modalidadTraslado
                 },
                 "motivoTraslado": {

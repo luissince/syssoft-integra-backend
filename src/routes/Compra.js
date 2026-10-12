@@ -12,9 +12,11 @@ router.post('/create', async (req, res) => await compra.create(req, res));
 
 router.delete('/cancel', async (req, res) => await compra.cancel(req, res));
 
-router.post("/create/accounts/payable", async (req, res) => await compra.createAccountsPayable(req, res));
+router.get("/for-purchase", async (req, res) => await compra.forPurchase(req, res));
 
-router.delete("/cancel/accounts/payable", async (req, res) => await compra.cancelAccountsPayable(req, res));
+router.post("/create/accounts-payable", async (req, res) => await compra.createAccountsPayable(req, res));
+
+router.delete("/cancel/accounts-payable", async (req, res) => await compra.cancelAccountsPayable(req, res));
 
 router.get("/dashboard", async (req, res) => await compra.dashboard(req, res));
 

@@ -14,9 +14,9 @@ router.get("/detail", async (req, res) => await factura.detail(req, res));
 
 router.get("/for-sale", async (req, res) => await factura.forSale(req, res));
 
-router.post("/create/accounts/receivable", async (req, res) => await factura.createAccountsReceivable(req, res));
+router.post("/create/accounts-receivable", async (req, res) => await factura.createAccountsReceivable(req, res));
 
-router.delete("/cancel/accounts/receivable", async (req, res) => await factura.cancelAccountsReceivable(req, res));
+router.delete("/cancel/accounts-receivable", async (req, res) => await factura.cancelAccountsReceivable(req, res));
 
 router.get("/dashboard", async (req, res) => await factura.dashboard(req, res));
 

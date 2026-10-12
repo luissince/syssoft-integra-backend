@@ -931,6 +931,11 @@ class Factura {
             // Iniciar una transacción
             connection = await conec.beginTransaction();
 
+            const {
+                idVenta,
+                idUsuario,
+            } = req.query;
+
             // Obtener fecha y hora actuales
             const date = currentDate();
             const time = currentTime();
@@ -945,7 +950,7 @@ class Factura {
                     venta 
                 WHERE 
                     idVenta = ?`, [
-                req.query.idVenta
+                idVenta
             ]);
 
             // Verificar si la venta existe
@@ -966,7 +971,7 @@ class Factura {
                     estado = 3 
                 WHERE 
                     idVenta = ?`, [
-                req.query.idVenta
+                idVenta
             ]);
 
             // Actualizar el estado de transacción
@@ -977,7 +982,7 @@ class Factura {
                     estado = 0 
                 WHERE 
                     idReferencia = ?`, [
-                req.query.idVenta
+                idVenta
             ]);
 
             // Obtener detalles de la venta
@@ -990,11 +995,11 @@ class Factura {
                     ventaDetalle 
                 WHERE 
                     idVenta = ?`, [
-                req.query.idVenta
+                idVenta
             ]);
 
             // Obtener el máximo idKardex existente
-            const resultKardex = await conec.execute(connection, `SELECT idKardex FROM kardex`);
+            const kardexIds = await conec.execute(connection, `SELECT idKardex FROM kardex`);
             let idKardex = kardexIds.length ? Math.max(...kardexIds.map(item => parseInt(item.idKardex.replace("KD", '')))) : 0;
 
             const generarIdKardex = () => `KD${String(++idKardex).padStart(4, '0')}`;
@@ -1013,7 +1018,7 @@ class Factura {
                         kardex AS k 
                     WHERE 
                         k.idVenta = ? AND k.idProducto = ?`, [
-                    req.query.idVenta,
+                    idVenta,
                     detalle.idProducto
                 ]);
 
@@ -1038,7 +1043,7 @@ class Factura {
                         item.idProducto,
                         TIPO_KARDEX.INGRESO,
                         MOTIVO_KARDEX.DEVOLUCION,
-                        req.query.idVenta,
+                        idVenta,
                         'ANULACIÓN DE LA VENTA',
                         item.cantidad,
                         item.costo,
@@ -1046,7 +1051,7 @@ class Factura {
                         item.idInventario,
                         date,
                         time,
-                        req.query.idUsuario
+                        idUsuario
                     ]);
 
                     // Actualizar la cantidad en el inventario
@@ -1130,7 +1135,7 @@ class Factura {
             ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/shippingGuide", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/filter", error);
         }
     }
 
@@ -1215,7 +1220,7 @@ class Factura {
             return sendSuccess(res, newDetails);
         } catch (error) {
             // Manejar errores y enviar mensaje de error al cliente
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailOnly", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/shippingGuideDetails", error);
         }
     }
 
@@ -1282,7 +1287,7 @@ class Factura {
             return sendSuccess(res, { cliente: cliente[0], productos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/detailVenta", error)
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/forSale", error)
         }
     }
 
@@ -1303,9 +1308,23 @@ class Factura {
             const fecha = currentDate();
             const hora = currentTime();
 
+            const venta = await conec.query(`
+            SELECT 
+                estado
+            FROM 
+                venta
+            WHERE 
+                idVenta = ?`, [
+                idVenta
+            ]);
+
+            if (venta[0].estado !== 2) {
+                throw new ClientError("La venta ya se encuentra anulada o no tiene pagos pendientes.");
+            }
+
             const resumen = await conec.execute(connection, `
             SELECT 
-                SUM(cd.cantidad * cd.precio) AS total,
+                SUM(vd.cantidad * vd.precio) AS total,
                 (
                     SELECT 
                         IFNULL(SUM(td.monto), 0)
@@ -1315,7 +1334,7 @@ class Factura {
                         transaccionDetalle AS td ON t.idTransaccion = td.idTransaccion
                     WHERE 
                         t.idReferencia = v.idVenta AND t.estado = 1
-                ) AS cobrado
+                ) AS pagado
             FROM 
                 venta AS v 
             INNER JOIN 
@@ -1324,6 +1343,10 @@ class Factura {
                 v.idVenta = ?`, [
                 idVenta
             ]);
+
+            if (monto > (resumen[0].total - resumen[0].pagado)) {
+                throw new ClientError("El monto no puede superar al saldo pendiente.");
+            }
 
             if (monto + resumen[0].pagado >= resumen[0].total) {
                 await conec.execute(connection, `
@@ -1353,7 +1376,7 @@ class Factura {
                 idUsuario
             ) VALUES(?,?,?,?,?,?,?,?)`, [
                 idTransaccion,
-                'CP0004',
+                'CP0003',
                 idVenta,
                 idSucursal,
                 notaTransacion,
@@ -1428,19 +1451,19 @@ class Factura {
 
             const sumaTransacciones = transacciones.reduce((accumulator, item) => accumulator + item.monto, 0);
 
-            const compra = await conec.query(`
+            const venta = await conec.query(`
                 SELECT 
                     SUM(cd.cantidad * cd.precio) AS total
                 FROM 
                     venta AS v
                 INNER JOIN 
-                    ventaDetalle AS cd ON cd.idCompra = v.idVenta
+                    ventaDetalle AS cd ON cd.idVenta = v.idVenta
                 WHERE 
                     v.idVenta = ?`, [
                 req.query.idVenta
             ]);
 
-            if (sumaTransacciones - transaccion[0].monto < compra[0].total) {
+            if (sumaTransacciones - transaccion[0].monto < venta[0].total) {
                 await conec.execute(connection, `
                     UPDATE 
                         vente
@@ -1487,7 +1510,7 @@ class Factura {
         }
     }
 
-    async pdfDocumentOrPreview(req, _) {
+    async pdfDocumentOrPreview(req, res) {
         try {
             const { idVenta, size, type, outputType = "pdf" } = req.params;
 
@@ -1740,7 +1763,7 @@ class Factura {
                 total,
                 importLetras: new NumberLleters().getResult(
                     String(rounded(total)),
-                    compra[0].moneda,
+                    venta[0].moneda,
                 ),
                 bancos: bancos
             });
@@ -1768,7 +1791,7 @@ class Factura {
             const response = await axios.request(options);
             return sendFile(res, response);
         } catch (error) {
-            throw new Error(error.message);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/pdfDocumentOrPreview", error);
         }
     }
 

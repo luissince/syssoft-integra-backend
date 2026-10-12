@@ -1,4 +1,4 @@
-const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, formatDecimal, formatNumberWithZeros, calculateTaxBruto, calculateTax, renderTemplate, } = require('../tools/Tools');
+const { currentDate, currentTime, generateAlphanumericCode, generateNumericCode, formatDecimal, formatNumberWithZeros, calculateTaxBruto, calculateTax, renderTemplate, rounded, toNullString } = require('../tools/Tools');
 const { sendSave, sendError, sendSuccess, sendClient, sendFile } = require('../tools/Message');
 const axios = require('axios').default;
 const conec = require('../database/mysql-connection');
@@ -13,26 +13,31 @@ class Compra {
 
     async list(req, res) {
         try {
-            const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
+            const { opcion, buscar, idSucursal, fechaInicio, fechaFinal, posicionPagina, filasPorPagina, } = req.query;
+            const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(buscar),
+                idSucursal,
+                toNullString(fechaInicio),
+                toNullString(fechaFinal),
 
-                parseInt(req.query.posicionPagina),
-                parseInt(req.query.filasPorPagina)
+                parseInt(posicionPagina),
+                parseInt(filasPorPagina)
             ]);
 
             const resultLista = lista.map(function (item, index) {
                 return {
                     ...item,
-                    id: (index + 1) + parseInt(req.query.posicionPagina)
+                    id: (index + 1) + parseInt(posicionPagina)
                 }
             });
 
-            const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?)`, [
-                parseInt(req.query.opcion),
-                req.query.buscar,
-                req.query.idSucursal,
+            const total = await conec.procedure(`CALL Listar_Compras_Count(?,?,?,?,?)`, [
+                parseInt(opcion),
+                toNullString(buscar),
+                idSucursal,
+                toNullString(fechaInicio),
+                toNullString(fechaFinal)
             ]);
 
             // return { "result": resultLista, "total": total[0].Total };
@@ -659,6 +664,11 @@ class Compra {
             // Inicia una transacción
             connection = await conec.beginTransaction();
 
+            const {
+                idCompra,
+                idUsuario,
+            } = req.query;
+
             // Obtener fecha y hora actuales
             const date = currentDate();
             const time = currentTime();
@@ -672,7 +682,7 @@ class Compra {
                 compra 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             // Verifica si la compra existe
@@ -695,7 +705,7 @@ class Compra {
                 estado = 3 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             // Actualiza el estado de la transacción asociada a la compra
@@ -706,9 +716,8 @@ class Compra {
                 estado = 0 
             WHERE 
                 idReferencia = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
-
 
             // Obtiene los detalles de la compra
             const detalleCompra = await conec.execute(connection, `
@@ -720,7 +729,7 @@ class Compra {
                 compraDetalle 
             WHERE 
                 idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             // Obtener ID kardex siguiente
@@ -745,7 +754,7 @@ class Compra {
                     kardex AS k 
                 WHERE 
                     k.idCompra = ? AND k.idProducto = ?`, [
-                    req.query.idCompra,
+                    idCompra,
                     detalle.idProducto,
                 ]);
 
@@ -771,7 +780,7 @@ class Compra {
                         kardex.idProducto,
                         TIPO_KARDEX.SALIDA,
                         MOTIVO_KARDEX.DEVOLUCION,
-                        req.query.idCompra,
+                        idCompra,
                         'ANULACIÓN DE LA COMPRA',
                         kardex.cantidad,
                         kardex.costo,
@@ -779,7 +788,7 @@ class Compra {
                         kardex.idInventario,
                         date,
                         time,
-                        req.query.idUsuario
+                        idUsuario
                     ]);
 
                     // Actualiza la cantidad en el inventario
@@ -813,6 +822,68 @@ class Compra {
         }
     }
 
+    async forPurchase(req, res) {
+        try {
+            const proveedor = await conec.query(`
+            SELECT 
+                p.idPersona,
+                p.idTipoDocumento,
+                p.documento,
+                p.informacion,
+                IFNULL(p.celular,'') AS celular,
+                IFNULL(p.email,'') AS email,
+                IFNULL(p.direccion,'') AS direccion
+            FROM 
+                compra AS c
+            INNER JOIN 
+                persona AS p ON p.idPersona = c.idProveedor
+            WHERE 
+                c.idCompra = ?`, [
+                req.query.idCompra
+            ]);
+
+            const detalles = await conec.query(`
+            SELECT 
+                cd.idProducto,
+                cd.costo,
+                cd.cantidad
+            FROM
+                compraDetalle AS cd
+            WHERE
+                cd.idCompra = ?
+            ORDER BY 
+                cd.idCompraDetalle ASC`, [
+                req.query.idCompra
+            ]);
+
+            let productos = [];
+            let index = 0;
+
+            for (const item of detalles) {
+                const producto = await conec.procedure(`CALL Filtrar_Productos_Por_Almacen(?,?)`, [
+                    req.query.idAlmacen,
+                    item.idProducto,                    
+                ]);
+
+                const newProducto = {
+                    ...producto[0],
+                    costo: item.costo,
+                    cantidad: item.cantidad,
+                    imagen: firebaseService.getUrl(producto[0].imagen),
+                    id: index + 1
+                }
+
+                productos.push(newProducto);
+            }
+
+            // Devuelve un objeto con la información de la venta, los detalles y las salidas
+            return sendSuccess(res, { proveedor: proveedor[0], productos });
+        } catch (error) {
+            // Manejo de errores: Si hay un error, devuelve un mensaje de error
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Compra/forPurchase", error)
+        }
+    }
+
     async createAccountsPayable(req, res) {
         let connection = null;
         try {
@@ -829,6 +900,20 @@ class Compra {
 
             const fecha = currentDate();
             const hora = currentTime();
+
+            const compra = await conec.query(`
+            SELECT 
+                estado
+            FROM 
+                compra
+            WHERE 
+                idCompra = ?`, [
+                idCompra
+            ]);
+
+            if (compra[0].estado !== 2) {
+                throw new ClientError("La compra ya se encuentra anulada o no tiene pagos pendientes.");
+            }
 
             const resumen = await conec.execute(connection, `
             SELECT 
@@ -851,6 +936,10 @@ class Compra {
                 c.idCompra = ?`, [
                 idCompra
             ]);
+
+            if (monto > (resumen[0].total - resumen[0].pagado)) {
+                throw new ClientError("El monto no puede superar al saldo pendiente.");
+            }
 
             if (monto + resumen[0].pagado >= resumen[0].total) {
                 await conec.execute(connection, `
@@ -883,7 +972,7 @@ class Compra {
                 'CP0004',
                 idCompra,
                 idSucursal,
-                notaTransacion,                
+                notaTransacion,
                 fecha,
                 hora,
                 idUsuario
@@ -926,8 +1015,42 @@ class Compra {
         try {
             connection = await conec.beginTransaction();
 
+            const {
+                idCompra,
+                idTransaccion,
+                idUsuario,
+            } = req.query;
+
             const date = currentDate();
             const time = currentTime();
+
+            const compraValidate = await conec.execute(connection, `
+            SELECT 
+                estado
+            FROM 
+                compra
+            WHERE 
+                idCompra = ?`, [
+                idCompra
+            ]);
+
+            if (compraValidate[0].estado === 3) {
+                throw new ClientError("La compra ya se encuentra anulada.");
+            }
+
+            const transaccionValidate = await conec.execute(connection, `
+            SELECT 
+                estado 
+            FROM 
+                transaccion
+            WHERE 
+                idTransaccion = ?`, [
+                idTransaccion,
+            ]);
+
+            if (transaccionValidate[0].estado === 0) {
+                throw new ClientError("La transacción ya se encuentra anulada.");
+            }
 
             const transaccion = await conec.execute(connection, `
                 SELECT 
@@ -938,7 +1061,7 @@ class Compra {
                     transaccionDetalle AS td ON td.idTransaccion = t.idTransaccion
                 WHERE 
                     t.idTransaccion = ?`, [
-                req.query.idTransaccion,
+                idTransaccion,
             ]);
 
             const transacciones = await conec.execute(connection, `
@@ -950,7 +1073,7 @@ class Compra {
                     transaccionDetalle AS td ON td.idTransaccion = t.idTransaccion
                 WHERE 
                     t.idReferencia = ? AND t.estado = 1`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             const sumaTransacciones = transacciones.reduce((accumulator, item) => accumulator + item.monto, 0);
@@ -964,7 +1087,7 @@ class Compra {
                     compraDetalle AS cd ON cd.idCompra = c.idCompra
                 WHERE 
                     c.idCompra = ?`, [
-                req.query.idCompra
+                idCompra
             ]);
 
             if (sumaTransacciones - transaccion[0].monto < compra[0].total) {
@@ -975,7 +1098,7 @@ class Compra {
                     estado = 2
                 WHERE 
                     idCompra = ?`, [
-                    req.query.idCompra
+                    idCompra
                 ]);
             }
 
@@ -986,7 +1109,7 @@ class Compra {
                     estado = 0 
                 WHERE 
                     idTransaccion = ?`, [
-                req.query.idTransaccion
+                idTransaccion
             ]);
 
             await conec.execute(connection, `    
@@ -996,8 +1119,8 @@ class Compra {
                 tipo,
                 descripción
             ) VALUES(?,?,?,?)`, [
-                req.query.idTransaccion,
-                req.query.idUsuario,
+                idTransaccion,
+                idUsuario,
                 "ELIMINAR",
                 "SE ANULO LA TRANSACCIÓN DE COMPRA",
                 date,
@@ -1227,7 +1350,7 @@ class Compra {
                         departamento: sucursal[0].departamento,
                         provincia: sucursal[0].provincia,
                         distrito: sucursal[0].distrito
-                    } 
+                    }
                 },
                 compra: {
                     fecha: compra[0].fecha,
