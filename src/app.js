@@ -27,7 +27,10 @@ const allowedOrigins = [
     "https://shop.syssoftintegra.com",
 
     "https://www.importmuneli.com",
-    "https://app.importmuneli.com"
+    "https://app.importmuneli.com",
+
+    "https://ferreteria-rym.syssoftintegra.com",
+    "https://dracoly.syssoftintegra.com",
 ];
 
 app.use(cookieParser());
