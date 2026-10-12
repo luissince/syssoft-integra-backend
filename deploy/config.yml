@@ -16,7 +16,7 @@ clients:
 
   leatsac:
     service: leatsac-services
-    deploy: canary
+    deploy: production
 
   ferreteria-rym:
     service: ferreteria-rym-services
@@ -28,7 +28,7 @@ clients:
 
   importmuneli:
     service: importmuneli-services
-    deploy: canary
+    deploy: production
 
   worker:
     service: worker-services

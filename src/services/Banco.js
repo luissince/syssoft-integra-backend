@@ -27,9 +27,26 @@ class Banco {
                 req.query.idSucursal,
             ]);
 
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+            const resumen = await conec.procedure(`CALL Resumen_Bancos(?)`, [
+                req.query.idSucursal
+            ]);
+
+            const monedas = [
+                ...new Map(
+                    resumen.map(item => [
+                        item.codiso,
+                        {
+                            idMoneda: item.idMoneda,
+                            nombre: item.nombreMoneda,
+                            codiso: item.codiso
+                        }
+                    ])
+                ).values()
+            ];
+
+            return sendSuccess(res, { "result": resultLista, "total": total[0].Total, monedas, resumen });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/list", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/list", error);
         }
     }
 
@@ -86,7 +103,7 @@ class Banco {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/add", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/add", error);
         }
     }
 
@@ -108,7 +125,7 @@ class Banco {
 
             return sendSuccess(res, result[0]);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/id", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/id", error);
         }
     }
 
@@ -157,7 +174,7 @@ class Banco {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/update", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/update", error);
         }
     }
 
@@ -213,7 +230,7 @@ class Banco {
                 "monto": total[0].monto
             });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/detail", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/detail", error);
         }
     }
 
@@ -253,7 +270,7 @@ class Banco {
                 await conec.rollback(connection);
             }
 
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/delete", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/delete", error);
         }
     }
 
@@ -273,12 +290,12 @@ class Banco {
                     (compartir = 1) 
                     OR
                     (compartir = 0 AND idSucursal = ?)
-                )`,[
-                    req.params.idSucursal
-                ]);
+                )`, [
+                req.params.idSucursal
+            ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/combo", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/combo", error);
         }
     }
 
@@ -405,9 +422,11 @@ class Banco {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.","Banco/defailtList", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Banco/defailtList", error);
         }
     }
+
+
 
 }
 
