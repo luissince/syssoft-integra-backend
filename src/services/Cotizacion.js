@@ -25,7 +25,8 @@ class Cotizacion {
     async list(req, res) {
         try {
             const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
-            const lista = await conec.procedure(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
+
+            const result = await conec.procedureAll(`CALL Listar_Cotizaciones(?,?,?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 toNullString(buscar),
                 toNullString(fechaInicio),
@@ -36,31 +37,16 @@ class Cotizacion {
 
                 parseInt(posicionPagina),
                 parseInt(filasPorPagina)
-            ])
+            ]);
 
-            const resultLista = await Promise.all(lista.map(async function (item, index) {
-                const ligado = await conec.query(`
-                SELECT
-                    cd.idCotizacion,
-                    SUM(cd.cantidad) AS cantidadCotizada,
-                    COALESCE((
-                        SELECT SUM(vd.cantidad)
-                        FROM ventaCotizacion vc
-                        INNER JOIN venta v 
-                            ON v.idVenta = vc.idVenta
-                            AND v.estado <> 3
-                        INNER JOIN ventaDetalle vd 
-                            ON vd.idVenta = v.idVenta
-                        WHERE vc.idCotizacion = cd.idCotizacion
-                    ), 0) AS cantidadVendida
-                FROM cotizacionDetalle cd
-                WHERE cd.idCotizacion = ?
-                GROUP BY cd.idCotizacion`, [
-                    item.idCotizacion
-                ]);
+            const resultLista = result[0].map(function (item, index) {
+                const cantidadCotizada = Number(
+                    item?.cantidadCotizada ?? 0
+                );
 
-                const cantidadCotizada = Number(ligado[0]?.cantidadCotizada ?? 0);
-                const cantidadVendida = Number(ligado[0]?.cantidadVendida ?? 0);
+                const cantidadVendida = Number(
+                    item?.cantidadVendida ?? 0
+                );
 
                 let estadoLigado = 0;
 
@@ -79,19 +65,19 @@ class Cotizacion {
                     cantidadVendida,
                     id: (index + 1) + parseInt(posicionPagina)
                 }
-            }));
+            });
 
-            const total = await conec.procedure(`CALL Listar_Cotizaciones_Count(?,?,?,?,?,?,?)`, [
-                parseInt(opcion),
-                toNullString(buscar),
-                toNullString(fechaInicio),
-                toNullString(fechaFinal),
-                idSucursal,
-                toNullNumber(ligado),
-                toNullNumber(estado),
-            ]);
+            const resumenRaw = result[2]?.[0] ?? {};
 
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+            const resumen = {
+                totalCotizaciones: Number(resumenRaw.totalCotizaciones ?? 0),
+                cotizacionesSinVenta: Number(resumenRaw.cotizacionesSinVenta ?? 0),
+                cotizacionesParciales: Number(resumenRaw.cotizacionesParciales ?? 0),
+                cotizacionesCompletadas: Number(resumenRaw.cotizacionesCompletadas ?? 0),
+                totalCantidadFaltante: Number(resumenRaw.totalCantidadFaltante ?? 0)
+            };
+
+            return sendSuccess(res, { "result": resultLista, "total": Number(result[1]?.[0]?.Total ?? 0), resumen });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Cotizacion/list", error)
         }
