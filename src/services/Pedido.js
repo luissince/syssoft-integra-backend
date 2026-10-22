@@ -14,7 +14,7 @@ class Pedido {
         try {
             const { opcion, buscar, fechaInicio, fechaFinal, idSucursal, ligado, estado, posicionPagina, filasPorPagina } = req.query;
 
-            const lista = await conec.procedure(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?,?)`, [
+            const result = await conec.procedureAll(`CALL Listar_Pedidos(?,?,?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 toNullString(buscar),
                 toNullString(fechaInicio),
@@ -27,27 +27,7 @@ class Pedido {
                 parseInt(filasPorPagina)
             ]);
 
-            const resultLista = await Promise.all(lista.map(async function (item, index) {
-                const ligado = await conec.query(`
-                SELECT
-                    pd.idPedido,
-                    SUM(pd.cantidad) AS cantidadPedido,
-                    COALESCE((
-                        SELECT SUM(vd.cantidad)
-                        FROM ventaPedido vc
-                        INNER JOIN venta v 
-                            ON v.idVenta = vc.idVenta
-                            AND v.estado <> 3
-                        INNER JOIN ventaDetalle vd 
-                            ON vd.idVenta = v.idVenta
-                        WHERE vc.idPedido = pd.idPedido
-                    ), 0) AS cantidadVendida
-                FROM pedidoDetalle pd
-                WHERE pd.idPedido = ?
-                GROUP BY pd.idPedido`, [
-                    item.idPedido
-                ]);
-
+            const resultLista = await Promise.all(result[0].map(async function (item, index) {
                 const cantidadPedido = Number(ligado[0]?.cantidadPedido ?? 0);
                 const cantidadVendida = Number(ligado[0]?.cantidadVendida ?? 0);
 
@@ -113,21 +93,21 @@ class Pedido {
                 }
             }));
 
-            const total = await conec.procedure(`CALL Listar_Pedidos_Count(?,?,?,?,?,?,?)`, [
-                parseInt(opcion),
-                toNullString(buscar),
-                toNullString(fechaInicio),
-                toNullString(fechaFinal),
-                toNullString(idSucursal),
-                toNullNumber(ligado),
-                toNullString(estado),
-            ]);
-
             if (req.clientInfo.app === CLIENT_INFO_REQUEST_NAMES.CATALOG_NEXT) {
-                return sendSuccess(res, this._mapListResponse(resultLista, total[0].Total));
+                return sendSuccess(res, this._mapListResponse(resultLista, Number(result[1]?.[0]?.Total ?? 0)));
             }
 
-            return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
+            const resumenRaw = result[2]?.[0] ?? {};
+
+            const resumen = {
+                totalPedidos: Number(resumenRaw.totalPedidos ?? 0),
+                pedidosSinVenta: Number(resumenRaw.pedidosSinVenta ?? 0),
+                pedidosParciales: Number(resumenRaw.pedidosParciales ?? 0),
+                pedidosCompletadas: Number(resumenRaw.pedidosCompletadas ?? 0),
+                totalCantidadFaltante: Number(resumenRaw.totalCantidadFaltante ?? 0)
+            };
+
+            return sendSuccess(res, { "result": resultLista, "total": Number(result[1]?.[0]?.Total ?? 0), resumen });
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/list", error)
         }
@@ -343,7 +323,7 @@ class Pedido {
 
             const listaDetalles = detalles.map(item => {
                 return {
-                    ...item,                   
+                    ...item,
                     imagen: firebaseService.getUrl(item.imagen),
                 }
             });
@@ -407,7 +387,7 @@ class Pedido {
             }
 
             // Si el cliente es el ADMIN_REACT, devuelve el pedido en formato ADMIN_REACT
-            return sendSuccess(res, { cabecera: pedido[0], envio: envio[0], detalles: listaDetalles, ventas, vendidos  });
+            return sendSuccess(res, { cabecera: pedido[0], envio: envio[0], detalles: listaDetalles, ventas, vendidos });
         } catch (error) {
             // Manejo de errores: Si hay un error, devuelve un mensaje de error
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Pedido/detail", error)
