@@ -69,7 +69,6 @@ class Factura {
 
             return sendSuccess(res, { "result": resultLista, "total": total[0].Total });
         } catch (error) {
-            console.log("error");
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Factura/list", error);
         }
     }
