@@ -77,9 +77,11 @@ class GuiaRemision {
                 DATE_FORMAT(gui.fechaTraslado,'%Y-%m-%d') AS fechaTraslado,
                 gui.idTipoPeso,
                 gui.peso,
+
                 gui.idVehiculo,
                 vh.marca,
                 vh.numeroPlaca,
+
                 gui.idConductor,
                 cd.documento AS documentoCoductor,
                 cd.informacion AS informacionConductor,
@@ -103,7 +105,7 @@ class GuiaRemision {
                 ul.ubigeo AS ubigeoLlegada
             FROM
                 guiaRemision AS gui
-            INNER JOIN 
+            LEFT JOIN 
                 vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
             INNER JOIN 
                 persona AS cd ON cd.idPersona = gui.idConductor
@@ -553,7 +555,7 @@ class GuiaRemision {
             motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
         INNER JOIN 
             tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
-        INNER JOIN 
+        LEFT JOIN 
             vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
         INNER JOIN 
             persona AS cd ON cd.idPersona = gui.idConductor
