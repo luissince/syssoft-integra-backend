@@ -78,9 +78,13 @@ class GuiaRemision {
             v.numeracion AS numeracionRef,
 
             COALESCE(
-                CONCAT(cl.documento, ', ', cl.informacion),
-                CONCAT(emp.documento, ', ', emp.razonSocial)
-            ) AS cliente,
+                CONCAT(cl.documento),
+                CONCAT(emp.documento)
+            ) AS documentoCliente,
+            COALESCE(
+                CONCAT(cl.informacion),
+                CONCAT(emp.razonSocial)
+            ) AS informacionCliente,
             cl.celular
         FROM
             guiaRemision AS gui
