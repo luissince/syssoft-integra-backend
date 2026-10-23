@@ -40,13 +40,8 @@ class Cotizacion {
             ]);
 
             const resultLista = result[0].map(function (item, index) {
-                const cantidadCotizada = Number(
-                    item?.cantidadCotizada ?? 0
-                );
-
-                const cantidadVendida = Number(
-                    item?.cantidadVendida ?? 0
-                );
+                const cantidadCotizada = Number(item?.cantidadCotizada ?? 0);
+                const cantidadVendida = Number(item?.cantidadVendida ?? 0);
 
                 let estadoLigado = 0;
 
