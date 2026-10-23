@@ -74,6 +74,8 @@ class Empresa {
                 numeroWhatsapp,
                 tituloWhatsapp,
                 mensajeWhatsapp,
+                ycloudApiKey,
+
                 paginaWeb,
                 youTubePagina,
                 facebookPagina,
@@ -367,6 +369,7 @@ class Empresa {
                 numeroWhatsapp=?,
                 tituloWhatsapp=?,
                 mensajeWhatsapp=?,
+                ycloudApiKey=?,
 
                 paginaWeb = ?,
                 youTubePagina = ?,
@@ -412,6 +415,7 @@ class Empresa {
                 req.body.numeroWhatsapp,
                 req.body.tituloWhatsapp,
                 req.body.mensajeWhatsapp,
+                req.body.ycloudApiKey,
 
                 req.body.paginaWeb,
                 req.body.youTubePagina,

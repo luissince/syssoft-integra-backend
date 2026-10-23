@@ -1,6 +1,7 @@
 const { ClientError } = require("../tools/Error");
 const logger = require("../tools/Logger");
 const { sendClient, sendError } = require("../tools/Message");
+const ErrorResponse = require("../tools/ErrorAxios");
 
 module.exports = function startHttpServer(app) {
     // middleware 404
@@ -9,7 +10,7 @@ module.exports = function startHttpServer(app) {
     });
 
     // middleware global de errores (SIEMPRE al final)
-    app.use((err, req, res, next) => {
+    app.use((err, req, res, next) => {     
         if (err instanceof ClientError) {
             return sendClient(res, {
                 message: err.message || "Error de cliente",
