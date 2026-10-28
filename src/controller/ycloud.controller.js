@@ -4,4 +4,5 @@ const ycloud = require('../services/ycloud.service');
 module.exports = {
     text: makeController(ycloud.sendText, (req) => req),
     document: makeController(ycloud.sendDocument, (req) => req),
+    webhook: makeController(ycloud.webhook, (req) => req),
 };

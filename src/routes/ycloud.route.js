@@ -7,4 +7,7 @@ router.post('/text', ycloud.text);
 
 router.post('/document', ycloud.document);
 
+// Webhook de mensajes entrantes de YCloud
+router.post("/webhook", ycloud.webhook);
+
 module.exports = router;
