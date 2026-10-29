@@ -28,13 +28,17 @@ services:
     <<: *backend-service
     image: dracoly-backend
 
+  ayku-services:
+    <<: *backend-service
+    image: ayku-backend
+
+  migaymasa-services:
+    <<: *backend-service
+    image: migaymasa-backend
+
   worker-services:
     <<: *backend-service
     image: worker-backend
-
-  # masa-y-miga-services:
-  #   <<: *backend-service
-  #   image: masa-y-miga-backend
 
   # main-services:
   #   <<: *frontend-service
