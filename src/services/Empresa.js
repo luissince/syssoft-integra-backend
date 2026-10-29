@@ -96,7 +96,7 @@ class Empresa {
             const createFileData = (fileName) => {
                 const url = firebaseService.getUrl(fileName);
 
-                if(!url){
+                if (!url) {
                     return null;
                 }
 
@@ -513,18 +513,24 @@ class Empresa {
             const result = await conec.query(`
             SELECT
                 idEmpresa,
+                documento,
+                razonSocial,
                 nombreEmpresa,
+
                 email,
                 paginaWeb,
+
                 youTubePagina,
                 facebookPagina,
                 twitterPagina,
                 instagramPagina,
                 tiktokPagina,
+
                 informacion,
                 acercaNosotros,
                 politicasPrivacidad,
                 terminosCondiciones,
+
                 rutaImage,
                 rutaIcon
             FROM 
@@ -550,19 +556,17 @@ class Empresa {
                 result[0].idEmpresa
             ]);
 
-            const newBanners = banners.map((banner) => {
-                return {
-                    "id": banner.id,
-                    "nombre": banner.nombre,
-                    "url": firebaseService.getUrl(banner.nombre),
-                    "ancho": banner.ancho,
-                    "alto": banner.alto,
-                }
-            });
+            const newBanners = banners.map((banner) => ({
+                "id": banner.id,
+                "nombre": banner.nombre,
+                "url": firebaseService.getUrl(banner.nombre),
+                "ancho": banner.ancho,
+                "alto": banner.alto,
+            }));
 
             result[0].banners = newBanners;
 
-            return sendSuccess(res, result[0]);
+            return sendSuccess(res, this._getCompanyInfoResponse(result[0]));
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
         }
@@ -625,6 +629,39 @@ class Empresa {
         } catch (error) {
             return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Empresa/loadForWeb", error);
         }
+    }
+
+    _getCompanyInfoResponse(data) {
+        return {
+            idCompany: data.idEmpresa,
+            documentNumber: data.documento,
+            businessName: data.razonSocial,
+            legalName: data.nombreEmpresa,
+            email: data.email,
+
+            website: data.paginaWeb,
+            youtubePage: data.youTubePagina,
+            facebookPage: data.facebookPagina,
+            twitterPage: data.twitterPagina,
+            instagramPage: data.instagramPagina,
+            tiktokPage: data.tiktokPagina,
+
+            information: data.informacion,
+            aboutUs: data.acercaNosotros,
+            privacyPolicy: data.politicasPrivacidad,
+            termsAndConditions: data.terminosCondiciones,
+
+            icon: data.rutaIcon,
+            logo: data.rutaImage,
+
+            banners: data.banners.map((banner) => ({
+                id: banner.id,
+                name: banner.nombre,
+                url: banner.url,
+                width: banner.ancho,
+                height: banner.alto
+            })),
+        };
     }
 }
 

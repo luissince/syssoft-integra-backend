@@ -13,7 +13,16 @@ class Compra {
 
     async list(req, res) {
         try {
-            const { opcion, buscar, idSucursal, fechaInicio, fechaFinal, posicionPagina, filasPorPagina, } = req.query;
+            const {
+                opcion,
+                buscar,
+                idSucursal,
+                fechaInicio,
+                fechaFinal,
+                posicionPagina,
+                filasPorPagina,
+            } = req.query;
+
             const lista = await conec.procedure(`CALL Listar_Compras(?,?,?,?,?,?,?)`, [
                 parseInt(opcion),
                 toNullString(buscar),

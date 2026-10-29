@@ -2,6 +2,8 @@ const axios = require("axios");
 const conec = require("../database/mysql-connection");
 const { ClientError } = require("../tools/Error");
 
+const WINDOW_MS = 24 * 60 * 60 * 1000;
+
 class YCloudService {
     constructor() {
         this.sendText = this.sendText.bind(this);
@@ -18,47 +20,45 @@ class YCloudService {
     }
 
     async getConfig() {
-        const empresa = await conec.query(`
-            SELECT 
+        const rows = await conec.query(`
+            SELECT
+                razonSocial,
+                nombreEmpresa,
                 numeroWhatsapp, 
                 ycloudApiKey
-            FROM 
-                empresa
-            LIMIT 
-                1
+            FROM empresa
+            LIMIT 1
         `);
 
-        if (!empresa.length) {
+        if (!rows.length) {
             throw new ClientError(
                 "No se pudo obtener la configuración de la empresa."
             );
         }
 
-        const { numeroWhatsapp, ycloudApiKey } = empresa[0];
+        const { numeroWhatsapp, ycloudApiKey, razonSocial, nombreEmpresa } = rows[0];
 
-        if (!ycloudApiKey || !numeroWhatsapp) {
+        if (!numeroWhatsapp || !ycloudApiKey) {
             throw new ClientError(
                 "Configura el número de WhatsApp y la API key de YCloud."
             );
         }
 
         return {
+            legalName: nombreEmpresa || razonSocial,
             from: numeroWhatsapp,
             apiKey: ycloudApiKey,
         };
     }
 
-    async sendText(req) {
-        const { to, message } = req.body;
+    async postMessage(payload) {
         const config = await this.getConfig();
 
         const response = await this.api.post(
             "/whatsapp/messages",
             {
                 from: config.from,
-                to,
-                type: "text",
-                text: { body: message },
+                ...payload,
             },
             {
                 headers: {
@@ -70,8 +70,29 @@ class YCloudService {
         return response.data;
     }
 
-    async sendDocument(req) {
-        const { to, url, filename, caption } = req.body;
+    async isWindowOpen(phone) {
+        const rows = await conec.query(
+            `SELECT ultimoMensaje
+             FROM whatsappClienteSesion
+             WHERE telefono = ?
+             LIMIT 1`,
+            [phone]
+        );
+
+        if (!rows.length || !rows[0].ultimoMensaje) {
+            return false;
+        }
+
+        const lastMessage = new Date(
+            rows[0].ultimoMensaje
+        ).getTime();
+
+        const elapsed = Date.now() - lastMessage;
+
+        return elapsed >= 0 && elapsed < WINDOW_MS;
+    }
+
+    async sendTextTemplate(to, customerName) {
         const config = await this.getConfig();
 
         const response = await this.api.post(
@@ -79,11 +100,30 @@ class YCloudService {
             {
                 from: config.from,
                 to,
-                type: "document",
-                document: {
-                    link: url,
-                    filename,
-                    caption,
+                type: "template",
+                template: {
+                    name: "texto_comercial",
+                    language: { code: "es" },
+                    components: [
+                        {
+                            type: "header",
+                            parameters: [
+                                {
+                                    type: "text",
+                                    text: config.legalName,
+                                },
+                            ],
+                        },
+                        {
+                            type: "body",
+                            parameters: [
+                                {
+                                    type: "text",
+                                    text: customerName || "cliente",
+                                },
+                            ],
+                        },
+                    ],
                 },
             },
             {
@@ -94,6 +134,166 @@ class YCloudService {
         );
 
         return response.data;
+    }
+
+    async sendDocumentTemplate({
+        to,
+        url,
+        filename,
+        customerName,
+        documentType,
+    }) {
+        const config = await this.getConfig();
+
+        const response = await this.api.post(
+            "/whatsapp/messages",
+            {
+                from: config.from,
+                to,
+                type: "template",
+                template: {
+                    name: "documento_comercial",
+                    language: { code: "es" },
+                    components: [
+                        {
+                            type: "header",
+                            parameters: [
+                                {
+                                    type: "document",
+                                    document: {
+                                        link: url,
+                                        filename,
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            type: "body",
+                            parameters: [
+                                {
+                                    type: "text",
+                                    text: customerName,
+                                },
+                                {
+                                    type: "text",
+                                    text: documentType,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                headers: {
+                    "X-API-Key": config.apiKey,
+                },
+            }
+        );
+
+        return response.data;
+    }
+
+    async sendText(req) {
+        const { to, message, customerName } = req.body;
+
+        if (!to || !message) {
+            throw new ClientError(
+                "El destinatario y el mensaje son obligatorios."
+            );
+        }
+
+        const isOpen = await this.isWindowOpen(to);
+
+        if (!isOpen) {
+            // Envía la plantilla de notificación.
+            // El texto libre "message" NO se envía en este caso.
+            return this.sendTextTemplate(to, customerName);
+        }
+
+        return this.postMessage({
+            to,
+            type: "text",
+            text: { body: message },
+        });
+    }
+
+    async sendDocument(req) {
+        const {
+            to,
+            url,
+            filename,
+            caption,
+            customerName,
+            documentType,
+        } = req.body;
+
+        if (!to || !url || !filename) {
+            throw new ClientError(
+                "El destinatario, URL y nombre del archivo son obligatorios."
+            );
+        }
+
+        const isOpen = await this.isWindowOpen(to);
+
+        if (!isOpen) {
+            if (!customerName || !documentType) {
+                throw new ClientError(
+                    "Para enviar la plantilla, indica el nombre del cliente y el tipo de documento."
+                );
+            }
+
+            return this.sendDocumentTemplate({
+                to,
+                url,
+                filename,
+                customerName,
+                documentType,
+            });
+        }
+
+        return this.postMessage({
+            to,
+            type: "document",
+            document: {
+                link: url,
+                filename,
+                ...(caption ? { caption } : {}),
+            },
+        });
+    }
+
+    async webhook(req) {
+        const event = req.body;
+
+        // Procesar únicamente mensajes entrantes
+        if (event.type !== "whatsapp.inbound_message.received") {
+            return "ok";
+        }
+
+        const message = event.whatsappInboundMessage;
+
+        const phone = message?.from;
+        const messageDate = message?.sendTime || event.createTime;
+
+        if (!phone || !messageDate) {
+            return "ok";
+        }
+
+        await conec.query(`
+            INSERT INTO whatsappClienteSesion(
+                telefono, 
+                ultimoMensaje
+            ) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE
+                ultimoMensaje = GREATEST(
+                    ultimoMensaje,
+                    VALUES(ultimoMensaje)
+                )
+            `,
+            [phone, new Date(messageDate)]
+        );
+
+        return "ok";
     }
 }
 

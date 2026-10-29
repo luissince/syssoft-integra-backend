@@ -80,11 +80,11 @@ class GuiaRemision {
             COALESCE(
                 CONCAT(cl.documento),
                 CONCAT(emp.documento)
-            ) AS documentoCliente,
+            ) AS documento,
             COALESCE(
                 CONCAT(cl.informacion),
                 CONCAT(emp.razonSocial)
-            ) AS informacionCliente,
+            ) AS informacion,
             cl.celular
         FROM
             guiaRemision AS gui
