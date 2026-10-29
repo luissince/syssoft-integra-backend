@@ -30,6 +30,14 @@ clients:
     service: importmuneli-services
     deploy: production
 
+  ayku:
+    service: ayku-services
+    deploy: canary
+
+  migaymasa:
+    service: migaymasa-services
+    deploy: canary
+
   worker:
     service: worker-services
     deploy: worker
