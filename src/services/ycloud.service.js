@@ -194,7 +194,7 @@ class YCloudService {
     }
 
     async sendText(req) {
-        const { to, message, customerName } = req.body;
+        const { to, message, name } = req.body;
 
         if (!to || !message) {
             throw new ClientError(
@@ -207,7 +207,7 @@ class YCloudService {
         if (!isOpen) {
             // Envía la plantilla de notificación.
             // El texto libre "message" NO se envía en este caso.
-            return this.sendTextTemplate(to, customerName);
+            return this.sendTextTemplate(to, name);
         }
 
         return this.postMessage({
@@ -223,7 +223,7 @@ class YCloudService {
             url,
             filename,
             caption,
-            customerName,
+            name,
             documentType,
         } = req.body;
 
@@ -236,7 +236,7 @@ class YCloudService {
         const isOpen = await this.isWindowOpen(to);
 
         if (!isOpen) {
-            if (!customerName || !documentType) {
+            if (!name || !documentType) {
                 throw new ClientError(
                     "Para enviar la plantilla, indica el nombre del cliente y el tipo de documento."
                 );
@@ -246,7 +246,7 @@ class YCloudService {
                 to,
                 url,
                 filename,
-                customerName,
+                name,
                 documentType,
             });
         }
