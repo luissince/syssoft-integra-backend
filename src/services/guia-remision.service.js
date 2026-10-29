@@ -40,11 +40,110 @@ class GuiaRemision {
     }
 
     async detail(req) {
-        const guiaRemision = await conec.procedure(`CALL Guia_Remision_Por_Id(?)`, [
+        const guiaRemision = await conec.query(`
+        SELECT
+            DATE_FORMAT(gui.fecha,'%d/%m/%Y') AS fecha,
+            gui.hora,
+            cgui.nombre AS comprobante,
+            gui.serie,
+            gui.numeracion,
+
+            mdt.nombre AS modalidadTraslado,
+            mvt.nombre AS motivoTraslado,
+
+            DATE_FORMAT(gui.fechaTraslado,'%d/%m/%Y') AS fechaTraslado,
+
+            tp.nombre AS tipoPeso,
+            gui.peso,
+
+            vh.marca,
+            vh.numeroPlaca,
+
+            cd.documento AS documentoConductor,
+            cd.informacion AS informacionConductor,
+            cd.licenciaConducir,
+
+            gui.direccionPartida,
+            CONCAT(up.departamento,' - ',up.provincia,' - ',up.distrito, '(',up.ubigeo,')') AS ubigeoPartida,
+
+            gui.direccionLlegada,
+            CONCAT(ul.departamento,' - ',ul.provincia,' - ',ul.distrito, '(',ul.ubigeo,')') AS ubigeoLlegada,
+
+            CONCAT(u.apellidos,', ',  u.nombres) AS usuario,
+
+            gui.estado,
+
+            cv.nombre AS comprobanteRef,
+            v.serie AS serieRef,
+            v.numeracion AS numeracionRef,
+
+            COALESCE(
+                CONCAT(cl.documento),
+                CONCAT(emp.documento)
+            ) AS documento,
+            COALESCE(
+                CONCAT(cl.informacion),
+                CONCAT(emp.razonSocial)
+            ) AS informacion,
+            cl.celular
+        FROM
+            guiaRemision AS gui
+        INNER JOIN 
+            comprobante AS cgui on cgui.idComprobante = gui.idComprobante
+        INNER JOIN 
+            modalidadTraslado AS mdt ON mdt.idModalidadTraslado = gui.idModalidadTraslado
+        INNER JOIN 
+            motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
+        INNER JOIN 
+            tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
+        LEFT JOIN 
+            vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
+        INNER JOIN 
+            persona AS cd ON cd.idPersona = gui.idConductor
+        INNER JOIN 
+            ubigeo AS up ON up.idUbigeo = gui.idUbigeoPartida
+        INNER JOIN 
+            ubigeo AS ul ON ul.idUbigeo = gui.idUbigeoLlegada
+        INNER JOIN 
+            usuario AS u ON u.idUsuario = gui.idUsuario
+
+        LEFT JOIN 
+            venta AS v ON v.idVenta = gui.idVenta
+        LEFT JOIN 
+            comprobante AS cv on cv.idComprobante = v.idComprobante
+        LEFT JOIN 
+            persona AS cl ON cl.idPersona = v.idCliente
+
+        LEFT JOIN 
+            traslado AS tr ON tr.idTraslado = gui.idTraslado
+        LEFT JOIN 
+            sucursal AS suc ON suc.idSucursal = tr.idSucursalDestino
+        LEFT JOIN 
+            empresa AS emp ON emp.idEmpresa = suc.idEmpresa
+
+        WHERE 
+            gui.idGuiaRemision = ?`, [
             req.query.idGuiaRemision,
         ]);
 
-        const detalles = await conec.procedure(`CALL Guia_Remision_Detalle_Por_Id(?)`, [
+        const detalles = await conec.query(`
+        SELECT  
+            ROW_NUMBER() OVER (ORDER BY gd.idGuiaRemisionDetalle ASC) AS id,
+            p.imagen,
+            p.codigo,
+            p.nombre,
+            gd.cantidad,
+            m.nombre AS medida 
+        FROM 
+            guiaRemisionDetalle AS gd
+        INNER JOIN 
+            producto AS p ON gd.idProducto = p.idProducto
+        INNER JOIN 
+            medida AS m ON m.idMedida = p.idMedida
+        WHERE 
+            gd.idGuiaRemision = ?
+        ORDER BY 
+            gd.idGuiaRemisionDetalle ASC;`, [
             req.query.idGuiaRemision,
         ]);
 
@@ -77,9 +176,11 @@ class GuiaRemision {
                 DATE_FORMAT(gui.fechaTraslado,'%Y-%m-%d') AS fechaTraslado,
                 gui.idTipoPeso,
                 gui.peso,
+
                 gui.idVehiculo,
                 vh.marca,
                 vh.numeroPlaca,
+
                 gui.idConductor,
                 cd.documento AS documentoCoductor,
                 cd.informacion AS informacionConductor,
@@ -103,7 +204,7 @@ class GuiaRemision {
                 ul.ubigeo AS ubigeoLlegada
             FROM
                 guiaRemision AS gui
-            INNER JOIN 
+            LEFT JOIN 
                 vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
             INNER JOIN 
                 persona AS cd ON cd.idPersona = gui.idConductor
@@ -329,7 +430,12 @@ class GuiaRemision {
                     codigoAnexoLlegada = ?,
                     direccionLlegada = ?,
                     idUbigeoLlegada = ?,
-                    numeroTicketSunat = '',
+
+                    xmlSunat= NULL,
+                    xmlDescripcion = NULL,
+                    codigoHash = NULL,
+                    numeroTicketSunat = NULL,
+
                     idUsuario = ?
                 WHERE
                     idGuiaRemision = ?`, [
@@ -493,6 +599,7 @@ class GuiaRemision {
             gui.numeracion,
             cgui.facturado,
             --
+            mdt.idModalidadTraslado,
             mdt.nombre AS modalidadTraslado,
             --
             mvt.nombre AS motivoTraslado,
@@ -547,7 +654,7 @@ class GuiaRemision {
             motivoTraslado AS mvt ON mvt.idMotivoTraslado = gui.idMotivoTraslado
         INNER JOIN 
             tipoPeso AS tp ON tp.idTipoPeso = gui.idTipoPeso
-        INNER JOIN 
+        LEFT JOIN 
             vehiculo AS vh ON vh.idVehiculo = gui.idVehiculo
         INNER JOIN 
             persona AS cd ON cd.idPersona = gui.idConductor
@@ -646,6 +753,7 @@ class GuiaRemision {
                     "facturado": guiaRemision[0].facturado
                 },
                 "modalidadTraslado": {
+                    "idModalidadTraslado": guiaRemision[0].idModalidadTraslado,
                     "nombre": guiaRemision[0].modalidadTraslado
                 },
                 "motivoTraslado": {

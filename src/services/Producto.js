@@ -95,10 +95,6 @@ class Producto {
                 precios,
                 detalles,
                 imagenes,
-                colores,
-                tallas,
-                sabores,
-                atributos,
             } = req.body;
 
             const validateCodigo = await conec.execute(connection, `SELECT * FROM producto WHERE codigo = ? AND estado <> -1`, [
@@ -893,7 +889,6 @@ class Producto {
 
             // Invalidar caché del producto
             const cacheKey = PRODUCT_FILTER_WEB_ID(req.body.idProducto)
-
 
             await redisService.delete(cacheKey);
 

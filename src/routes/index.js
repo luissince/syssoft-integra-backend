@@ -78,4 +78,6 @@ module.exports = (app) => {
 
     app.use('/api/firebase', require('./firebase.route'));
     app.use('/api/dniruc', require('./dniruc.route'));
+    app.use('/api/plazo', require('./plazo.route'));
+    app.use('/api/ycloud', require('./ycloud.route'));
 };

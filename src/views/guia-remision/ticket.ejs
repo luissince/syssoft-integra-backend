@@ -82,16 +82,25 @@
         <%= guiaRemision.modalidadTraslado.nombre %>
       </p>
 
-      <p><span class="font-weight-bold">Unidad de Transporte</span> </p>
-      <p><span class="font-weight-bold">Licencia de Conducir:</span>
-        <%= guiaRemision.conductor.licenciaConducir %>
+      <p class="mb-1"><span class="font-weight-bold">Peso (KGM o TNE):</span>
+        <%= guiaRemision.peso %>
+          <%= guiaRemision.tipoPeso.nombre %>
       </p>
-      <p><span class="font-weight-bold">Número de Placa:</span>
-        <%= guiaRemision.vehiculo.numeroPlaca %>
-      </p>
-      <p><span class="font-weight-bold">Motivo Traslado:</span>
-        <%= guiaRemision.motivoTraslado.nombre %>
-      </p>
+
+      <% if (guiaRemision.modalidadTraslado.idModalidadTraslado==="MT0002" ) { %>
+        <p><span class="font-weight-bold">Unidad de Transporte</span> </p>
+        <p><span class="font-weight-bold">Licencia de Conducir:</span>
+          <%= guiaRemision.conductor.licenciaConducir %>
+        </p>
+        <p><span class="font-weight-bold">Número de Placa:</span>
+          <%= guiaRemision.vehiculo.numeroPlaca %>
+        </p>
+        <% } %>
+
+          <p>
+            <span class="font-weight-bold">Motivo Traslado:</span>
+            <%= guiaRemision.motivoTraslado.nombre %>
+          </p>
     </div>
 
     <div class="border-1 border-dashed"></div>
