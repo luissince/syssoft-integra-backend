@@ -1833,11 +1833,18 @@ class Factura {
         try {
             const { size, outputType = "pdf" } = req.params;
 
+            const { fechaInicio, fechaFinal, idSucursal = '', idUsuario = '' } = req.query;
+
             const template = 'venta/list/a4';
 
             const title = 'REPORTE VENTAS';
 
-            const data = await conec.procedureAll(`CALL Reporte_Venta_Global('2026-01-01', '2026-10-31', '', '')`)
+            const data = await conec.procedureAll(`CALL Reporte_Venta_Global(?, ?, ?, ?)`, [
+                fechaInicio,
+                fechaFinal,
+                idSucursal,
+                idUsuario
+            ])
 
             const html = await renderTemplate(template, {
                 formatDecimal,
