@@ -1831,12 +1831,39 @@ class Factura {
 
     async documentsPdfReports(req, res) {
         try {
+            const { size, outputType = "pdf" } = req.params;
+
+            const template = 'venta/list/a4';
+
+            const title = 'REPORTE VENTAS';
+
+            const data = await conec.procedureAll(`CALL Reporte_Venta_Global('2026-01-01', '2026-10-31', '', '')`)
+
+            const html = await renderTemplate(template, {
+                formatDecimal,
+                style: cssUrl,
+                icon: logoUrl,
+                title: title,
+                data
+            });
+
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/sale/pdf/reports`,
+                url: `${process.env.APP_PDF}/html-to-pdf`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                data: {
+                    title: title,
+                    htmlContent: html,
+                    paper: {
+                        paperType: size,
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: outputType
+                },
+                timeout: 60000,
                 responseType: 'arraybuffer'
             };
 

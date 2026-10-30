@@ -24,7 +24,7 @@ clients:
 
   dracoly:
     service: dracoly-services
-    deploy: production
+    deploy: canary
 
   importmuneli:
     service: importmuneli-services

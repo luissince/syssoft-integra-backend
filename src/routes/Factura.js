@@ -30,7 +30,7 @@ router.get("/pdf/:type/:idVenta/:size/:outputType", async (req, res) => await fa
 
 router.get("/pdf/account-receivable/:idVenta/:size", async (req, res) => await factura.documentsPdfAccountsReceivable(req, res));
 
-router.get("/pdf/list", async (req, res) => await factura.documentsPdfReports(req, res));
+router.get("/pdf/list/:size", async (req, res) => await factura.documentsPdfReports(req, res));
 
 router.get("/excel", async (req, res) => await factura.documentsPdfExcel(req, res));
 
