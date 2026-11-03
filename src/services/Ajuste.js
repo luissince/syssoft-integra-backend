@@ -89,7 +89,7 @@ class Ajuste {
                 req.query.idAjuste,
             ]);
 
-            const listaDetalles = detalles.map((item, index) => {             
+            const listaDetalles = detalles.map((item, index) => {
                 return {
                     ...item,
                     imagen: firebaseService.getUrl(item.imagen),
@@ -319,9 +319,23 @@ class Ajuste {
             // Procesar cada detalle
             for (const item of ajusteDetalles) {
                 const kardexes = await conec.execute(connection, `
-                    SELECT idProducto, cantidad, costo, idAlmacen, idInventario
-                    FROM kardex 
-                    WHERE idAjuste = ? AND idProducto = ?`, [req.query.idAjuste, item.idProducto]);
+                SELECT 
+                    k.idProducto, 
+                    k.cantidad, 
+                    k.costo, 
+                    k.idAlmacen, 
+                    k.idInventario
+                FROM 
+                    kardex AS k
+                INNER JOIN 
+                    inventario AS iv ON iv.idInventario = k.idInventario
+                INNER JOIN 
+                    producto AS p ON p.idProducto = iv.idProducto
+                WHERE 
+                    k.idAjuste = ? AND p.idProducto = ?`, [
+                    req.query.idAjuste,
+                    item.idProducto
+                ]);
 
                 for (const k of kardexes) {
                     await insertarKardex(k, k.cantidad);
