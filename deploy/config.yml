@@ -24,7 +24,7 @@ clients:
 
   dracoly:
     service: dracoly-services
-    deploy: canary
+    deploy: production
 
   importmuneli:
     service: importmuneli-services
@@ -32,11 +32,11 @@ clients:
 
   ayku:
     service: ayku-services
-    deploy: canary
+    deploy: production
 
   migaymasa:
     service: migaymasa-services
-    deploy: canary
+    deploy: production
 
   worker:
     service: worker-services

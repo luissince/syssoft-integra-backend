@@ -420,16 +420,20 @@ class Traslado {
             for (const item of trasladoDetalle) {
                 const kardexes = await conec.execute(connection, `
                 SELECT 
-                    k.idProducto,
+                    k.idProducto, 
                     k.idTipoKardex,
-                    k.cantidad,
-                    k.costo,
-                    k.idAlmacen,
-                    k.idInventario    
+                    k.cantidad, 
+                    k.costo, 
+                    k.idAlmacen, 
+                    k.idInventario
                 FROM 
-                    kardex AS k 
+                    kardex AS k
+                INNER JOIN 
+                    inventario AS iv ON iv.idInventario = k.idInventario
+                INNER JOIN 
+                    producto AS p ON p.idProducto = iv.idProducto
                 WHERE 
-                    k.idTraslado = ? AND k.idProducto = ?`, [
+                    k.idTraslado = ? AND p.idProducto = ?`, [
                     req.query.idTraslado,
                     item.idProducto,
                 ]);

@@ -767,15 +767,19 @@ class Compra {
                 // Obtener el kardex del compra por idProducto
                 const kardexes = await conec.execute(connection, `
                 SELECT 
-                    k.idProducto,
-                    k.cantidad,
-                    k.costo,
-                    k.idAlmacen,
+                    k.idProducto, 
+                    k.cantidad, 
+                    k.costo, 
+                    k.idAlmacen, 
                     k.idInventario
                 FROM 
-                    kardex AS k 
+                    kardex AS k
+                INNER JOIN 
+                    inventario AS iv ON iv.idInventario = k.idInventario
+                INNER JOIN 
+                    producto AS p ON p.idProducto = iv.idProducto
                 WHERE 
-                    k.idCompra = ? AND k.idProducto = ?`, [
+                    k.idCompra = ? AND p.idProducto = ?`, [
                     idCompra,
                     detalle.idProducto,
                 ]);
