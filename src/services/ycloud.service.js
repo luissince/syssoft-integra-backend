@@ -141,7 +141,7 @@ class YCloudService {
         url,
         filename,
         customerName,
-        documentType,
+        caption,
     }) {
         const config = await this.getConfig();
 
@@ -176,7 +176,7 @@ class YCloudService {
                                 },
                                 {
                                     type: "text",
-                                    text: documentType,
+                                    text: caption || 'comprobante',
                                 },
                             ],
                         },
@@ -224,7 +224,6 @@ class YCloudService {
             filename,
             caption,
             name,
-            documentType,
         } = req.body;
 
         if (!to || !url || !filename) {
@@ -235,19 +234,13 @@ class YCloudService {
 
         const isOpen = await this.isWindowOpen(to);
 
-        if (!isOpen) {
-            if (!documentType) {
-                throw new ClientError(
-                    "Para enviar la plantilla, indica el nombre del cliente y el tipo de documento."
-                );
-            }
-
+        if (!isOpen) {            
             return this.sendDocumentTemplate({
                 to,
                 url,
                 filename,
                 name,
-                documentType,
+                caption,
             });
         }
 
