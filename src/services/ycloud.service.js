@@ -19,6 +19,22 @@ class YCloudService {
         });
     }
 
+    async validatePdfUrl(url) {
+        try {
+            const response = await axios.head(url, {
+                timeout: 5000,
+                maxRedirects: 5,
+            });
+
+            return (
+                response.status === 200 &&
+                response.headers["content-type"]?.includes("application/pdf")
+            );
+        } catch (error) {
+            return false;
+        }
+    }
+
     async getConfig() {
         const rows = await conec.query(`
             SELECT
@@ -172,7 +188,7 @@ class YCloudService {
                             parameters: [
                                 {
                                     type: "text",
-                                    text: customerName,
+                                    text: customerName || 'cliente',
                                 },
                                 {
                                     type: "text",
@@ -205,8 +221,6 @@ class YCloudService {
         const isOpen = await this.isWindowOpen(to);
 
         if (!isOpen) {
-            // Envía la plantilla de notificación.
-            // El texto libre "message" NO se envía en este caso.
             return this.sendTextTemplate(to, name);
         }
 
@@ -232,9 +246,17 @@ class YCloudService {
             );
         }
 
+        const isValidPdf = await validatePdfUrl(url);
+
+        if (!isValidPdf) {
+            throw new ClientError(
+                "El documento no está disponible o no es un PDF válido."
+            );
+        }
+
         const isOpen = await this.isWindowOpen(to);
 
-        if (!isOpen) {            
+        if (!isOpen) {
             return this.sendDocumentTemplate({
                 to,
                 url,
