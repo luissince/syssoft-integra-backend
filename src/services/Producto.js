@@ -593,60 +593,10 @@ class Producto {
                 "product"
             );
 
-            let idTipoProducto = producto[0].idTipoProducto;
-
-            if (producto[0].idTipoProducto !== req.body.idTipoProducto) {
-                const movimientos = await conec.execute(connection, `
-                SELECT 'compraDetalle' AS origen
-                FROM compraDetalle
-                WHERE idProducto = ?
-
-                UNION ALL
-
-                SELECT 'ventaDetalle'
-                FROM ventaDetalle
-                WHERE idProducto = ?
-
-                UNION ALL
-
-                SELECT 'ajusteDetalle'
-                FROM ajusteDetalle
-                WHERE idProducto = ?
-
-                UNION ALL
-
-                SELECT 'trasladoDetalle'
-                FROM trasladoDetalle
-                WHERE idProducto = ?
-
-                UNION ALL
-
-                SELECT 'kardex'
-                FROM kardex
-                WHERE idProducto = ?
-
-                LIMIT 1`, [
-                    req.body.idProducto,
-                    req.body.idProducto,
-                    req.body.idProducto,
-                    req.body.idProducto,
-                    req.body.idProducto
-                ]);
-
-                if (movimientos.length > 0) {
-                    throw new Error(
-                        `No se puede cambiar el tipo de producto porque tiene movimientos en ${movimientos[0].origen}`
-                    );
-                }
-
-                idTipoProducto = req.body.idTipoProducto;
-            }
-
             await conec.execute(connection, `
             UPDATE 
                 producto 
             SET
-                idTipoProducto = ?,
                 idCategoria = ?,
                 idMedida = ?,     
                 idMarca = ?,
@@ -668,8 +618,7 @@ class Producto {
                 hupdate = ?,
                 idUsuario = ?
             WHERE 
-                idProducto = ?`, [
-                idTipoProducto,
+                idProducto = ?`, [                
                 req.body.idCategoria,
                 req.body.idMedida,
                 req.body.idMarca,

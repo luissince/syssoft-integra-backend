@@ -19,6 +19,22 @@ class YCloudService {
         });
     }
 
+    async validatePdfUrl(url) {
+        try {
+            const response = await axios.head(url, {
+                timeout: 5000,
+                maxRedirects: 5,
+            });
+
+            return (
+                response.status === 200 &&
+                response.headers["content-type"]?.includes("application/pdf")
+            );
+        } catch (error) {
+            return false;
+        }
+    }
+
     async getConfig() {
         const rows = await conec.query(`
             SELECT
@@ -141,7 +157,7 @@ class YCloudService {
         url,
         filename,
         customerName,
-        documentType,
+        caption,
     }) {
         const config = await this.getConfig();
 
@@ -172,11 +188,11 @@ class YCloudService {
                             parameters: [
                                 {
                                     type: "text",
-                                    text: customerName,
+                                    text: customerName || 'cliente',
                                 },
                                 {
                                     type: "text",
-                                    text: documentType,
+                                    text: caption || 'comprobante',
                                 },
                             ],
                         },
@@ -205,8 +221,6 @@ class YCloudService {
         const isOpen = await this.isWindowOpen(to);
 
         if (!isOpen) {
-            // Envía la plantilla de notificación.
-            // El texto libre "message" NO se envía en este caso.
             return this.sendTextTemplate(to, name);
         }
 
@@ -224,7 +238,6 @@ class YCloudService {
             filename,
             caption,
             name,
-            documentType,
         } = req.body;
 
         if (!to || !url || !filename) {
@@ -233,21 +246,23 @@ class YCloudService {
             );
         }
 
+        const isValidPdf = await this.validatePdfUrl(url);
+
+        if (!isValidPdf) {
+            throw new ClientError(
+                "El documento no está disponible o no es un PDF válido."
+            );
+        }
+
         const isOpen = await this.isWindowOpen(to);
 
         if (!isOpen) {
-            if (!name || !documentType) {
-                throw new ClientError(
-                    "Para enviar la plantilla, indica el nombre del cliente y el tipo de documento."
-                );
-            }
-
             return this.sendDocumentTemplate({
                 to,
                 url,
                 filename,
                 name,
-                documentType,
+                caption,
             });
         }
 

@@ -13,15 +13,6 @@ router.get('/list', async function (req, res) {
     }
 });
 
-router.get('/summary/:idAlmacen', async function (req, res) {
-    const result = await inventario.summary(req)
-    if (typeof result === 'object') {
-        res.status(200).send(result)
-    } else {
-        res.status(500).send(result)
-    }
-});
-
 router.put('/update/stock', async function (req, res) {
     const result = await inventario.updateStock(req)
     if (result === 'update') {

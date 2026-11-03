@@ -1021,16 +1021,20 @@ class Factura {
             for (const detalle of detalleVenta) {
                 // Obtener registros de kardex relacionados con esta venta y producto
                 const kardex = await conec.execute(connection, `
-                    SELECT 
-                        k.idProducto,
-                        k.cantidad,
-                        k.costo,
-                        k.idAlmacen,
-                        k.idInventario
-                    FROM 
-                        kardex AS k 
-                    WHERE 
-                        k.idVenta = ? AND k.idProducto = ?`, [
+                SELECT 
+                    k.idProducto, 
+                    k.cantidad, 
+                    k.costo, 
+                    k.idAlmacen, 
+                    k.idInventario
+                FROM 
+                    kardex AS k
+                INNER JOIN 
+                    inventario AS iv ON iv.idInventario = k.idInventario
+                INNER JOIN 
+                    producto AS p ON p.idProducto = iv.idProducto
+                WHERE 
+                    k.idVenta = ? AND p.idProducto = ?`, [
                     idVenta,
                     detalle.idProducto
                 ]);

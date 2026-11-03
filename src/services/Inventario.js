@@ -1,5 +1,6 @@
 const conec = require('../database/mysql-connection');
 const firebaseService = require('../common/fire-base');
+const { toNullString, toNullNumber } = require('../tools/Tools');
 
 class Inventario {
 
@@ -14,57 +15,35 @@ class Inventario {
                 filasPorPagina
             } = req.query;
 
-            const lista = await conec.procedure(`CALL Listar_Inventario(?,?,?,?,?,?)`, [
+            const result = await conec.procedureAll(`CALL Listar_Inventarios(?,?,?,?,?,?)`, [
                 parseInt(opcion),
-                buscar,
-                idAlmacen,
-                estado,
+                toNullString(buscar),
+                toNullString(idAlmacen),
+                toNullNumber(estado),
                 parseInt(posicionPagina),
                 parseInt(filasPorPagina)
             ]);
 
             // Genera lista con índice
-            const resultLista = await Promise.all(lista.map(async (item, index) => {
+            const resultLista = result[0].map((item, index) => {
                 return {
                     ...item,
                     id: (index + 1) + parseInt(posicionPagina),
                     imagen: firebaseService.getUrl(item.imagen),
                 };
-            }));
+            });
 
-            const total = await conec.procedure(`CALL Listar_Inventario_Count(?,?,?,?)`, [
-                parseInt(opcion),
-                buscar,
-                idAlmacen,
-                estado,
-            ]);
+            const resumenRaw = result[2]?.[0] ?? {};
 
-            return { "result": resultLista, "total": total[0].Total };
-        } catch (error) {
-            return "Se produjo un error de servidor, intente nuevamente.";
-        }
-    }
-
-    async summary(req) {
-        try {
-            const cantidades = await conec.query(`
-            SELECT
-                COUNT(*) AS totalProductos,
-                SUM(CASE WHEN i.cantidad < i.cantidadMinima THEN 1 ELSE 0 END) AS totalStockCritico,
-                SUM(CASE WHEN i.cantidad >= i.cantidadMinima AND i.cantidad <= i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockOptimo,
-                SUM(CASE WHEN i.cantidad > i.cantidadMaxima THEN 1 ELSE 0 END) AS totalStockExcedente
-            FROM 
-                inventario i
-            INNER JOIN 
-                producto p ON p.idProducto = i.idProducto AND p.estado <> -1
-            WHERE 
-                i.idAlmacen = ?`, [
-                req.params.idAlmacen
-            ]);
-
-            return {
-                ...cantidades[0],
+            const resumen = {
+                totalInventarios: Number(resumenRaw.totalInventarios ?? 0),
+                sinStock: Number(resumenRaw.sinStock ?? 0),
+                stockBajo: Number(resumenRaw.stockBajo ?? 0),
+                stockNormal: Number(resumenRaw.stockNormal ?? 0),
+                stockAlto: Number(resumenRaw.stockAlto ?? 0)
             }
+
+            return { "result": resultLista, "total": Number(result[1]?.[0]?.Total ?? 0), resumen };
         } catch (error) {
             return "Se produjo un error de servidor, intente nuevamente.";
         }
