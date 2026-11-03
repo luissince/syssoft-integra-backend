@@ -246,7 +246,7 @@ class YCloudService {
             );
         }
 
-        const isValidPdf = await validatePdfUrl(url);
+        const isValidPdf = await this.validatePdfUrl(url);
 
         if (!isValidPdf) {
             throw new ClientError(
