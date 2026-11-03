@@ -326,8 +326,8 @@ class Compra {
             for (const item of detalles) {
                 const cantidad = Number(item.cantidad);
 
-                // Calcular es costo actual en base a la formula de costo promedio ponderado
-                const valorTotalInventarioInicial = await conec.execute(connection, `
+                // Obtener valorización del inventario actual
+                const inventarioInicial = await conec.execute(connection, `
                 SELECT 
                     i.cantidad,
                     IFNULL(SUM(i.cantidad * p.costo), 0) AS total
@@ -341,16 +341,15 @@ class Compra {
                     idAlmacen
                 ]);
 
-                let costo = 0;
+                const stock = inventarioInicial[0];
 
-                if (valorTotalInventarioInicial.length !== 0 && valorTotalInventarioInicial[0].total !== 0) {
-                    const valorTotalNuevaCompra = item.costo * cantidad;
-                    const sumaTotales = valorTotalInventarioInicial[0].total + valorTotalNuevaCompra;
-                    const sumaCantidades = cantidad + valorTotalInventarioInicial[0].cantidad;
-                    const costoPromedio = sumaTotales / sumaCantidades;
-                    costo = costoPromedio;
-                } else {
-                    costo = item.costo;
+                let costo = item.costo;
+
+                if (stock && stock.cantidad > 0) {
+                    const nuevoTotal = stock.total + (item.costo * cantidad);
+                    const nuevaCantidad = stock.cantidad + cantidad;
+
+                    costo = nuevoTotal / nuevaCantidad;
                 }
 
                 // Obtener inventario
@@ -601,6 +600,7 @@ class Compra {
                 p.idProducto,
                 c.idAlmacen,
                 p.imagen,
+                p.codigo,
                 p.nombre AS producto,
                 md.nombre AS medida, 
                 m.nombre AS categoria, 
