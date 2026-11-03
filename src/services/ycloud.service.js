@@ -236,7 +236,7 @@ class YCloudService {
         const isOpen = await this.isWindowOpen(to);
 
         if (!isOpen) {
-            if (!name || !documentType) {
+            if (!documentType) {
                 throw new ClientError(
                     "Para enviar la plantilla, indica el nombre del cliente y el tipo de documento."
                 );
