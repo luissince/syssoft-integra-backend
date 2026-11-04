@@ -1549,7 +1549,7 @@ class Producto {
                     data: result[0][0],
                     descripcion: "Resumen Financiero Diario"
                 },
-                // Productos Vendidos con Detalles de Costo y Ganancia
+                // Productos Vendidos con Detalles
                 "2": {
                     data: result[1].length > 0 ? result[1].map((item) => {
                         return {

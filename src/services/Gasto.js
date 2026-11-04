@@ -56,6 +56,9 @@ class Gasto {
                 bancosAgregados
             } = req.body;
 
+            const date = currentDate();
+            const time = currentTime();
+
             /**
             * Generar un código unico para el gasto. 
             */
@@ -66,19 +69,24 @@ class Gasto {
             * Obtener la serie y numeración del comprobante.
             */
 
-            const comprobante = await conec.execute(connection, `SELECT 
-                serie,
-                numeracion 
-                FROM comprobante 
-                WHERE idComprobante  = ?
-            `, [
+            const comprobante = await conec.execute(connection, `
+                SELECT 
+                    serie,
+                    numeracion 
+                FROM 
+                    comprobante 
+                WHERE 
+                    idComprobante  = ?`, [
                 idComprobante
             ]);
 
-            const gastos = await conec.execute(connection, `SELECT 
-                numeracion  
-                FROM gasto 
-                WHERE idComprobante = ?`, [
+            const gastos = await conec.execute(connection, `
+                SELECT 
+                    numeracion  
+                FROM 
+                    gasto 
+                WHERE 
+                    idComprobante = ?`, [
                 idComprobante
             ]);
 
@@ -115,8 +123,8 @@ class Gasto {
                 estado,
                 observacion,
                 nota,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             /**
@@ -128,13 +136,14 @@ class Gasto {
             let idGastoDetalle = generateNumericCode(1, listaGastoDetalle, 'idGastoDetalle');
 
             // Proceso de registro  
-            await await conec.execute(connection, `INSERT INTO gastoDetalle(
-                    idGastoDetalle,
-                    idGasto,
-                    idConcepto,
-                    cantidad,
-                    monto
-                ) VALUES(?,?,?,?,?)`, [
+            await await conec.execute(connection, `
+            INSERT INTO gastoDetalle(
+                idGastoDetalle,
+                idGasto,
+                idConcepto,
+                cantidad,
+                monto
+            ) VALUES(?,?,?,?,?)`, [
                 idGastoDetalle,
                 idGasto,
                 idConcepto,
@@ -167,8 +176,8 @@ class Gasto {
                 idSucursal,
                 notaTransacion,
                 1,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idUsuario
             ]);
 
@@ -177,13 +186,13 @@ class Gasto {
 
             for (const item of bancosAgregados) {
                 await conec.execute(connection, `
-                    INSERT INTO transaccionDetalle(
-                        idTransaccionDetalle,
-                        idTransaccion,
-                        idBanco,
-                        monto,
-                        observacion
-                    ) VALUES(?,?,?,?,?)`, [
+                INSERT INTO transaccionDetalle(
+                    idTransaccionDetalle,
+                    idTransaccion,
+                    idBanco,
+                    monto,
+                    observacion
+                ) VALUES(?,?,?,?,?)`, [
                     idTransaccionDetalle,
                     idTransaccion,
                     item.idBanco,
@@ -523,7 +532,7 @@ class Gasto {
                 url: `${process.env.APP_PDF}/expense/excel`,
                 headers: {
                     'Content-Type': 'application/json',
-                },                
+                },
                 responseType: 'arraybuffer'
             };
 

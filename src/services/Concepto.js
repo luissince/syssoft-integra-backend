@@ -192,8 +192,10 @@ class Concepto {
         }
     }
 
-    async filtrarCobro(req, res) {
+    async filtrarConcepto(req, res) {
         try {
+            const { tipo, filtrar } = req.query;
+
             const result = await conec.query(`
             SELECT 
                 idConcepto, 
@@ -201,30 +203,13 @@ class Concepto {
             FROM 
                 concepto 
             WHERE 
-                idTipoConcepto = 'TC0001' AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
-                req.query.filtrar,
+                idTipoConcepto = ? AND nombre LIKE concat('%',?,'%')`, [
+                tipo,
+                filtrar,
             ]);
             return sendSuccess(res, result);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarCobro", error);
-        }
-    }
-
-    async filtrarGasto(req, res) {
-        try {
-            const result = await conec.query(`
-            SELECT 
-                idConcepto, 
-                nombre 
-            FROM 
-                concepto 
-            WHERE 
-                idTipoConcepto = 'TC0002' AND nombre LIKE concat(?,'%') AND sistema <> 1`, [
-                req.query.filtrar,
-            ]);
-            return sendSuccess(res, result);;
-        } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarGasto", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarConcepto", error);
         }
     }
 }
