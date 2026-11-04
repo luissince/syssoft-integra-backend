@@ -1021,16 +1021,20 @@ class Factura {
             for (const detalle of detalleVenta) {
                 // Obtener registros de kardex relacionados con esta venta y producto
                 const kardex = await conec.execute(connection, `
-                    SELECT 
-                        k.idProducto,
-                        k.cantidad,
-                        k.costo,
-                        k.idAlmacen,
-                        k.idInventario
-                    FROM 
-                        kardex AS k 
-                    WHERE 
-                        k.idVenta = ? AND k.idProducto = ?`, [
+                SELECT 
+                    k.idProducto, 
+                    k.cantidad, 
+                    k.costo, 
+                    k.idAlmacen, 
+                    k.idInventario
+                FROM 
+                    kardex AS k
+                INNER JOIN 
+                    inventario AS iv ON iv.idInventario = k.idInventario
+                INNER JOIN 
+                    producto AS p ON p.idProducto = iv.idProducto
+                WHERE 
+                    k.idVenta = ? AND p.idProducto = ?`, [
                     idVenta,
                     detalle.idProducto
                 ]);
@@ -1831,12 +1835,46 @@ class Factura {
 
     async documentsPdfReports(req, res) {
         try {
+            const { size, outputType = "pdf" } = req.params;
+
+            const { fechaInicio, fechaFinal, idSucursal = '', idUsuario = '' } = req.query;
+
+            const template = 'venta/list/a4';
+
+            const title = 'REPORTE VENTAS';
+
+            const data = await conec.procedureAll(`CALL Reporte_Venta_Global(?, ?, ?, ?)`, [
+                fechaInicio,
+                fechaFinal,
+                idSucursal,
+                idUsuario
+            ])
+
+            const html = await renderTemplate(template, {
+                formatDecimal,
+                style: cssUrl,
+                icon: logoUrl,
+                title: title,
+                data
+            });
+
             const options = {
                 method: 'POST',
-                url: `${process.env.APP_PDF}/sale/pdf/reports`,
+                url: `${process.env.APP_PDF}/html-to-pdf`,
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                data: {
+                    title: title,
+                    htmlContent: html,
+                    paper: {
+                        paperType: size,
+                        width: 0,
+                        height: 0,
+                    },
+                    outputType: outputType
+                },
+                timeout: 60000,
                 responseType: 'arraybuffer'
             };
 

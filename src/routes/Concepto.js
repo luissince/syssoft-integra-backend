@@ -12,8 +12,6 @@ router.post('/update', async (req, res) => await concepto.update(req, res))
 
 router.delete('/', async (req, res) => await concepto.delete(req, res))
 
-router.get('/filtrar/cobro', async (req, res) => await concepto.filtrarCobro(req, res))
-
-router.get('/filtrar/gasto', async (req, res) => await concepto.filtrarGasto(req, res))
+router.get('/filtrar', async (req, res) => await concepto.filtrarConcepto(req, res))
 
 module.exports = router;

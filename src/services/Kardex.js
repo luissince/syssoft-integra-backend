@@ -4,10 +4,9 @@ class Kardex {
 
     async list(req, res) {
         try {           
-            const kardex = await conec.procedure(`CALL Listar_Kardex(?,?,?)`, [
+            const kardex = await conec.procedure(`CALL Listar_Kardex(?,?)`, [
                 req.query.idAlmacen,
-                req.query.idProducto,
-                req.query.idSucursal,
+                req.query.idProducto
             ]);
             return kardex;
         } catch (error) {

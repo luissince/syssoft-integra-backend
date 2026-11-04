@@ -1,24 +1,43 @@
+const { default: axios } = require("axios");
 
 class ErrorResponse {
-    message = '';
-    body = '';
-    status = 400;
+    message = "Se produjo un error de servidor, intente nuevamente.";
+    body = null;
+    status = 500;
+    type = "Server";
 
     constructor(error) {
+        if (!axios.isAxiosError(error)) {
+            return;
+        }
+
         if (error.response) {
-            this.status = error.response.status;
-            this.message = error.response.data.message || error.response.data;
-            this.body = error.response.data.body || '';
+            const data = error.response.data;
+
+            this.status = error.response.status || 502;
+            this.message =
+                data?.message ||
+                (typeof data === "string" ? data : null) ||
+                "Error en el servicio externo.";
+
+            this.body = data?.body ?? null;
+            this.type = "External Service";
         } else if (error.request) {
-            this.message = 'No se pudo obtener la respuesta del servidor.';
+            this.status = 502;
+            this.message = "No se pudo obtener la respuesta del servidor externo.";
+            this.type = "Connection";
         } else {
-            if (error.message === 'canceled') {
-                this.message = 'Se canceló la solicitud la servidor';
-            } else {
-                this.message = error.message
-                    ? error.message
-                    : 'Algo salió mal, intente en un par de minutos.';
-            }
+            this.message = error.message || this.message;
+            this.type = "External Service";
+        }
+
+        if (
+            error.code === "ECONNABORTED" ||
+            error.code === "ETIMEDOUT"
+        ) {
+            this.status = 504;
+            this.message = "El servicio externo tardó demasiado en responder.";
+            this.type = "Timeout";
         }
     }
 

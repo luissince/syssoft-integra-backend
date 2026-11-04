@@ -47,6 +47,20 @@ services:
     volumes:
       - dracoly-backend-volumen:/app/src/path
 
+  ayku-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - ayku-backend-volumen:/app/src/path
+
+  migaymasa-services:
+    <<: *backend-service
+    image: ${IMAGE_NAME}
+    container_name: ${CONTAINER_NAME}
+    volumes:
+      - migaymasa-backend-volumen:/app/src/path
+
   worker-services:
     <<: *backend-service
     image: ${IMAGE_NAME}
@@ -78,5 +92,7 @@ volumes:
   importmuneli-backend-volumen:
   # supermarketya-backend-volumen:
   dracoly-backend-volumen:
-  # masa-y-miga-backend-volumen:
+  ayku-backend-volumen:
+  migaymasa-backend-volumen:
+  
   # main-backend-volumen:

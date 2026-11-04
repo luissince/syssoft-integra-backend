@@ -283,6 +283,8 @@ jobs:
 
           REDIS_HOST=${{ secrets.REDIS_HOST }}
           REDIS_PORT=${{ secrets.REDIS_PORT }}
+
+          YCLOUD_URL=${{ secrets.YCLOUD_URL }}
           EOL
 
 

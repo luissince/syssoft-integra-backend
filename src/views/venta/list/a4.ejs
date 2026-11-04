@@ -1,0 +1,322 @@
+<%
+/* =====================================================================
+   REPORTE DE VENTAS - plantilla EJS (A4, 2 páginas)
+
+   Variables que recibe desde el controlador:
+     data     -> resultado de CALL Reporte_Venta(...): arreglo con los 5 resultados
+                 [0] kpis (1 fila) | [1] meses | [2] categorias | [3] sucursales | [4] top
+     title    -> título del reporte
+     icon     -> URL/base64 del logo (opcional)
+     inicio, final -> fechas del periodo (string 'AAAA-MM-DD' o Date)
+     empresa, area, moneda -> opcionales
+   Si tu capa `conec.procedure` devuelve otra estructura, ajusta SOLO el bloque
+   "1. ENTRADA" de aquí abajo.
+   ===================================================================== */
+
+/* ---------- 1. ENTRADA ---------- */
+const rs         = Array.isArray(data) ? data : [];
+const k          = (rs[0] && rs[0][0]) || {};
+const meses      = rs[1] || [];
+const categorias = rs[2] || [];
+const sucursales = (rs[3] || []).slice(0, 10);
+const top        = (rs[4] || []).slice(0, 5);
+
+const EMPRESA = locals.empresa || 'Nombre de la empresa';
+const AREA    = locals.area    || 'Gerencia Comercial';
+const MONEDA  = locals.moneda  || 'S/';
+const TITULO  = locals.title   || 'Reporte de Ventas';
+
+/* ---------- 2. UTILIDADES ---------- */
+const n    = v => { const x = Number(v); return isFinite(x) ? x : 0; };   // DECIMAL llega como texto
+const nul  = v => (v === null || v === undefined || v === '') ? null : n(v);
+const fmt  = v => n(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const money      = v => `${MONEDA} ${fmt(v)}`;
+const moneyShort = v => Math.abs(n(v)) >= 1e6 ? `${MONEDA} ${(n(v) / 1e6).toFixed(2)} M` : money(v);
+const pct  = v => v === null ? 'Sin dato' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
+const cls  = v => v === null ? 'mut' : (v >= 0 ? 'pos' : 'neg');
+const esc  = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const iso  = v => v instanceof Date ? v.toISOString().slice(0, 10) : String(v || '').slice(0, 10);
+const fecha = v => { const [y, m, d] = iso(v).split('-'); return `${d}/${m}/${y}`; };
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const COL = { navy:'#0F2747', teal:'#12A594', grey:'#B8C2D0', line:'#D9DEE5', muted:'#6B7280', ink:'#1F2937' };
+
+function niceAxis(vmax, ticks = 5) {
+  if (vmax <= 0) return [1, 0.2];
+  const raw = vmax / ticks, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => raw <= s);
+  return [step * Math.ceil(vmax / step), step];
+}
+
+/* ---------- 3. PERIODO ---------- */
+const hoy      = new Date();
+const final    = iso(locals.final)  || hoy.toISOString().slice(0, 10);
+const inicio   = iso(locals.inicio) || `${final.slice(0, 4)}-01-01`;
+const periodo  = `${fecha(inicio)} - ${fecha(final)}`;
+const anio     = Number(final.slice(0, 4));
+const mesActual = Number(final.slice(5, 7));
+const emitido  = fecha(hoy.toISOString());
+
+/* ---------- 4. KPIs ---------- */
+const vV = nul(k.var_ventas), vP = nul(k.var_pedidos), vT = nul(k.var_ticket);
+const vs = v => v === null ? 'Sin dato año anterior' : `${pct(v)} vs año anterior`;
+const kpis = [
+  { l: 'Ventas del periodo',  v: moneyShort(k.ventas_actual),       d: vs(vV), c: cls(vV) },
+  { l: 'Pedidos',             v: fmt(k.pedidos_actual),             d: vs(vP), c: cls(vP) },
+  { l: 'Ticket promedio',     v: money(k.ticket_promedio),          d: vs(vT), c: cls(vT) },
+  { l: 'Margen de ganancia',  v: `${n(k.margen_ganancia).toFixed(1)}%`,
+    d: `Ganancia ${moneyShort(k.ganancia_actual)}`, c: 'mut' }
+];
+
+/* ---------- 5. HALLAZGOS (texto generado con los datos) ---------- */
+const hallazgos = [];
+{
+  const i = mesActual - 1;
+  const cur = n(meses[i] && meses[i].total), prev = i > 0 && meses[i - 1] ? n(meses[i - 1].total) : 0;
+  const nombre = MESES[i][0].toUpperCase() + MESES[i].slice(1);
+  hallazgos.push({ b: `${nombre} cerró en ${money(cur)}`,
+                   t: (prev ? `, ${pct((cur / prev - 1) * 100)} frente a ${MESES[i - 1]}` : '') + '.' });
+  if (vV !== null) hallazgos.push({ b: `Las ventas del periodo suman ${money(k.ventas_actual)}`,
+                   t: `, ${pct(vV)} frente al mismo periodo del año anterior.` });
+  if (categorias.length) hallazgos.push({ b: `${categorias[0].categoria} lidera`,
+                   t: ` con el ${n(categorias[0].participacion).toFixed(0)}% de los ingresos.` });
+  if (sucursales.length) hallazgos.push({ b: `${sucursales[0].sucursal} aporta ${n(sucursales[0].participacion).toFixed(0)}%`,
+                   t: ' de las ventas.' });
+  if (n(k.ventas_actual)) hallazgos.push({ b: `El ${(n(k.ventas_credito) / n(k.ventas_actual) * 100).toFixed(0)}% de las ventas fue al crédito`,
+                   t: '; conviene dar seguimiento a la cobranza.' });
+}
+
+/* ---------- 6. GRÁFICO MENSUAL (SVG) ---------- */
+let svgMensual = '';
+if (meses.length) {
+  const W = 700, H = 210, L = 46, R = 6, T = 30, B = 24, pw = W - L - R, ph = H - T - B;
+  const vmax0 = Math.max(...meses.map(m => Math.max(n(m.total), n(m.total_anio_anterior))));
+  const [vmax, step] = niceAxis(vmax0);
+  const y = v => T + ph - (v / vmax) * ph;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Ventas mensuales">`;
+  s += `<text x="0" y="12" font-size="9" fill="${COL.muted}">Miles de ${esc(MONEDA)}</text>`;
+  let lx = W - 235;
+  [[String(anio), COL.navy], [String(anio - 1), COL.grey], ['Mes del reporte', COL.teal]].forEach(([t, c]) => {
+    s += `<rect x="${lx}" y="3" width="8" height="8" fill="${c}"/><text x="${lx + 12}" y="11" font-size="9" fill="${COL.muted}">${t}</text>`;
+    lx += 12 + t.length * 5 + 14;
+  });
+  for (let v = 0; v <= vmax + 1e-9; v += step) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${COL.line}" stroke-width="0.6"/>` +
+         `<text x="${L - 6}" y="${y(v) + 3}" text-anchor="end" font-size="9" fill="${COL.muted}">${fmt(v / 1000)} k</text>`;
+  }
+  const gw = pw / meses.length, bw = 11.5, gap = 1.5;
+  meses.forEach((m, i) => {
+    const x0 = L + i * gw + (gw - (2 * bw + gap)) / 2, cur = n(m.total), prev = n(m.total_anio_anterior);
+    s += `<rect x="${x0}" y="${y(cur)}" width="${bw}" height="${T + ph - y(cur)}" fill="${i === mesActual - 1 ? COL.teal : COL.navy}"/>` +
+         `<rect x="${x0 + bw + gap}" y="${y(prev)}" width="${bw}" height="${T + ph - y(prev)}" fill="${COL.grey}"/>` +
+         `<text x="${L + i * gw + gw / 2}" y="${H - 8}" text-anchor="middle" font-size="9.5" fill="${COL.muted}">${esc(m.mes)}</text>`;
+  });
+  svgMensual = s + '</svg>';
+}
+
+/* ---------- 7. GRÁFICO DE CATEGORÍAS (SVG) ---------- */
+let svgCategorias = '';
+if (categorias.length) {
+  const cats = categorias.slice(0, 8);
+  const W = 700, L = 92, R = 70, rowH = 26, H = cats.length * rowH + 22;
+  const vmax = Math.max(...cats.map(c => n(c.ingresos)), 1);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Ventas por categoría">` +
+          `<text x="0" y="10" font-size="9" fill="${COL.muted}">Ingresos del periodo (${esc(MONEDA)})</text>`;
+  cats.forEach((c, i) => {
+    const y = 22 + i * rowH, bw = (W - L - R) * n(c.ingresos) / vmax;
+    s += `<text x="${L - 8}" y="${y + 11}" text-anchor="end" font-size="10" fill="${COL.ink}">${esc(c.categoria)}</text>` +
+         `<rect x="${L}" y="${y}" width="${bw}" height="15" fill="${i === 0 ? COL.teal : COL.navy}"/>` +
+         `<text x="${L + bw + 6}" y="${y + 11}" font-size="9.5" font-weight="700" fill="${COL.ink}">${fmt(c.ingresos)}</text>`;
+  });
+  s += `<line x1="${L}" x2="${L}" y1="18" y2="${H}" stroke="${COL.line}" stroke-width="0.8"/>`;
+  svgCategorias = s + '</svg>';
+}
+
+const totPedidos  = sucursales.reduce((a, s) => a + n(s.pedidos), 0);
+const totIngresos = sucursales.reduce((a, s) => a + n(s.ingresos), 0);
+const pie = `${TITULO} · ${periodo}`;
+%><!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title><%= TITULO %></title>
+<style>
+  :root {
+    --navy: #0F2747; --teal: #12A594; --soft: #F3F5F8; --tint: #E8F6F4;
+    --ink: #1F2937; --muted: #6B7280; --line: #D9DEE5; --green: #15803D; --red: #DC2626;
+  }
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 9.5pt; line-height: 1.4; color: var(--ink); background: #fff;
+  }
+
+  /* ---------- Hoja A4 ---------- */
+  .page {
+    width: 210mm; height: 296.5mm; background: #fff; position: relative; overflow: hidden;
+    break-after: page; page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+
+  /* ---------- Cabeceras ---------- */
+  .hero {
+    background: var(--navy); color: #fff; height: 44mm; padding: 0 18mm;
+    border-bottom: 2mm solid var(--teal);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .hero h1 { font-size: 26pt; line-height: 1.1; }
+  .hero p { font-size: 11pt; margin-top: 3mm; }
+  .hero-right { display: flex; align-items: center; gap: 4mm; text-align: right; font-size: 9pt; }
+  .hero-right .txt { display: flex; flex-direction: column; gap: 1mm; }
+  .hero-right strong { font-size: 10pt; text-transform: uppercase; margin-bottom: 1mm; }
+  .hero-right img { height: 16mm; max-width: 34mm; object-fit: contain; background: #fff; padding: 1.5mm; border-radius: 1.5mm; }
+
+  .mini {
+    background: var(--navy); color: #fff; height: 14mm; padding: 0 18mm;
+    border-bottom: 1mm solid var(--teal);
+    display: flex; justify-content: space-between; align-items: center; font-size: 9pt;
+  }
+  .mini strong { font-size: 10pt; }
+
+  .content { padding: 9mm 18mm 0; }
+  h2 {
+    font-size: 12.5pt; color: var(--navy); padding-bottom: 1.4mm;
+    border-bottom: .6pt solid var(--line); margin: 7mm 0 3.2mm;
+  }
+  h2:first-child { margin-top: 0; }
+
+  /* ---------- KPIs ---------- */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.8mm; }
+  .kpi { background: var(--soft); border-top: .9mm solid var(--teal); padding: 3.2mm 3.6mm; }
+  .kpi .l { font-size: 7.5pt; text-transform: uppercase; color: var(--muted); }
+  .kpi .v { font-size: 19pt; font-weight: 700; color: var(--navy); line-height: 1.25; }
+  .kpi .d { font-size: 8pt; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); } .mut { color: var(--muted); }
+
+  /* ---------- Hallazgos ---------- */
+  .insights {
+    list-style: none; background: var(--tint); border-left: 1mm solid var(--teal);
+    padding: 3.5mm 4.5mm 1.5mm;
+  }
+  .insights li { position: relative; padding-left: 4mm; margin-bottom: 2mm; }
+  .insights li::before { content: "•"; position: absolute; left: 0; }
+
+  /* ---------- Tablas ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 2.2mm 2.8mm; font-weight: 700; }
+  td { padding: 2.2mm 2.8mm; }
+  tbody tr:nth-child(even) { background: var(--soft); }
+  tbody tr:last-child { border-bottom: .8pt solid var(--line); }
+  .r { text-align: right; } .c { text-align: center; }
+  tr.total td { background: var(--tint); font-weight: 700; border-top: 1pt solid var(--teal); }
+
+  svg { display: block; }
+  svg text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+  /* ---------- Pie de página ---------- */
+  .foot {
+    position: absolute; left: 18mm; right: 18mm; bottom: 8mm;
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--muted); border-top: .6pt solid var(--line); padding-top: 3mm;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== PÁGINA 1 ===================== -->
+<section class="page">
+  <header class="hero">
+    <div>
+      <h1><%= TITULO %></h1>
+      <p>Resumen ejecutivo · <%= periodo %></p>
+    </div>
+    <div class="hero-right">
+      <div class="txt">
+        <strong><%= EMPRESA %></strong>
+        <span><%= AREA %></span>
+        <span>Emitido: <%= emitido %></span>
+      </div>
+      <% if (locals.icon) { %><img src="<%= icon %>" alt="Logo"><% } %>
+    </div>
+  </header>
+  <div class="content">
+    <h2>Indicadores clave</h2>
+    <div class="kpis">
+      <% kpis.forEach(c => { %>
+        <div class="kpi">
+          <div class="l"><%= c.l %></div>
+          <div class="v"><%= c.v %></div>
+          <div class="d <%= c.c %>"><%= c.d %></div>
+        </div>
+      <% }) %>
+    </div>
+
+    <h2>Evolución mensual <%= anio %> vs <%= anio - 1 %></h2>
+    <%- svgMensual %>
+
+    <h2>Hallazgos principales</h2>
+    <ul class="insights">
+      <% hallazgos.forEach(h => { %>
+        <li><b><%= h.b %></b><%= h.t %></li>
+      <% }) %>
+    </ul>
+  </div>
+  <footer class="foot"><span><%= pie %></span><span>Página 1</span></footer>
+</section>
+
+<!-- ===================== PÁGINA 2 ===================== -->
+<section class="page">
+  <header class="mini">
+    <strong><%= TITULO %></strong>
+    <span>Detalle por categoría, sucursal y producto</span>
+  </header>
+  <div class="content">
+    <h2>Ventas por categoría</h2>
+    <%- svgCategorias %>
+
+    <h2>Desempeño por sucursal</h2>
+    <table>
+      <thead>
+        <tr><th>Sucursal</th><th class="r">Pedidos</th><th class="r">Ingresos (<%= MONEDA %>)</th><th class="r">% del total</th></tr>
+      </thead>
+      <tbody>
+        <% sucursales.forEach(s => { %>
+          <tr>
+            <td><%= s.sucursal %></td>
+            <td class="r"><%= fmt(s.pedidos) %></td>
+            <td class="r"><%= fmt(s.ingresos) %></td>
+            <td class="r"><%= n(s.participacion).toFixed(1) %>%</td>
+          </tr>
+        <% }) %>
+        <tr class="total">
+          <td>Total</td><td class="r"><%= fmt(totPedidos) %></td><td class="r"><%= fmt(totIngresos) %></td><td class="r">100.0%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Top 5 productos</h2>
+    <table>
+      <thead>
+        <tr><th class="c" style="width:7%">#</th><th>Producto</th><th>Categoría</th>
+            <th class="r">Unidades</th><th class="r">Ingresos (<%= MONEDA %>)</th><th class="r">Margen</th></tr>
+      </thead>
+      <tbody>
+        <% top.forEach((p, i) => { %>
+          <tr>
+            <td class="c"><%= i + 1 %></td>
+            <td><%= p.nombre %></td>
+            <td><%= p.categoria %></td>
+            <td class="r"><%= fmt(p.unidades) %></td>
+            <td class="r"><%= fmt(p.ingresos) %></td>
+            <td class="r"><%= n(p.margen).toFixed(1) %>%</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <footer class="foot"><span><%= pie %></span><span>Página 2</span></footer>
+</section>
+
+</body>
+</html>
