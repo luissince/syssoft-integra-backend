@@ -56,6 +56,9 @@ class Cobro {
                 bancosAgregados,
             } = req.body;
 
+            const date = currentDate();
+            const time = currentTime();
+
             /**
             * Generar un código unico para el cobro. 
             */
@@ -73,8 +76,7 @@ class Cobro {
             FROM 
                 comprobante 
             WHERE 
-                idComprobante  = ?
-            `, [
+                idComprobante  = ?`, [
                 idComprobante
             ]);
 
@@ -122,8 +124,8 @@ class Cobro {
                 estado,
                 observacion,
                 nota,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
             ]);
 
             /**
@@ -175,8 +177,8 @@ class Cobro {
                 idSucursal,
                 notaTransacion,
                 1,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 idUsuario
             ]);
 
