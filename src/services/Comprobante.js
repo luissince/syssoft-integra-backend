@@ -55,7 +55,8 @@ class Comprobante {
             const result = await conec.execute(connection, 'SELECT idComprobante FROM comprobante');
             const idComprobante = generateAlphanumericCode("CB0001", result, 'idComprobante');
 
-            await conec.execute(connection, `INSERT INTO comprobante(
+            await conec.execute(connection, `
+            INSERT INTO comprobante(
                 idComprobante,
                 idSucursal,
                 idTipoComprobante,

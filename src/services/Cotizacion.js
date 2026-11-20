@@ -460,7 +460,8 @@ class Cotizacion {
             // Genera una nueva numeración para la compra
             const numeracion = generateNumericCode(comprobante[0].numeracion, cotizaciones, "numeracion");
 
-            await conec.execute(connection, `INSERT INTO cotizacion(
+            await conec.execute(connection, `
+            INSERT INTO cotizacion(
                 idCotizacion,
                 idCliente,
                 idUsuario,
@@ -496,7 +497,8 @@ class Cotizacion {
 
             // Inserta los detalles de compra en la base de datos
             for (const item of req.body.detalles) {
-                await await conec.execute(connection, `INSERT INTO cotizacionDetalle(
+                await await conec.execute(connection, `
+                INSERT INTO cotizacionDetalle(
                     idCotizacionDetalle,
                     idCotizacion,
                     idProducto,
@@ -539,14 +541,14 @@ class Cotizacion {
             const time = currentTime();
 
             const validate = await conec.execute(connection, `
-                SELECT 
-                    *
-                FROM 
-                    ventaCotizacion AS vc
-                INNER JOIN
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-                WHERE 
-                    vc.idCotizacion = ?`, [
+            SELECT 
+                *
+            FROM 
+                ventaCotizacion AS vc
+            INNER JOIN
+                venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+            WHERE 
+                vc.idCotizacion = ?`, [
                 req.body.idCotizacion
             ]);
 
@@ -639,14 +641,14 @@ class Cotizacion {
             connection = await conec.beginTransaction();
 
             const validate = await conec.execute(connection, `
-                SELECT 
-                    *
-                FROM 
-                    ventaCotizacion AS vc
-                INNER JOIN
-                    venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
-                WHERE 
-                    vc.idCotizacion = ?`, [
+            SELECT 
+                *
+            FROM 
+                ventaCotizacion AS vc
+            INNER JOIN
+                venta AS v ON v.idVenta = vc.idVenta AND v.estado <> 3
+            WHERE 
+                vc.idCotizacion = ?`, [
                 req.query.idCotizacion
             ]);
 

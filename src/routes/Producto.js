@@ -24,9 +24,11 @@ router.get('/filtrar/venta', async (req, res) => await producto.filtrarParaVenta
 
 router.get('/filter/almacen', async (req, res) => await producto.filterAlmacen(req, res));
 
-router.put('/establecer/preferido', async (req, res) => await producto.preferidoEstablecer(req, res));
+router.put('/set/preferido', async (req, res) => await producto.setEstablecer(req, res));
 
-router.get('/lista/precios', async (req, res) => await producto.obtenerListPrecio(req, res));
+router.get('/list/precios/:idProducto', async (req, res) => await producto.getListPrecios(req, res));
+
+router.get('/list/presentaciones/:idProducto', async (req, res) => await producto.getListPresentaciones(req, res));
 
 router.post('/filter/web', async (req, res) => await producto.filterWeb(req, res));
 

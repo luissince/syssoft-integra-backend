@@ -171,7 +171,7 @@ class Sunat {
                         "privateKey": privateKey,
                         "publicKey": publicKey
                     },
-                    "detalle": detalles,                    
+                    "detalle": detalles,
                 },
             };
 
@@ -722,7 +722,7 @@ class Sunat {
             if (xml[0].xmlGenerado === null || xml[0].xmlGenerado === "") {
                 return sendClient(res, "El comprobante no tiene generado ningún xml.");
             }
-
+            
             const responde = {
                 data: Buffer.from(xml[0].xmlGenerado, 'utf-8'),
                 headers: {
@@ -738,121 +738,24 @@ class Sunat {
 
     async enviarEmail(req, res) {
         try {
-            let responseInvoices;
-
-            if (req.params.tipo === "fac") {
-                const params = {
-                    idVenta: req.params.idComprobante,
-                    size: "A4"
-                }
-
-                const data = await factura.documentsPdfInvoices({
-                    params: params
-                });
-
-                const optionsInvoices = {
-                    method: 'POST',
-                    url: `${process.env.APP_PDF}/sale/pdf/invoices`,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    data: data,
-                    responseType: 'arraybuffer'
-                };
-
-                responseInvoices = await axios.request(optionsInvoices);
-            } else {
-                // const params = {
-                //     idGuiaRemision: req.params.idComprobante,
-                //     size: "A4"
-                // }
-
-                // const data = await guiaRemision.documentsPdfInvoices({
-                //     params: params
-                // });
-
-                // const optionsInvoices = {
-                //     method: 'POST',
-                //     url: `${process.env.APP_PDF}/dispatch-guide/pdf/invoices`,
-                //     headers: {
-                //         'Content-Type': 'application/json',
-                //     },
-                //     data: data,
-                //     responseType: 'arraybuffer'
-                // };
-
-                // responseInvoices = await axios.request(optionsInvoices);
-            }
+            const { to,subject ,html,attachments } = req.body;
 
             const empresa = await conec.query(`
-                SELECT 
-                    documento,
-                    razonSocial,
-                    nombreEmpresa,
-                    email
-                FROM 
-                    empresa
-                LIMIT 
-                    1`);
+            SELECT 
+                documento,
+                razonSocial,
+                nombreEmpresa,
+                email
+            FROM 
+                empresa
+            LIMIT 1`);
 
-            const xml = await conec.query(`
-                SELECT 
-                    v.xmlGenerado,
-                    co.nombre,
-                    v.serie,
-                    v.numeracion,
-                    DATE_FORMAT(v.fecha, '%d/%m/%Y') AS fecha,
-                    cn.documento, 
-                    cn.informacion,
-                    cn.email
-                FROM 
-                    venta AS v 
-                INNER JOIN 
-                    comprobante AS co ON v.idComprobante = co.idComprobante
-                INNER JOIN
-                    persona AS cn ON v.idCliente = cn.idPersona
-                WHERE 
-                    v.idVenta = ?
-        
-                UNION
-                
-                SELECT 
-                    gu.xmlGenerado,
-                    co.nombre,
-                    gu.serie,
-                    gu.numeracion,
-                    DATE_FORMAT(gu.fecha, '%d/%m/%Y') AS fecha,
-                    cn.documento, 
-                    cn.informacion,
-                    cn.email
-                FROM 
-                    guiaRemision AS gu 
-                INNER JOIN 
-                    comprobante AS co ON gu.idComprobante = co.idComprobante
-                INNER JOIN 
-                    venta AS v ON v.idVenta = gu.idVenta
-                INNER JOIN 
-                    persona AS cn ON v.idCliente = cn.idPersona
-                WHERE 
-                    gu.idGuiaRemision = ?`, [
-                req.params.idComprobante,
-                req.params.idComprobante,
-            ]);
-
-            if (xml.length === 0) {
-                return sendClient(res, "No hay información del comprobante.");
-            }
-
-            if (xml[0].xmlGenerado === null || xml[0].xmlGenerado === "") {
-                return sendClient(res, "El comprobante no tiene generado ningún xml.");
-            }
-
-            if (xml[0].email === null || xml[0].email === "") {
-                return sendClient(res, "El cliente no tiene configurado un email.");
+            if (empresa.length === 0) {
+                return sendClient(res, "No se encontro información de la empresa.")
             }
 
             if (empresa[0].email === null || empresa[0].email === "") {
-                return sendClient(res, "No se ha configurado el email de envío.");
+                return sendClient(res, "No se ha configurado la correo electrónico de la empresa.");
             }
 
             const options = {
@@ -866,35 +769,10 @@ class Sunat {
                         name: empresa[0].nombreEmpresa ?? empresa[0].razonSocial,
                         address: empresa[0].email
                     },
-                    // to: xml[0].email,
-                    to: {
-                        address: xml[0].email,
-                        name: empresa[0].razonSocial
-                    },
-                    subject: "Comprobante Electrónico",
-                    html: `
-                        <p>Estimado Cliente <b>${xml[0].informacion}</b>.</p>
-                        <p>Le envíamos la información de su comprobante electrónico.</p>
-                        <span>N° RUC del Emisor: <b>${empresa[0].documento}</b></span><br/>
-                        <span>Tipo de Comprobante: <b>${xml[0].nombre}</b></span><br/>
-                        <span>Serie del Comprobante: <b>${xml[0].serie}</b></span><br/>
-                        <span>Número del Comprobante : <b>${xml[0].numeracion}</b></span><br/>
-                        <span>N° RUC/DNI del Cliente: <b>${xml[0].documento}</b></span><br/>
-                        <span>Fecha de Emisión: <b>${xml[0].fecha}</b></span><br/>
-                        <p>Atentamente ,</p>
-                        `,
-                    attachments: [
-                        {
-                            filename: `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml`,
-                            content: xml[0].xmlGenerado,
-                            contentType: 'application/xml'
-                        },
-                        {
-                            filename: `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.pdf`,
-                            content: responseInvoices.data,
-                            contentType: 'application/pdf'
-                        }
-                    ],
+                    to: to,
+                    subject: subject,
+                    html: html,
+                    attachments: attachments
                 },
             };
 

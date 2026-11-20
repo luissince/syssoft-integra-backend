@@ -7,21 +7,21 @@ class Concepto {
     async list(req, res) {
         try {
             const lista = await conec.query(`
-                SELECT 
-                    idConcepto,
-                    idTipoConcepto,
-                    nombre,
-                    sistema,
-                    DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
-                    hora 
-                FROM 
-                    concepto
-                WHERE 
-                    (? = 0)
-                    OR
-                    (? = 1 AND nombre LIKE concat(?,'%'))
-                LIMIT 
-                    ?,?`, [
+            SELECT 
+                idConcepto,
+                idTipoConcepto,
+                nombre,
+                sistema,
+                DATE_FORMAT(fecha,'%d/%m/%Y') as fecha,
+                hora 
+            FROM 
+                concepto
+            WHERE 
+                (? = 0)
+                OR
+                (? = 1 AND nombre LIKE concat(?,'%'))
+            LIMIT 
+                ?,?`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -39,14 +39,14 @@ class Concepto {
             });
 
             const total = await conec.query(`
-                SELECT 
-                    COUNT(*) AS Total 
-                FROM 
-                    concepto
-                WHERE 
-                    (? = 0)
-                    OR
-                    (? = 1 AND nombre LIKE concat(?,'%'))`, [
+            SELECT 
+                COUNT(*) AS Total 
+            FROM 
+                concepto
+            WHERE 
+                (? = 0)
+                OR
+                (? = 1 AND nombre LIKE concat(?,'%'))`, [
                 parseInt(req.query.opcion),
 
                 parseInt(req.query.opcion),
@@ -64,6 +64,9 @@ class Concepto {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
+
+            const date = currentDate();
+            const time = currentTime();
 
             const listConceptos = await conec.execute(connection, 'SELECT idConcepto FROM concepto');
             const idConcepto = generateAlphanumericCode("CP0001", listConceptos, 'idConcepto');
@@ -86,10 +89,10 @@ class Concepto {
                 req.body.nombre,
                 req.body.codigo,
                 0,
-                currentDate(),
-                currentTime(),
-                currentDate(),
-                currentTime(),
+                date,
+                time,
+                date,
+                time,
                 req.body.idUsuario
             ])
 
@@ -124,6 +127,9 @@ class Concepto {
         try {
             connection = await conec.beginTransaction();
 
+            const date = currentDate();
+            const time = currentTime();
+
             await conec.execute(connection, `
             UPDATE 
                 concepto 
@@ -139,8 +145,8 @@ class Concepto {
                 req.body.idTipoConcepto,
                 req.body.nombre,
                 req.body.codigo,
-                currentDate(),
-                currentTime(),
+                date,
+                time,
                 req.body.idUsuario,
                 req.body.idConcepto,
             ])
@@ -192,7 +198,7 @@ class Concepto {
         }
     }
 
-    async filtrarConcepto(req, res) {
+    async filtrar(req, res) {
         try {
             const { tipo, filtrar } = req.query;
 
@@ -206,6 +212,26 @@ class Concepto {
                 idTipoConcepto = ? AND nombre LIKE concat('%',?,'%')`, [
                 tipo,
                 filtrar,
+            ]);
+            return sendSuccess(res, result);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Concepto/filtrarConcepto", error);
+        }
+    }
+
+    async combo(req, res) {
+        try {
+            const { tipo } = req.query;
+
+            const result = await conec.query(`
+            SELECT 
+                idConcepto, 
+                nombre 
+            FROM 
+                concepto 
+            WHERE 
+                idTipoConcepto = ?`, [
+                tipo,
             ]);
             return sendSuccess(res, result);
         } catch (error) {
