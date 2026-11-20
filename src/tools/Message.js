@@ -49,20 +49,17 @@ function sendPdf(res, buffer, fileName = "reporte") {
  * sendFile(res, response);
  */
 function sendFile(res, response, fileName) {
-    // Extraer el tipo de archivo (MIME type) de la respuesta
-    const contentType = response.headers['content-type'];
+  const contentType = response.headers['content-type'];
+  const contentDisposition = response.headers['content-disposition'];
 
-    // Extraer el nombre del archivo de la cabecera Content-Disposition
-    const contentDisposition = response.headers['content-disposition'];
-    const filename = fileName ?? contentDisposition.match(/filename=([^;]+)/)[1].trim();
+  const filename = fileName ??
+    contentDisposition.match(/filename=(?:"([^"]+)"|([^;]+))/)?.slice(1).find(Boolean)?.trim();
 
-    // Configurar las cabeceras de respuesta
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.setHeader('Content-Length', response.data.length);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', response.data.length);
 
-    // Enviar el archivo al cliente
-    return res.end(response.data);
+  return res.end(response.data);
 }
 
 /**

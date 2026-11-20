@@ -93,6 +93,7 @@ class Producto {
                 idUsuario,
 
                 precios,
+                presentaciones,
                 detalles,
                 imagenes,
             } = req.body;
@@ -287,6 +288,25 @@ class Producto {
             }
 
             /**
+             * Registrar presentaciones
+             */
+
+            for (const presentacion of presentaciones) {
+                await conec.execute(connection, `
+                INSERT INTO productoPresentacion(
+                    idProducto,
+                    nombre,
+                    cantidad,
+                    factor
+                ) VALUES(?,?,?,?)`, [
+                    idProducto,
+                    presentacion.nombre,
+                    presentacion.cantidad,
+                    presentacion.factor,
+                ])
+            }
+
+            /**
              * Registrar detalles
              */
             let idDetalle = 1;
@@ -438,6 +458,19 @@ class Producto {
                 idProducto
             ]);
 
+            const presentaciones = await conec.query(`
+            SELECT
+                ROW_NUMBER() OVER () AS id,
+                nombre,
+                cantidad,
+                factor
+            FROM
+                productoPresentacion
+            WHERE
+                idProducto = ?`, [
+                idProducto
+            ]);
+
             const newImagenes = [];
             let countImage = 0;
 
@@ -453,7 +486,6 @@ class Producto {
 
                 countImage++;
             }
-
 
             const detalles = await conec.query(`
                 SELECT
@@ -495,6 +527,7 @@ class Producto {
                     url: imagen,
                 } : null,
                 precios,
+                presentaciones,
                 detalles,
                 atributos: atributos,
                 imagenes: newImagenes
@@ -618,7 +651,7 @@ class Producto {
                 hupdate = ?,
                 idUsuario = ?
             WHERE 
-                idProducto = ?`, [                
+                idProducto = ?`, [
                 req.body.idCategoria,
                 req.body.idMedida,
                 req.body.idMarca,
@@ -708,6 +741,29 @@ class Producto {
                     precio.nombre.trim(),
                     precio.precio,
                     0
+                ])
+            }
+
+            /**
+             * Actualizar presentaciones
+             */
+
+            await conec.execute(connection, `DELETE FROM productoPresentacion WHERE idProducto = ?`, [
+                req.body.idProducto
+            ]);
+
+            for (const presentacion of req.body.presentaciones) {
+                await conec.execute(connection, `
+                INSERT INTO productoPresentacion(
+                    idProducto,
+                    nombre,
+                    cantidad,
+                    factor
+                ) VALUES(?,?,?,?)`, [
+                    req.body.idProducto,
+                    presentacion.nombre,
+                    presentacion.cantidad,
+                    presentacion.factor,
                 ])
             }
 
@@ -1063,7 +1119,7 @@ class Producto {
         }
     }
 
-    async preferidoEstablecer(req, res) {
+    async setEstablecer(req, res) {
         let connection = null;
         try {
             connection = await conec.beginTransaction();
@@ -1085,12 +1141,14 @@ class Producto {
             if (connection != null) {
                 await conec.rollback(connection);
             }
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/preferidoEstablecer", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/setEstablecer", error);
         }
     }
 
-    async obtenerListPrecio(req, res) {
+    async getListPrecios(req, res) {
         try {
+            const { idProducto } = req.params;
+
             const lista = await conec.query(`
             SELECT 
                 nombre, 
@@ -1099,12 +1157,34 @@ class Producto {
                 precio 
             WHERE 
                 idProducto = ?`, [
-                req.query.idProducto
+                idProducto
             ]);
 
             return sendSuccess(res, lista);
         } catch (error) {
-            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/obtenerListPrecio", error);
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/getListPrecio", error);
+        }
+    }
+
+    async getListPresentaciones(req, res) {
+        try {
+            const { idProducto } = req.params;
+
+            const lista = await conec.query(`
+            SELECT 
+                nombre, 
+                cantidad,
+                factor
+            FROM 
+                productoPresentacion 
+            WHERE 
+                idProducto = ?`, [
+                idProducto
+            ]);
+
+            return sendSuccess(res, lista);
+        } catch (error) {
+            return sendError(res, "Se produjo un error de servidor, intente nuevamente.", "Producto/getListPresentacion", error);
         }
     }
 
