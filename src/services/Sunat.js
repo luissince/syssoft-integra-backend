@@ -727,10 +727,9 @@ class Sunat {
                 data: Buffer.from(xml[0].xmlGenerado, 'utf-8'),
                 headers: {
                     'content-type': 'application/xml',
-                    'content-disposition': `attachment; filename="${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml"`
                 }
             }
-            sendFile(res, responde);
+            sendFile(res, responde, `${empresa[0].razonSocial} ${xml[0].nombre} ${xml[0].serie}-${xml[0].numeracion}.xml`);
         } catch (error) {
             sendError(res, "Error al obtener el PDF", "Sunat/generarXmlSunat", error)
         }

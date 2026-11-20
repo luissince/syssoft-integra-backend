@@ -56,7 +56,7 @@ function sendFile(res, response, fileName) {
     contentDisposition.match(/filename=(?:"([^"]+)"|([^;]+))/)?.slice(1).find(Boolean)?.trim();
 
   res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.setHeader('Content-Length', response.data.length);
 
   return res.end(response.data);
